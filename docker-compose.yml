@@ -1,0 +1,54 @@
+services:
+  # ── MySQL(MariaDB) : 레거시 5.1 호환, arm64 네이티브, MyISAM 지원 ──
+  db:
+    image: mariadb:10.6
+    container_name: smeag-legacy-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: sunjae2117        # 덤프의 DB명과 동일하게
+      MYSQL_USER: smeag
+      MYSQL_PASSWORD: smeagpass
+    command: --character-set-server=utf8 --collation-server=utf8_general_ci
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./config/legacy.cnf:/etc/mysql/conf.d/legacy.cnf:ro
+      - ./backup:/backup:ro             # 여기에 sql 덤프를 넣어 import
+    ports:
+      - "3306:3306"
+
+  # ── phpMyAdmin : 브라우저에서 DB 확인/쿼리 ──
+  pma:
+    image: phpmyadmin:5
+    container_name: smeag-legacy-pma
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      UPLOAD_LIMIT: 512M
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+
+  # ── PHP 8.2 + Apache : Supabase(Postgres) 접속 조회 앱 ──
+  #   UI/화면은 레거시와 동일, 백엔드만 Supabase. (pdo_pgsql 사용)
+  web:
+    build:
+      context: .
+      dockerfile: config/web.Dockerfile   # php:8.2 + pdo_pgsql
+    container_name: smeag-web
+    restart: unless-stopped
+    environment:
+      PG_HOST: ${PG_HOST:-aws-0-ap-northeast-1.pooler.supabase.com}
+      PG_PORT: ${PG_PORT:-5432}
+      PG_DB:   ${PG_DB:-postgres}
+      PG_USER: ${PG_USER:-postgres.bauhnnpioaephlwurxzg}
+      PG_PASS: ${PG_PASS:?PG_PASS 를 .env 에 설정하세요}
+      PG_SSLMODE: ${PG_SSLMODE:-require}
+    volumes:
+      - ./src:/var/www/html            # 조회용 PHP 앱
+    ports:
+      - "8000:80"
+
+volumes:
+  db_data:

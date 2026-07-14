@@ -1,0 +1,11 @@
+[mysqld]
+# 레거시 MySQL 5.1 호환 설정
+# 핵심: 덤프의 37%가 timestamp='0000-00-00' → strict 모드면 import 실패.
+# sql_mode를 비워 zero-date/비엄격 허용 (레거시 동작 그대로 재현).
+sql_mode=""
+
+# 레거시 기본 스토리지 엔진 (덤프가 MyISAM)
+default_storage_engine=MyISAM
+
+# 대용량 덤프(228MB) import 대비
+max_allowed_packet=256M

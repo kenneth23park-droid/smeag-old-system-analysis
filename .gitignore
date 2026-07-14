@@ -1,0 +1,12 @@
+# 대용량/민감 파일 git 제외
+.env
+backup/*.sql
+*.sql
+sql/
+*.zip
+*.dmg
+*.xlsx
+db_data/
+~$*
+.DS_Store
+smeag-system-analysis.pptx
