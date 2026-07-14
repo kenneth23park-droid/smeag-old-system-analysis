@@ -10,3 +10,10 @@ db_data/
 ~$*
 .DS_Store
 smeag-system-analysis.pptx
+
+# exploration (PII·세션·대용량 로컬 전용)
+exploration/node_modules/
+exploration/shots/
+exploration/state.json
+exploration/*.json
+exploration/*.txt

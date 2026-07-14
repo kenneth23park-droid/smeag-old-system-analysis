@@ -43,12 +43,13 @@ $$;
 create or replace view masked.student_info as
 select
   s_idx,
-  -- 이름류는 부분마스킹(운영 식별 최소화). 실제 컬럼명은 DDL 로 확정 후 조정.
-  masked.mask_mid(s_name)          as s_name,
+  -- 이름류는 부분마스킹(운영 식별 최소화). 실제 legacy.student_info 컬럼 기준.
+  masked.mask_mid(k_name)          as k_name,
+  masked.mask_mid(e_name)          as e_name,
   masked.mask_full(s_jumin)        as s_jumin,
   masked.mask_mid(s_tel)           as s_tel,
-  masked.mask_mid(s_email)         as s_email,
-  masked.mask_full(s_passport)     as s_passport
+  masked.mask_mid(uhak_phone)      as uhak_phone,
+  masked.mask_mid(s_addr)          as s_addr
 from legacy.student_info;
 
 comment on schema masked is '개인정보 마스킹 노출 계층. 앱/분석은 이 스키마만 사용.';

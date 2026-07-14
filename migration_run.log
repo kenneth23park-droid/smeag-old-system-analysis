@@ -1,0 +1,104 @@
+  ⚠ 검토대상 포함: course_info_new
+  ⚠ 검토대상 포함: room_reserve
+
+[Phase 0] 스키마/마스터 준비
+   OK sql schema/00_init.sql
+
+[Phase 1] 대용량 병렬 (12개, workers=4)
+  ✗ [legacy] student_info_history     rows=5000 5.56s ERROR: new row for relation "student_info_history" violates check constraint "chk_student_info_history_course_module"
+DETAIL:  Failing row contains (5, 65348, 윤빛나, YOON BINNA, normal, null, 29, F, 2019-11-11, 1234, 2019-11-11, 2020-01-31, 12, , 1331892, 3, 1, 1331892, 3,, 12,, 외국인학생이랑 같은방으로 부탁드립니다.
+, , , 0, , , null, realsoon, 김지훈, 0, kor, 1990-02-19, M54692738, 2019-04-19, Y, , 2915, , SPARTA, SPARTA, general, 1, 18, 18, 12, 2019-04-19, , SECURITY BANK, 1-437-01231-4(swift cord: RCBC PHMM) SME-AG GLOBAL EDUCATION INC, 100000, Admission Fee, 3060000, 12 weeks-IELTS 6.0, , 2160000, 12 Weeks- 3 Persons/room-SPARTA , , 0, , 0, , 0, , , , , 1500000, amount, 500000, 1500000, 0, , 3720000, 1600000, 5320000, 0, null, , account, null, , , , null, , , 필통유학(realsoon), realsoon, , , , null, 2019-11-04 10:51:01+00, cebusme, 119.93.18.186, 2019-11-05 11:10:28).
+CONTEXT:  COPY student_info_history, line 1: "5	65348	윤빛나	YOON BINNA	normal	\N	29	F	2019-11-11	1234	2019-11-11	2020-01-31	12		1331892	3	1	13..."
+
+  ✓ [legacy] reserve_info             rows=69350 8.84s 
+  ✓ [legacy] student_change           rows=26857 17.19s 
+  ✓ [legacy] room_move                rows=148854 18.64s 
+  ✓ [legacy] reserve_info_history     rows=54698 9.16s 
+  ✓ [legacy] student_payment          rows=89477 34.5s 
+  ✓ [legacy] zipcode                  rows=52032 7.09s 
+  ✗ [legacy] student_info             rows=10000 9.74s ERROR: new row for relation "student_info" violates check constraint "chk_student_info_course_module"
+DETAIL:  Failing row contains (44018, Takayuki YAMAMOTO, Takayuki YAMAMOTO, normal, null, 25, M, 2017-09-02, 5J557 20:40pm(03day), 2017-09-03, 2017-09-23, 3, , 1330886, 3, 1, 1330886, 3,, 3,, c/o cebu ryugauku master 
+add flight info yoshia8/21
+8/14 chan..., , , 0, , , null, smeag, yoshida, , jap, 920702, TK8105374, 2017-08-07, Y, null, 2532, null, CAPITAL, CAPITAL, general, 1, 50, 50, 3, 2017-09-01, , BANCO DE ORO(BDO),(dollar), 102420060926(swift cord: BNORPHMM) CEBU-AYALA BUSINESS PARK, SME..., 15000, Admission Fee, 85500, 3 weeks-TOEFL 80, , 60000, 3 Weeks- 3 Persons/room-CAPITAL , , 0, , 4400, -15000+11400+8000, 0, , , , , 70907, percent, 43, 70907%, 0, , 93993, 70907, 164900, 0, null, , account, null, , , , null, , , ACHIEVE GOAL(ACHIEVEGOAL), ACHIEVEGOAL, , , , null, null).
+CONTEXT:  COPY student_info, line 4661: "44018	Takayuki YAMAMOTO	Takayuki YAMAMOTO	normal	\N	25	M	2017-09-02	5J557 20:40pm(03day)	2017-09-03	..."
+
+  ✓ [legacy] student_info_invoice     rows=128580 64.73s 
+  ✓ [legacy] room_reserve             rows=627174 63.13s 
+  ✓ [legacy] room_change_log          rows=552118 107.81s 
+  ✓ [legacy] room_elec                rows=1670841 154.93s 
+
+[Phase 2] 업무 테이블 병렬 (19개, workers=4)
+  ✓ [legacy] course_info              rows=71 1.31s 
+  ✓ [legacy] course_category          rows=14 1.32s 
+  ✓ [legacy] uhak_day_info            rows=158 1.4s 
+  ✓ [legacy] visitors                 rows=38 1.47s 
+  ✓ [legacy] traffic_records          rows=0 1.08s 
+  ✓ [legacy] room_date                rows=41 1.19s 
+  ✗ [legacy] smeag_dayoff             rows=85 1.28s ERROR: new row for relation "smeag_dayoff" violates check constraint "chk_smeag_dayoff_campus"
+DETAIL:  Failing row contains (9, 2016-08-26 00:00:00+00, 2016-08-27 00:00:00+00, SMEAG 공휴일, cebusme3, , , , , , 0.25, , , , , , , , , , ).
+CONTEXT:  COPY smeag_dayoff, line 2: "9	2016-08-26 00:00:00	2016-08-27 00:00:00	SMEAG 공휴일	cebusme3						0.25										"
+
+  ✓ [legacy] cash_payments_history    rows=11 1.44s 
+  ✓ [legacy] cash_payments            rows=4 1.15s 
+  ✓ [legacy] category                 rows=2 1.13s 
+  ✓ [legacy] room_category            rows=106 1.39s 
+  ✓ [legacy] tution_fee               rows=100 1.18s 
+  ✓ [legacy] student_group_info       rows=12 1.22s 
+  ✓ [legacy] room_info                rows=1127 1.41s 
+  ✓ [legacy] course_info_new          rows=40 1.44s 
+  ✓ [legacy] room_list                rows=2797 1.69s 
+  ✗ [legacy] smeag_sched_info         rows=30 1.12s ERROR: new row for relation "smeag_sched_info" violates check constraint "chk_smeag_sched_info_campus"
+DETAIL:  Failing row contains (72, 2016-11-07 00:00:00+00, 2016-11-10 00:00:00+00, Fam-Trip (Russia), cebusme3, , , , 0.25, , , , , , , 7 agents apiled, , , ).
+CONTEXT:  COPY smeag_sched_info, line 2: "72	2016-11-07 00:00:00	2016-11-10 00:00:00	Fam-Trip (Russia)	cebusme3				0.25							7 agents apiled	..."
+
+  ✓ [legacy] student_counsel          rows=1 1.17s 
+  ✓ [legacy] uhak_agency_com          rows=4004 1.75s 
+
+[Phase 3] CMS g4_* 병렬 (24개, workers=4)
+  ✗ [-] g4_score                 rows=0 0s SKIP-special(eav)
+  ✓ [cms] g4_poll                  rows=0 0.91s 
+  ✓ [cms] g4_memo                  rows=0 0.91s 
+  ✓ [cms] g4_mail                  rows=0 1.08s 
+  ✓ [cms] g4_board_file            rows=1 1.22s 
+  ✓ [cms] g4_board                 rows=3 1.22s 
+  ✓ [cms] g4_config                rows=1 1.12s 
+  ✓ [cms] g4_popular               rows=0 0.98s 
+  ✗ [cms] g4_write_office_holding  rows=14 1.11s ERROR: new row for relation "g4_write_office_holding" violates check constraint "chk_g4_write_office_holding_wr_option"
+DETAIL:  Failing row contains (13, -4, , 13, 0, 0, , , , 클래식 홀딩, SACHIKO FORSYTH	 / 
+
+예정은 10월 23일 이었으나 오늘..., , , 0, 0, , 9, 0, 0, cebusme104, *2CA41C01E685287626AD1B2C1E9C912946153A73, Ruth, ruth@smenglish.com, , 2016-09-12 10:27:54+00, 2016-09-12 10:27:54, 122.3.176.155, , , , , , , , , , ).
+CONTEXT:  COPY g4_write_office_holding, line 1: "13	-4		13	0	0				클래식 홀딩	SACHIKO FORSYTH\t / \r\n\r\n예정은 10월 23일 이었으나 오..."
+
+  ✓ [cms] g4_board_new             rows=0 1.17s 
+  ✓ [cms] g4_visit_sum             rows=5431 1.81s 
+  ✗ [cms] g4_write_office_GAC      rows=86 1.2s ERROR: new row for relation "g4_write_office_GAC" violates check constraint "chk_g4_write_office_GAC_wr_option"
+DETAIL:  Failing row contains (1, -1, , 1, 0, 0, , , , GAC 상담 내용 관리 게시판, GAC 상담 내역을 관리 하기 위한 게시판 입니다., , , 0, 0, , 17, 0, 0, staff2, *85B5F85EB4EB322C7DDA0ADDA4A6F50165C0FB12, 센터관리자, cebusme21@hotmail.com, http://www.smenglish.com, 2012-03-10 19:34:36+00, 2012-03-10 19:34:36, 211.172.221.194, , , , , , , , , , ).
+CONTEXT:  COPY g4_write_office_GAC, line 1: "1	-1		1	0	0				GAC 상담 내용 관리 게시판	GAC 상담 내역을 관리 하기 위한 게시..."
+
+  ✓ [cms] g4_board_good            rows=0 1.1s 
+  ✓ [cms] g4_member                rows=2053 2.24s 
+  ✓ [cms] g4_scrap                 rows=0 1.23s 
+  ✓ [cms] g4_poll_etc              rows=0 1.47s 
+  ✓ [cms] g4_login                 rows=3 1.14s 
+  ✓ [cms] g4_auth                  rows=1 1.18s 
+  ✓ [cms] g4_group                 rows=1 1.56s 
+  ✓ [cms] g4_token                 rows=1 1.63s 
+  ✗ [cms] g4_write_office_share    rows=4 1.25s ERROR: new row for relation "g4_write_office_share" violates check constraint "chk_g4_write_office_share_wr_option"
+DETAIL:  Failing row contains (1, -1, , 1, 0, 0, , , , 테스트, 테스트 입니다., , , 0, 0, , 20, 0, 0, staff2, *85B5F85EB4EB322C7DDA0ADDA4A6F50165C0FB12, 센터관리자, cebusme21@hotmail.com, http://www.smenglish.com, 2012-03-10 19:34:36+00, 2012-03-10 19:34:36, 211.172.221.194, , , , , , , , , , ).
+CONTEXT:  COPY g4_write_office_share, line 1: "1	-1		1	0	0				테스트	테스트 입니다.			0	0		20	0	0	staff2	*85B5F85EB4EB322C7DDA0ADDA4A6F501..."
+
+  ✓ [cms] g4_visit                 rows=58816 7.8s 
+  ✓ [cms] g4_group_member          rows=1 1.29s 
+  ✓ [cms] g4_point                 rows=146387 15.12s 
+
+[Phase 4] 모델링·보안 후처리 (순차)
+   ERROR sql schema/reservations.sql: relation "uq_res_no_dup" already exists
+
+   OK sql schema/g4_score_eav.sql
+   ERROR sql security/rls.sql: relation "legacy.student_info" does not exist
+LINE 52: from legacy.student_info;
+              ^
+
+   OK sql schema/constraints.sql
+
+완료(execute).

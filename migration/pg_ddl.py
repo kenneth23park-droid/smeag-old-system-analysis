@@ -16,10 +16,14 @@ def build_create(ddl, schema: str):
         line = '  "%s" %s' % (cname, pgt)
         cols_sql.append(line)
         ev = enum_values(mtype)
-        if ev:   # (결정 5) enum/set → CHECK
-            vals = ", ".join("'%s'" % v.replace("'", "''") for v in ev)
+        if ev and mtype.strip().lower().startswith("enum"):
+            # (결정 5) enum → CHECK. 단, 레거시 NOT NULL enum 에 빈 문자열('')이
+            # 저장된 사례가 있어 ''도 허용(원본 데이터 무손실 보존).
+            allowed = list(dict.fromkeys(list(ev) + [""]))
+            vals = ", ".join("'%s'" % v.replace("'", "''") for v in allowed)
             checks.append('  CONSTRAINT "chk_%s_%s" CHECK ("%s" IS NULL OR "%s" IN (%s))'
                           % (tname, cname, cname, cname, vals))
+        # set 타입은 조합값('a,b')이 가능하므로 IN CHECK 부적합 → 생략(text 보존)
     pk = ""
     if ddl.pk:
         pkcols = ", ".join('"%s"' % c.replace("-", "_") for c in ddl.pk)

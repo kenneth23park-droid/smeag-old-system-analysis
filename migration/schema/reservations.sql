@@ -8,12 +8,31 @@
 -- ════════════════════════════════════════════════════════════════
 begin;
 
--- 0) 기존 모델 보존(감사/롤백) — 존재할 때만
+-- 0) 기존 모델 보존(감사/롤백) — 존재할 때만. 재실행 안전(제약명 충돌 방지).
 do $$
 begin
+  -- 이전 재실행 잔재(_prev) 정리
+  if to_regclass('public.dorm_reservations_prev') is not null then
+    execute 'drop table public.dorm_reservations_prev cascade';
+  end if;
   if to_regclass('public.dorm_reservations') is not null then
     execute 'alter table public.dorm_reservations rename to dorm_reservations_prev';
+    -- rename 시 딸려온 제약(uq_res_no_dup)이 새 테이블과 충돌하지 않도록 개명
+    if exists (select 1 from pg_constraint
+               where conname = 'uq_res_no_dup'
+                 and conrelid = 'public.dorm_reservations_prev'::regclass) then
+      execute 'alter table public.dorm_reservations_prev rename constraint uq_res_no_dup to uq_res_no_dup_prev';
+    end if;
   end if;
+end $$;
+
+-- 재실행 안전: 어느 테이블에 남아있든 uq_res_no_dup 잔재를 먼저 제거(중복 인덱스명 충돌 방지)
+do $$
+declare r record;
+begin
+  for r in select conrelid::regclass as tbl from pg_constraint where conname = 'uq_res_no_dup' loop
+    execute format('alter table %s drop constraint uq_res_no_dup', r.tbl);
+  end loop;
 end $$;
 
 -- 1) 정본 스테이징: reserve_info 정제 (제로데이트/이상치 → null, 문자열 → date)

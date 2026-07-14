@@ -65,10 +65,29 @@ def parse_ddl(path: str) -> TableDDL:
 
 
 def _split_tuple(body: str):
-    """`v1, v2, 'a,b', NULL` → ['v1','v2','a,b',None]. 따옴표/이스케이프 인지 상태머신."""
+    """`v1, 'a,b', NULL` → ['v1','a,b',None]. 따옴표/이스케이프 인지 상태머신.
+
+    따옴표 여부를 필드 단위로 추적한다:
+      - 따옴표 문자열: 내부 내용을 그대로 보존(의도적 공백 포함).
+      - 무따옴표 토큰: 앞뒤 공백 제거(`, '` 포맷의 구분자 공백 제거), 'NULL'은 None.
+    """
     out, buf = [], []
+    quoted = False   # 현재 필드가 따옴표 문자열이었는지
+    closed = False   # 따옴표 문자열이 닫힌 뒤(콤마 전 공백 무시용)
     i, n = 0, len(body)
     in_str = False
+
+    def flush():
+        nonlocal buf, quoted, closed
+        if quoted:
+            out.append("".join(buf))
+        else:
+            t = "".join(buf).strip()
+            out.append(None if t.upper() == "NULL" else t)
+        buf = []
+        quoted = False
+        closed = False
+
     while i < n:
         ch = body[i]
         if in_str:
@@ -83,38 +102,28 @@ def _split_tuple(body: str):
                     i += 2
                     continue
                 in_str = False
+                closed = True
                 i += 1
                 continue
             buf.append(ch)
             i += 1
         else:
-            if ch == "'":
-                in_str = True
+            if ch == ",":
+                flush()
                 i += 1
-            elif ch == ",":
-                out.append("".join(buf))
-                buf = []
+            elif closed:                       # 따옴표 닫힘 후 콤마 전까지(공백 등) 무시
+                i += 1
+            elif ch == "'":                    # 따옴표 문자열 시작: 앞 공백 버퍼 제거
+                if "".join(buf).strip() == "":
+                    buf = []
+                in_str = True
+                quoted = True
                 i += 1
             else:
                 buf.append(ch)
                 i += 1
-    out.append("".join(buf))
-
-    def norm(v):
-        s = v.strip()
-        if s == "" and v.strip() == "":
-            # 빈 문자열 리터럴은 위 in_str 경로로 처리됨; 여기 도달하면 무따옴표 토큰
-            pass
-        if s.upper() == "NULL":
-            return None
-        return s
-    # 무따옴표 NULL 만 None; 따옴표 값은 상태머신에서 이미 순수문자열
-    result = []
-    # 재구성: 위 buf 방식은 따옴표 여부 정보를 잃음 → 간이 판정
-    for tok in out:
-        t = tok.strip()
-        result.append(None if t.upper() == "NULL" else tok)
-    return result
+    flush()
+    return out
 
 
 def iter_rows(path: str):

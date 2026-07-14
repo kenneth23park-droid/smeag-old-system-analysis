@@ -104,8 +104,50 @@
   - 결정 매핑: A=reservations.sql, B=g4_*→cms스키마, C=EAV, D=EXCLUDE_TABLES, E=rls.sql.
 - 검증: 파이썬 7개 py_compile 통과. **미실행(승인 대기).**
 
+### 12) GitHub push 완료 (2026-07-14)
+- 원격을 jitnet57 → **kenneth23park-droid** 로 변경, private repo `smeag-old-system-analysis` 생성/push(커밋 803d1a3, 25파일).
+- 하드코딩 DB 비번 제거(normalize.py/make_dupe_xlsx.py → env). .gitignore에 sql/·*.zip·*.xlsx·.env·.pptx 제외. migration/*.sql은 force-add.
+- 키체인 자격증명 kenneth23park-droid로 교체. **PAT·DB비번 노출 → 로테이션 필요.**
+
+### 13) 운영 관리자 UI(smeadmin.com) 화면/메뉴 분석 (2026-07-14)
+- 브라우저 세션으로 운영중 관리자(그누보드4) 전 메뉴 순회·캡처. 결과를 `진행사항_화면캡쳐_메뉴설명_정리.md`로 저장.
+- 대분류 4개(Record/Student's/Dormitory/Cash Cards). 학생 90,527 / 기숙사 1,127실 / 방변경로그 552,177 / 방이동 4,318.
+- 검색폼 파라미터·공통코드(캠퍼스 sparta=ENCANTO/classic/capital, pay_status N/Y/X/R, condition 13종) 도출 + 신규 시스템 설계 초안.
+- **캠퍼스 코드 화면별 불일치 발견**: DEPOSIT(sparta/classic/capital) vs DORM SEARCH(1/4/5) vs ELEC&WATER(S/C/E) → 신규는 campus_id 단일화 필요.
+- 전 화면 폼 파라미터 명세 + ERD(텍스트) + REST API 초안까지 문서에 확장(11~13장).
+- 개인정보는 담지 않고 화면구성/컬럼만 정리.
+
+### 14) 이관 실행 완료·검증 (2026-07-14)
+- `migration/` 오케스트레이션 --execute 실행(Phase 0~4). 원본 MySQL 무접속(로컬 sql/ 덤프 읽기전용→Supabase 적재).
+- **파서/제약 버그 수정 후 완주**:
+  - `mysql_dump.py _split_tuple`: 콤마 뒤 공백이 값에 포함되던 버그(`' F'`,`' 135'` → varchar 초과) → 따옴표/무따옴표 필드 상태추적으로 수정.
+  - `pg_ddl.py`: 레거시 NOT NULL enum에 `''` 저장 사례 → CHECK에 `''` 허용, set타입(조합값)은 CHECK 생략(text 보존). 7개 테이블 재적재.
+  - `reservations.sql`: 테이블 rename(_prev) 시 제약명 `uq_res_no_dup` 충돌 → _prev 제약 개명.
+  - `security/rls.sql`: masked.student_info가 가상 컬럼(s_name/s_email/s_passport) 참조 → 실제 컬럼(k_name/e_name/s_jumin/s_tel/uhak_phone/s_addr)으로 수정.
+- **행수 검증 OK**: room_elec 1,670,841 / room_reserve 627,174 / room_change_log 552,118 / reserve_info 69,350 / student_info 90,524 / student_info_history 183,991 / g4_point 146,387 / g4_visit 58,816 — 전부 덤프와 일치.
+- **정본 모델**: dorm_reservations 69,326 + rejects 32(≈reserve_info 69,350, 나머지 uq 중복 제거) / dorm_rooms 4,846 / dorm_students 64,883. masked.student_info 90,524 정상.
+- 총 54개 테이블 적재 + Phase4 후처리(reservations/g4_score_eav/rls/constraints) 전부 OK. **이관 완료.**
+
+### 15) 신규 관리자 화면설계 + Playwright 자동 화면탐구 (2026-07-14)
+- **화면설계서** 작성: `docs/design-admin/화면설계서.md` — 전체 메뉴 IA(4대분류·45화면), 공통 레이아웃/컴포넌트, 핵심6화면 와이어프레임, 설계원칙 P1~P6(캠퍼스코드 단일화·i18n·캠퍼스분기폐지 등).
+- **인터랙티브 프로토타입**: `docs/design-admin/prototype.html`(Artifact 게시) + `prototype_local.html`(로컬). teal 강조색, 성별/결제상태/캠퍼스 의미색, 대시보드·STUDENT LIST·DEPOSIT·기숙사배치도·BACK-UP LOG·Admission Date 실렌더. Playwright 검증(콘솔에러 0, bar-fill span display:block 버그 수정).
+- **Playwright 자동 화면탐구**(`exploration/`): kenneth 로그인 자동화(핵심: flogin의 onsubmit이 action을 login_check.php로 바꿈 → `<input type=image>` 버튼 **클릭** 필요) → 세션 재사용 병렬 크롤(동시성4) **45화면 100%**. 구조 메타만 수집, PII 미기록, 산출물 gitignore.
+- **실측 정정/확장**(기존 문서 대비): `pay_status X=분납(INSTALL)`(문서 "예외"는 오류) / 캠퍼스코드 **4중**(sparta·1·S·SP + SPARTA/CLASSIC/CAPITAL) / 국적 **12종**(sa=러시아 라벨오류) / 코스 71·유학원 111·방구역 31·그룹 36 전량 확보. → `result.md`에 전체 과정·결과 보고.
+- **신규 요구사항 반영**: 저장·인보이스 발행 **중복실행 방지(idempotency)** — 더블서밋 가드 + 멱등키 + DB 유니크제약. 화면설계서 §4-1, 프로토타입 데모, result.md §5.
+
+### 16) 정본 vs 레거시 교차검증 + 계획/실제 퇴실 이원화 (2026-07-14)
+- **교차검증**(dorm_reservations 정본 vs legacy.room_reserve): 공통키는 **ri_idx**(예약원장). room_reserve.r_idx(1330885 등)는 reserve_info.r_idx(객실ID)와 다른 자체키 → r_idx 조인 금지.
+  - ri_idx 커버리지: reserve_info 69,350 / dorm 69,326(−24, null_date rejects) / room_reserve 17,163(최근 부분 스냅샷).
+  - 공통 17,149건 중 **날짜구간 완전일치 99.29%(17,028)**. 정본 span_days 총합 2,893,205 = room_reserve_compat 뷰와 100% 일치.
+  - 불일치 121건 전부 방향성 설명됨: 정본 퇴실>실적 74(조기퇴실/방변경) + 입실일 상이 49, 역방향(실적>계획) 0건. room_reserve 단독 14건 중 13건은 reserve_info에 없는 고아행 → 정본이 더 정합.
+- **계획/실제 퇴실 이원화**(`schema/actual_checkout.sql`, Phase4 배선): dorm_reservations에 `actual_check_in/out`(room_reserve 실적 min/max 주입) + 생성컬럼 `actual_days`·`early_checkout_days`(계획퇴실−실제퇴실). check_in/out(계획)은 정본 유지. 재실행 안전.
+  - 결과: 실적매칭 17,149 / 계획만 52,177 / 조기퇴실 74·연장 0·일치 17,075. `dorm_early_checkouts` 뷰 + `idx_res_actual_co` 생성. 최대 조기 147일(ri_idx 174466: 계획167→실적20).
+
 ## 남은 작업 / TODO
-- [ ] **sql/ 덤프 이관 결정 승인 후 `migration/run.sh execute` 진행** (정본=reserve_info? / g4_* 포함? / 임시테이블 제외 / 개인정보 보호수준 / rls.sql 마스킹 컬럼 실제명 확정)
+- [ ] 핵심 6화면 고해상도 목업 확정 + 나머지 화면 실렌더 확장
+- [ ] `sa=러시아` 등 라벨오류 신규 마스터에서 교정(SA=사우디), 캠퍼스 4중코드→campus_id 매핑표 확정
+- [ ] course(71)/agency(111)/zone(31) 마스터를 신규 DB 시드로 이관
+- [x] ~~sql/ 덤프 이관 실행~~ **완료(2026-07-14)** — 54테이블 + Phase4 후처리, 행수검증 OK.
 - [ ] 대시보드 통계 쿼리 최적화(구간 테이블 직접 집계 or 요약 뷰) — 첫 로드 6.7s 단축
 - [ ] 검증 후 `dorm_reservations_flat` 백업 테이블 삭제
 - [ ] (선택) 대시보드 통계 쿼리 최적화(구간 테이블 직접 집계 or 요약 뷰)

@@ -120,7 +120,8 @@ def main():
             run_phase(ph[pnum], files, dry, args.workers)
     if "4" in phases:
         print("\n[Phase 4] 모델링·보안 후처리 (순차)")
-        for rel in ("schema/reservations.sql", "schema/g4_score_eav.sql",
+        for rel in ("schema/reservations.sql", "schema/actual_checkout.sql",
+                    "schema/g4_score_eav.sql",
                     "security/rls.sql", "schema/constraints.sql"):
             print("  ", run_sql_file(rel, dry))
 
