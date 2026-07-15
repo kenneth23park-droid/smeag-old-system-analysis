@@ -127,6 +127,9 @@
   table.grid tr:last-child td{border-bottom:0}
   table.grid tbody tr:hover{background:var(--surface-2)}
   td.num,th.num{text-align:right}
+  table.grid th.sortable{cursor:pointer;user-select:none}
+  table.grid th.sortable:hover{color:var(--text);background:var(--accent-weak)}
+  table.grid th .sarr{color:var(--accent);font-weight:800}
   table.grid tr.grp td{background:var(--surface-2);font-weight:800;font-size:11.5px;letter-spacing:.3px;color:var(--dim)}
   table.grid tr.in td{background:color-mix(in srgb,var(--female) 9%,transparent)}
   .pill.in{color:var(--female);background:color-mix(in srgb,var(--female) 15%,transparent)}
@@ -570,6 +573,32 @@ R.pickup=()=>{
 function exportTable(url){const t=REAL&&REAL.tables&&REAL.tables[url];if(!t||!t.rows.length){toast('내보낼 데이터 없음','',false);return;}
   csvDownload([t.cols,...t.rows],'SMEAG_'+url.replace(/[^\w]/g,'_')+'.csv');
   toast('엑셀 내보내기 완료',`${t.rows.length}행 · ${url}`,true);}
+// 헤더 클릭 정렬 (숫자/문자 자동) — 모든 .grid 표
+function makeSortable(scope){scope.querySelectorAll('table.grid').forEach(tbl=>{
+  const ths=[...tbl.querySelectorAll('thead th')];
+  ths.forEach((th,idx)=>{ if(th.dataset.wired)return; th.dataset.wired='1'; th.classList.add('sortable');
+    th.addEventListener('click',()=>{
+      const tb=tbl.querySelector('tbody'); if(!tb)return;
+      const rows=[...tb.querySelectorAll('tr')].filter(r=>!r.classList.contains('grp'));
+      if(!rows.length)return;
+      const dir=th.dataset.dir==='asc'?'desc':'asc';
+      ths.forEach(x=>{x.dataset.dir='';const s=x.querySelector('.sarr');if(s)s.remove();});
+      th.dataset.dir=dir;
+      const val=r=>((r.children[idx]||{}).textContent||'').trim();
+      const num=rows.every(r=>{const t=val(r).replace(/[,%\s]/g,'');return t===''||t==='—'||!isNaN(t);});
+      rows.sort((a,b)=>{let x=val(a),y=val(b);
+        if(num){x=parseFloat(x.replace(/[,%\s]/g,''))||0;y=parseFloat(y.replace(/[,%\s]/g,''))||0;return dir==='asc'?x-y:y-x;}
+        return dir==='asc'?x.localeCompare(y,'ko'):y.localeCompare(x,'ko');});
+      tb.querySelectorAll('tr.grp').forEach(g=>g.remove()); // 정렬 시 그룹헤더 평탄화
+      rows.forEach(r=>tb.appendChild(r));
+      th.appendChild(el('span','sarr',dir==='asc'?' ▲':' ▼'));
+    });});});}
+// 현재 화면의 .grid 를 (정렬된 DOM 순서 그대로) 엑셀 export
+function exportGrid(fname){const tbl=document.querySelector('#main table.grid');if(!tbl){toast('내보낼 표 없음','',false);return;}
+  const heads=[...tbl.querySelectorAll('thead th')].map(t=>t.textContent.replace(/[▲▼]/g,'').trim());
+  const rows=[...tbl.querySelectorAll('tbody tr')].filter(r=>!r.classList.contains('grp'))
+    .map(tr=>[...tr.children].map(td=>td.querySelector('button')?'':td.textContent.trim()));
+  csvDownload([heads,...rows],fname); toast('엑셀 내보내기 완료',`${rows.length}행 · 현재 정렬 순서 그대로`,true);}
 
 R.roommove=(m)=>{
   const rt=(REAL&&REAL.tables&&REAL.tables[m.u])||{cols:[],rows:[]};
@@ -822,8 +851,9 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   const cf=document.getElementById('cf1');if(cf)cf.textContent=document.getElementById('campus').selectedOptions[0].text;
   m.querySelectorAll('[data-guard]').forEach(b=>b.addEventListener('click',()=>guard(b)));
   m.querySelectorAll('[data-excel]').forEach(b=>b.addEventListener('click',()=>exportRoomstat(+b.dataset.excel)));
-  m.querySelectorAll('[data-pkexcel]').forEach(b=>b.addEventListener('click',exportPickup));
-  m.querySelectorAll('[data-tblexcel]').forEach(b=>b.addEventListener('click',()=>exportTable(b.dataset.tblexcel)));
+  m.querySelectorAll('[data-pkexcel]').forEach(b=>b.addEventListener('click',()=>exportGrid('SMEAG_주간픽업.csv')));
+  m.querySelectorAll('[data-tblexcel]').forEach(b=>b.addEventListener('click',()=>exportGrid('SMEAG_'+b.dataset.tblexcel.replace(/[^\w]/g,'_')+'.csv')));
+  makeSortable(m);
   const preset=m.querySelector('#preset');
   if(preset)preset.addEventListener('change',()=>{
     if(preset.value==='pickup'){const [a,b]=pickupWeek();const f=m.querySelector('#depFrom'),t=m.querySelector('#depTo');
