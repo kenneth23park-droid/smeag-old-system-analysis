@@ -370,7 +370,7 @@ const MENU={
     {k:'pickup',t:'주간 픽업 리스트',u:'room_search2.php/pickup',tag:'주간'},
     {k:'spec',t:'DORM STATUS',u:'room_stat2.php',note:'배치도 영문판 (MALE/FEMALE/FAMILY)'},
     {k:'spec',t:'기숙사이동관리',u:'room_move_list.php',cols:['유학원','국적','이름','나이','성별','출발일','픽업','기간','변경전객실','처리일','변경될객실','상태','상황','상태변경']},
-    {k:'spec',t:'ROOM M-LIST',u:'room_move_list2.php',cols:['CAMPUS','AGENCY','NAT','NAME','AGE','SEX','A-DAY','DEPA','PICKUP','PERI','BEFORE','D-DAY','S-DAY','AFTER','COND','ORDER','CHANGE']},
+    {k:'roommove',t:'ROOM M-LIST',u:'room_move_list2.php',cols:['CAMPUS','AGENCY','NAT','NAME','AGE','SEX','A-DAY','DEPA','PICKUP','PERI','BEFORE','D-DAY','S-DAY','AFTER','COND','ORDER','CHANGE']},
     {k:'spec',t:'일별 입실&퇴실',u:'room_use_count_list.php',cols:['처리일자','신규입실','연장입실','홀딩사용입실','일반퇴실','환불퇴실','퇴교퇴실','홀딩퇴실']},
     {k:'spec',t:'DAY IN&OUT',u:'room_use_count_list2.php',note:'일별 입퇴실 영문 매트릭스'},
     {k:'spec',t:'ELEC & WATER',u:'room_elec.php',note:'전기·수도 요금 계산 (search_condition S/C/E)'},
@@ -566,6 +566,32 @@ R.pickup=()=>{
   <div class="twrap"><table class="grid">
     <thead><tr><th>DATE</th><th>TIME</th><th>FLIGHT</th><th>NAME</th><th>NAT</th><th>AGENCY</th><th>CAMPUS</th><th>ROOM</th><th>STATUS</th></tr></thead>
     <tbody>${body||`<tr><td colspan="9" style="text-align:center;color:var(--faint);padding:20px">픽업 데이터 없음 (실데이터본에서 표시)</td></tr>`}</tbody></table></div>`;};
+
+function exportTable(url){const t=REAL&&REAL.tables&&REAL.tables[url];if(!t||!t.rows.length){toast('내보낼 데이터 없음','',false);return;}
+  csvDownload([t.cols,...t.rows],'SMEAG_'+url.replace(/[^\w]/g,'_')+'.csv');
+  toast('엑셀 내보내기 완료',`${t.rows.length}행 · ${url}`,true);}
+
+R.roommove=(m)=>{
+  const rt=(REAL&&REAL.tables&&REAL.tables[m.u])||{cols:[],rows:[]};
+  const [thu,wed]=pickupWeek();
+  return `
+  <div class="ph"><h1>ROOM M-LIST</h1><span class="sub">기숙사 이동 관리 · 방변경(ROOM MOVE LIST)</span><span class="url">${m.u}</span>
+    <span class="actions" style="margin-left:auto"><button class="btn primary" data-tblexcel="${m.u}">📊 EXCEL</button></span></div>
+  <div class="filters">
+    <div class="field"><label>기간 FROM (목)</label><input id="rmFrom" type="date" value="${thu}"></div>
+    <div class="field"><label>기간 TO (수)</label><input id="rmTo" type="date" value="${wed}"></div>
+    <div class="field"><label>CAMPUS</label><select>${ddOpts(DICT.campus,'ALL')}</select></div>
+    <div class="field"><label>DORM CONDITION</label><select>${ddOpts(DICT.room_gubun,'ALL')}</select></div>
+    <div class="field"><label>STDNT CONDITION</label><select>${ddOpts(DICT.now_status,'ALL')}</select></div>
+    <div class="field"><label>AGENCY</label><select>${ddOpts(DICT.uhak,'ALL')}</select></div>
+    <div class="field grow"><label>NAME</label><input placeholder="이름 검색"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn primary">SEARCH</button></div>
+  </div>
+  <div class="chips" style="margin-bottom:10px"><span class="chip on">FIRST (MOVE: ${rt.rows.length})</span><span class="chip" style="color:var(--female);border-color:var(--female)">EXCLUDE: CANCEL·PAYCANCEL·CHECKING·WAITING</span>${REAL&&REAL.tables?REALBADGE:''}</div>
+  <div class="twrap"><table class="grid">
+    <thead><tr>${(rt.cols.length?rt.cols:['CAMPUS','AGENCY','NAT','NAME','AGE','SEX','A-DAY','PERI','BEFORE','D-DAY','AFTER','COND','ORDER']).map(c=>`<th>${esc(c)}</th>`).join('')}<th>CHANGE</th></tr></thead>
+    <tbody>${rt.rows.length?rt.rows.map(r=>`<tr>${rt.cols.map((_,i)=>`<td>${esc(r[i])}</td>`).join('')}<td><button class="btn" style="padding:3px 9px;font-size:11px">MDF</button></td></tr>`).join(''):`<tr><td colspan="14" style="text-align:center;color:var(--faint);padding:20px">데이터 없음 (실데이터본에서 표시)</td></tr>`}</tbody></table></div>
+  <div class="banner">기간 기본값: <b>이번주 목요일 → 다음주 수요일</b> 자동 설정 · MySQL 비교검증용 실데이터</div>`;};
 
 R.roomstat=()=>{
   const CELLW=22, INFOW=72+58+230; // 방번호+인실+이름 = 좌측 고정폭
@@ -771,6 +797,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   m.querySelectorAll('[data-guard]').forEach(b=>b.addEventListener('click',()=>guard(b)));
   m.querySelectorAll('[data-excel]').forEach(b=>b.addEventListener('click',()=>exportRoomstat(+b.dataset.excel)));
   m.querySelectorAll('[data-pkexcel]').forEach(b=>b.addEventListener('click',exportPickup));
+  m.querySelectorAll('[data-tblexcel]').forEach(b=>b.addEventListener('click',()=>exportTable(b.dataset.tblexcel)));
   const preset=m.querySelector('#preset');
   if(preset)preset.addEventListener('change',()=>{
     if(preset.value==='pickup'){const [a,b]=pickupWeek();const f=m.querySelector('#depFrom'),t=m.querySelector('#depTo');
