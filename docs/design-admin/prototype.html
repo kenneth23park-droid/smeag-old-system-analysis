@@ -867,6 +867,13 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   m.querySelectorAll('[data-pkexcel]').forEach(b=>b.addEventListener('click',()=>exportGridXls('SMEAG_주간픽업.xls')));
   m.querySelectorAll('[data-tblexcel]').forEach(b=>b.addEventListener('click',()=>exportGridXls('SMEAG_'+b.dataset.tblexcel.replace(/[^\w]/g,'_')+'.xls')));
   makeSortable(m);
+  // FROM 날짜 변경 시 TO = FROM+6일(목→다음주 수) 자동 반영
+  [['rmFrom','rmTo'],['ioFrom','ioTo'],['pkFrom','pkTo'],['depFrom','depTo']].forEach(([fid,tid])=>{
+    const ff=m.querySelector('#'+fid),tt=m.querySelector('#'+tid);
+    if(ff&&tt)ff.addEventListener('change',()=>{if(!ff.value)return;const d=new Date(ff.value);d.setDate(d.getDate()+6);
+      tt.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const dw=['일','월','화','수','목','금','토'];
+      toast('기간 자동설정',`${ff.value}(${dw[new Date(ff.value).getDay()]}) → ${tt.value}(${dw[d.getDay()]}) · 1주일`,true);});});
   const preset=m.querySelector('#preset');
   if(preset)preset.addEventListener('change',()=>{
     if(preset.value==='pickup'){const [a,b]=pickupWeek();const f=m.querySelector('#depFrom'),t=m.querySelector('#depTo');
