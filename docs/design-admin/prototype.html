@@ -422,13 +422,9 @@ function exportRoomstat(n){
   const rows=[['구분','방번호','인실','이름',...dates.map(d=>d.slice(5))]];
   c.groups.forEach(g=>g.rooms.forEach(r=>r.beds.forEach((b,bi)=>{
     rows.push([g.name,bi===0?r.no:'',r.per,b.name||'',...b.pat.slice(start,end).map(s=>TXT[s]||'')]);})));
-  const esc=v=>{const s=String(v).replace(/"/g,'""');return /[",\n]/.test(s)?`"${s}"`:s;};
-  const csv=rows.map(r=>r.map(esc).join(',')).join('\n');
-  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
-  const url=URL.createObjectURL(blob),a=el('a'),mm=c.months[6];
-  a.href=url;a.download=`SMEAG_배치도_${mm.y}-${String(mm.m).padStart(2,'0')}_${n}개월.csv`;
-  document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
-  toast('엑셀 내보내기 완료',`${dates[0]} ~ ${dates[dates.length-1]} · ${rows.length-1}행 · CSV(Excel 호환)`,true);}
+  const mm=c.months[6];
+  toXls(rows[0],rows.slice(1),`SMEAG_배치도_${mm.y}-${String(mm.m).padStart(2,'0')}_${n}개월.xls`,[]);
+  toast('엑셀 내보내기 완료',`${dates[0]} ~ ${dates[dates.length-1]} · ${rows.length-1}행 · 노란 헤더·필터`,true);}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function csvDownload(data,fname){const e=v=>{const s=String(v==null?'':v).replace(/"/g,'""');return /[",\n]/.test(s)?`"${s}"`:s;};
   const csv=data.map(r=>r.map(e).join(',')).join('\n');const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
@@ -542,7 +538,7 @@ R.pickup=()=>{
   s.forEach(r=>{
     if(r.arrive!==cur){cur=r.arrive;const cnt=s.filter(x=>x.arrive===cur).length;
       body+=`<tr class="grp"><td colspan="9">📅 ${cur} (${DOW(cur)}) · ${cnt}명 도착</td></tr>`;}
-    body+=`<tr class="${r.isNew?'in':''}"><td class="mono">${(r.arrive||'').slice(5)}</td><td class="mono">${r.time||'—'}</td>`
+    body+=`<tr class="${r.isNew?'in':''}"><td class="mono">${(r.arrive||'').slice(5)}</td><td class="mono" style="color:var(--female);font-weight:750">${r.time||'—'}</td>`
         +`<td class="mono">${esc(r.flight)||'—'}</td><td>${esc(r.name)}</td><td class="mono">${(r.nation||'').toUpperCase()}</td>`
         +`<td>${esc(r.agency)||'—'}</td><td>${campusChipName(r.campus)}</td><td class="mono">${esc(r.room)||'—'}</td>`
         +`<td>${r.isNew?'<span class="pill in">In 신입</span>':`<span class="pill neutral">${esc(r.status)}</span>`}</td></tr>`;});
@@ -599,6 +595,23 @@ function exportGrid(fname){const tbl=document.querySelector('#main table.grid');
   const rows=[...tbl.querySelectorAll('tbody tr')].filter(r=>!r.classList.contains('grp'))
     .map(tr=>[...tr.children].map(td=>td.querySelector('button')?'':td.textContent.trim()));
   csvDownload([heads,...rows],fname); toast('엑셀 내보내기 완료',`${rows.length}행 · 현재 정렬 순서 그대로`,true);}
+// Excel XML(SpreadsheetML .xls): 헤더 노란배경+AutoFilter(정렬/필터), 지정 컬럼 빨강
+function toXls(headers,rows,fname,redCols){redCols=redCols||[];
+  const x=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const isNum=v=>{const s=String(v).replace(/[,%\s]/g,'');return s!==''&&/^-?\d+(\.\d+)?$/.test(s);};
+  const hdr='<Row>'+headers.map(h=>`<Cell ss:StyleID="hdr"><Data ss:Type="String">${x(h)}</Data></Cell>`).join('')+'</Row>';
+  const body=rows.map(r=>'<Row>'+r.map((c,i)=>{const st=redCols.includes(i)?' ss:StyleID="red"':'';
+    const num=isNum(c);return `<Cell${st}><Data ss:Type="${num?'Number':'String'}">${num?String(c).replace(/[,%\s]/g,''):x(c)}</Data></Cell>`;}).join('')+'</Row>').join('');
+  const N=rows.length+1,M=headers.length;
+  const xml=`<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:x="urn:schemas-microsoft-com:office:excel">\n<Styles>\n<Style ss:ID="hdr"><Interior ss:Color="#FFE14D" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Color="#3A2F00"/><Alignment ss:Horizontal="Center"/></Style>\n<Style ss:ID="red"><Font ss:Color="#E11D48" ss:Bold="1"/></Style>\n</Styles>\n<Worksheet ss:Name="SMEAG"><Table>\n${hdr}\n${body}\n</Table>\n<AutoFilter x:Range="R1C1:R${N}C${M}" xmlns="urn:schemas-microsoft-com:office:excel"/>\n</Worksheet>\n</Workbook>`;
+  const blob=new Blob([xml],{type:'application/vnd.ms-excel'}),url=URL.createObjectURL(blob),a=el('a');
+  a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
+// 현재 .grid → xls (정렬순서 그대로, 노란 헤더+필터, TIME/시간 컬럼 빨강)
+function exportGridXls(fname){const tbl=document.querySelector('#main table.grid');if(!tbl){toast('내보낼 표 없음','',false);return;}
+  const heads=[...tbl.querySelectorAll('thead th')].map(t=>t.textContent.replace(/[▲▼]/g,'').trim());
+  const redCols=heads.map((h,i)=>/^time$|시간/i.test(h)?i:-1).filter(i=>i>=0);
+  const rows=[...tbl.querySelectorAll('tbody tr')].filter(r=>!r.classList.contains('grp')).map(tr=>[...tr.children].map(td=>td.querySelector('button')?'':td.textContent.trim()));
+  toXls(heads,rows,fname,redCols); toast('엑셀 내보내기 완료',`${rows.length}행 · 노란 헤더·필터/정렬·시간 빨강 (현재 정렬 순서)`,true);}
 
 R.roommove=(m)=>{
   const rt=(REAL&&REAL.tables&&REAL.tables[m.u])||{cols:[],rows:[]};
@@ -851,8 +864,8 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   const cf=document.getElementById('cf1');if(cf)cf.textContent=document.getElementById('campus').selectedOptions[0].text;
   m.querySelectorAll('[data-guard]').forEach(b=>b.addEventListener('click',()=>guard(b)));
   m.querySelectorAll('[data-excel]').forEach(b=>b.addEventListener('click',()=>exportRoomstat(+b.dataset.excel)));
-  m.querySelectorAll('[data-pkexcel]').forEach(b=>b.addEventListener('click',()=>exportGrid('SMEAG_주간픽업.csv')));
-  m.querySelectorAll('[data-tblexcel]').forEach(b=>b.addEventListener('click',()=>exportGrid('SMEAG_'+b.dataset.tblexcel.replace(/[^\w]/g,'_')+'.csv')));
+  m.querySelectorAll('[data-pkexcel]').forEach(b=>b.addEventListener('click',()=>exportGridXls('SMEAG_주간픽업.xls')));
+  m.querySelectorAll('[data-tblexcel]').forEach(b=>b.addEventListener('click',()=>exportGridXls('SMEAG_'+b.dataset.tblexcel.replace(/[^\w]/g,'_')+'.xls')));
   makeSortable(m);
   const preset=m.querySelector('#preset');
   if(preset)preset.addEventListener('change',()=>{
