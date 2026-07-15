@@ -803,17 +803,29 @@ R.admission=()=>{
   </table></div>
   <div class="note" style="margin-top:12px">공지: 취소자리 대기 접수 중 · 배정 문의는 담당 매니저</div>`;};
 
-R.cashmng=()=>{let rows='';for(let i=0;i<6;i++){const nt=rnd(NAT);
-  rows+=`<tr><td class="mono">${i+1}</td><td>${fakeName()}</td><td class="mono">${nt[0]}</td>
-  <td class="num mono">${seed*13%900+100}</td><td class="num mono" style="color:var(--good)">+${seed*7%300}</td>
-  <td class="num mono" style="color:var(--female)">-${seed*5%200}</td><td class="mono">2026-07-1${seed%9}</td>
-  <td><button class="btn" style="padding:4px 9px;font-size:11px">상세</button></td></tr>`;seed++;}
+R.cashmng=()=>{
+  const rt=REAL&&REAL.tables&&REAL.tables['student_cash_payment.php'];
+  let head,rows;
+  if(rt&&rt.rows&&rt.rows.length){
+    const ci=rt.cols.map(c=>c.toUpperCase());const iType=ci.indexOf('TYPE'),iAmt=ci.indexOf('AMOUNT');
+    head=rt.cols.map(c=>`<th>${esc(c)}</th>`).join('')+'<th>ACTION</th>';
+    rows=rt.rows.map(r=>{const isOut=/OUT/i.test(r[iType]||'');
+      return `<tr>${rt.cols.map((_,i)=>{
+        if(i===iAmt)return `<td class="num mono" style="color:${isOut?'var(--female)':'var(--good)'};font-weight:700">${isOut?'-':'+'}${esc(r[i])}</td>`;
+        if(i===iType)return `<td><span class="pill ${isOut?'female':'good'}">${esc(r[i])}</span></td>`;
+        return `<td class="mono">${esc(r[i])}</td>`;}).join('')}<td><button class="btn" style="padding:4px 9px;font-size:11px">상세</button></td></tr>`;}).join('');
+  }else{let s='';for(let i=0;i<6;i++){const nt=rnd(NAT);
+    s+=`<tr><td class="mono">${i+1}</td><td>${fakeName()}</td><td class="mono">${nt[0]}</td>
+    <td class="num mono">${seed*13%900+100}</td><td class="num mono" style="color:var(--good)">+${seed*7%300}</td>
+    <td class="num mono" style="color:var(--female)">-${seed*5%200}</td><td class="mono">2026-07-1${seed%9}</td>
+    <td><button class="btn" style="padding:4px 9px;font-size:11px">상세</button></td></tr>`;seed++;}
+    head='<th>#</th><th>Name</th><th>Country</th><th class="num">Balance</th><th class="num">Cash-in</th><th class="num">Cash-out</th><th>Created</th><th>Action</th>';rows=s;}
   return `
-  <div class="ph"><h1>Manage Cash</h1><span class="sub">현금 잔액/입출금 (신규 재설계)</span><span class="url">student_cash_payment.php</span>
-    <span class="actions"><button class="btn primary" data-guard="save">💾 저장</button></span></div>
-  <div class="note" style="margin-bottom:12px">레거시 미완성 모듈 → 신규는 cash_account + cash_tx(입/출금) 분리. <b>저장/발행 중복실행 방지 적용</b>(아래 버튼으로 데모).</div>
+  <div class="ph"><h1>Manage Cash</h1><span class="sub">현금 입출금 (cash_payments)</span><span class="url">student_cash_payment.php</span>
+    <span class="actions" style="margin-left:auto"><button class="btn" data-tblexcel="student_cash_payment.php">📊 EXCEL</button><button class="btn primary" data-guard="save">💾 저장</button></span></div>
+  <div class="chips" style="margin-bottom:10px">${rt&&rt.rows.length?REALBADGE+`<span class="chip">${rt.rows.length}건</span>`:'<span class="chip">샘플</span>'}</div>
   <div class="twrap"><table class="grid">
-    <thead><tr><th>#</th><th>Name</th><th>Country</th><th class="num">Balance</th><th class="num">Cash-in</th><th class="num">Cash-out</th><th>Created</th><th>Action</th></tr></thead>
+    <thead><tr>${head}</tr></thead>
     <tbody>${rows}</tbody></table></div>
   <div class="card pad" style="margin-top:14px">
     <div class="h3">인보이스 발행 (중복방지 데모)</div>
