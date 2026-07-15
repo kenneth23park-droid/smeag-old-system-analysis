@@ -127,6 +127,9 @@
   table.grid tr:last-child td{border-bottom:0}
   table.grid tbody tr:hover{background:var(--surface-2)}
   td.num,th.num{text-align:right}
+  table.grid tr.grp td{background:var(--surface-2);font-weight:800;font-size:11.5px;letter-spacing:.3px;color:var(--dim)}
+  table.grid tr.in td{background:color-mix(in srgb,var(--female) 9%,transparent)}
+  .pill.in{color:var(--female);background:color-mix(in srgb,var(--female) 15%,transparent)}
 
   .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
     background:var(--surface-2);color:var(--dim)}
@@ -364,6 +367,7 @@ const MENU={
   dorm:[
     {k:'spec',t:'DORM SEARCH',u:'room_search2.php',cols:['GROUP','ROOM NUMBER','BED NUMBER','PER/ROOM(인실)','SEX','CENTER'],note:'r_limit 1~5, s_gender M/F'},
     {k:'roomstat',t:'기숙사현황 (배치도)',u:'room_stat3.php'},
+    {k:'pickup',t:'주간 픽업 리스트',u:'room_search2.php/pickup',tag:'주간'},
     {k:'spec',t:'DORM STATUS',u:'room_stat2.php',note:'배치도 영문판 (MALE/FEMALE/FAMILY)'},
     {k:'spec',t:'기숙사이동관리',u:'room_move_list.php',cols:['유학원','국적','이름','나이','성별','출발일','픽업','기간','변경전객실','처리일','변경될객실','상태','상황','상태변경']},
     {k:'spec',t:'ROOM M-LIST',u:'room_move_list2.php',cols:['CAMPUS','AGENCY','NAT','NAME','AGE','SEX','A-DAY','DEPA','PICKUP','PERI','BEFORE','D-DAY','S-DAY','AFTER','COND','ORDER','CHANGE']},
@@ -422,6 +426,16 @@ function exportRoomstat(n){
   a.href=url;a.download=`SMEAG_배치도_${mm.y}-${String(mm.m).padStart(2,'0')}_${n}개월.csv`;
   document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
   toast('엑셀 내보내기 완료',`${dates[0]} ~ ${dates[dates.length-1]} · ${rows.length-1}행 · CSV(Excel 호환)`,true);}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function csvDownload(data,fname){const e=v=>{const s=String(v==null?'':v).replace(/"/g,'""');return /[",\n]/.test(s)?`"${s}"`:s;};
+  const csv=data.map(r=>r.map(e).join(',')).join('\n');const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob),a=el('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
+const DOW=d=>['일','월','화','수','목','금','토'][new Date(d).getDay()];
+function pickupSorted(){const pk=REAL&&REAL.pickup;const rows=(pk&&pk.rows)||[];return [...rows].sort((a,b)=>((a.arrive||'')+(a.time||'')).localeCompare((b.arrive||'')+(b.time||'')));}
+function exportPickup(){const s=pickupSorted();if(!s.length){toast('내보낼 데이터 없음','',false);return;}
+  const H=['DATE','요일','TIME','FLIGHT','NAME','NAT','AGENCY','CAMPUS','ROOM','STATUS','신입(In)'];
+  csvDownload([H,...s.map(r=>[r.arrive,DOW(r.arrive),r.time,r.flight,r.name,r.nation,r.agency,r.campus,r.room,r.status,r.isNew?'In':''])],'SMEAG_주간픽업.csv');
+  toast('픽업 CSV 내보내기 완료',`${s.length}건 · 날짜·시간순`,true);}
 // ─── 실데이터 (레거시 MySQL 덤프 슬라이스 · MySQL 비교검증용 · admin 인증 전용) ───
 let REAL=null; /*__REALDATA__*/
 const campusChipName=(n)=>({ENCANTO:'<span class="cch enc">ENCANTO</span>',CLASSIC:'<span class="cch cla">CLASSIC</span>',CAPITAL:'<span class="cch cap">CAPITAL</span>'}[(n||'').toUpperCase()]||(n||'—'));
@@ -517,6 +531,41 @@ R.deposit=()=>{const st=[['미납','warn','N'],['완납','good','Y'],['분납','
   <div class="twrap"><table class="grid">
     <thead><tr><th>NO</th><th>NAT</th><th>NAME</th><th>BEGIN</th><th>END</th><th>STATUS</th><th class="num">DEPOSIT</th><th>UNIT</th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;};
+
+R.pickup=()=>{
+  const s=pickupSorted();const win=(REAL&&REAL.pickup&&REAL.pickup.window)||{};
+  const newN=s.filter(r=>r.isNew).length;const dates=[...new Set(s.map(r=>r.arrive))];
+  let body='',cur=null;
+  s.forEach(r=>{
+    if(r.arrive!==cur){cur=r.arrive;const cnt=s.filter(x=>x.arrive===cur).length;
+      body+=`<tr class="grp"><td colspan="9">📅 ${cur} (${DOW(cur)}) · ${cnt}명 도착</td></tr>`;}
+    body+=`<tr class="${r.isNew?'in':''}"><td class="mono">${(r.arrive||'').slice(5)}</td><td class="mono">${r.time||'—'}</td>`
+        +`<td class="mono">${esc(r.flight)||'—'}</td><td>${esc(r.name)}</td><td class="mono">${(r.nation||'').toUpperCase()}</td>`
+        +`<td>${esc(r.agency)||'—'}</td><td>${campusChipName(r.campus)}</td><td class="mono">${esc(r.room)||'—'}</td>`
+        +`<td>${r.isNew?'<span class="pill in">In 신입</span>':`<span class="pill neutral">${esc(r.status)}</span>`}</td></tr>`;});
+  const dcount=dates.map(d=>`${DOW(d)} ${s.filter(x=>x.arrive===d).length}`).join(' · ');
+  return `
+  <div class="ph"><h1>주간 픽업 리스트</h1><span class="sub">항공 도착 · 날짜/시간순 자동 정렬</span><span class="url">room_search2.php/pickup</span>
+    <span class="actions" style="margin-left:auto"><button class="btn primary" data-pkexcel="1">📊 엑셀로 export</button></span></div>
+  <div class="filters">
+    <div class="field"><label>픽업 주간 시작(목)</label><input id="pkFrom" type="date" value="${win.from||''}"></div>
+    <div class="field"><label>픽업 주간 종료(수)</label><input id="pkTo" type="date" value="${win.to||''}"></div>
+    <div class="field"><label>캠퍼스</label><select>${ddOpts(DICT.campus,'ALL')}</select></div>
+    <div class="field"><label>국적</label><select>${ddOpts(DICT.nation,'ALL')}</select></div>
+    <div class="field"><label>구분</label><select><option>전체</option><option>신입(In)만</option></select></div>
+    <div class="field grow"><label>이름</label><input placeholder="이름"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn primary">검색</button></div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="k">총 도착</div><div class="v mono">${s.length}</div><div class="d">${win.from||''} ~ ${win.to||''}</div></div>
+    <div class="kpi"><div class="k">신입 In</div><div class="v mono" style="color:var(--female)">${newN}</div><div class="d">D-4 이후 신규 도착</div></div>
+    <div class="kpi"><div class="k">도착 일수</div><div class="v mono">${dates.length}</div><div class="d">${dcount}</div></div>
+    <div class="kpi"><div class="k">데이터</div><div class="v" style="font-size:16px">${REAL&&REAL.pickup?'실 MySQL':'샘플'}</div><div class="d">student_info · s_flight</div></div>
+  </div>
+  <div class="note" style="margin-bottom:12px">에이전시 항공편 등록은 <b>D-4</b>(출발 4일전)에 마감 → 그 시점 데이터로 날짜·시간 자동 정렬 · 신입(In) 빨강 강조. ${REAL&&REAL.pickup?REALBADGE:''}</div>
+  <div class="twrap"><table class="grid">
+    <thead><tr><th>DATE</th><th>TIME</th><th>FLIGHT</th><th>NAME</th><th>NAT</th><th>AGENCY</th><th>CAMPUS</th><th>ROOM</th><th>STATUS</th></tr></thead>
+    <tbody>${body||`<tr><td colspan="9" style="text-align:center;color:var(--faint);padding:20px">픽업 데이터 없음 (실데이터본에서 표시)</td></tr>`}</tbody></table></div>`;};
 
 R.roomstat=()=>{
   const CELLW=22, INFOW=72+58+230; // 방번호+인실+이름 = 좌측 고정폭
@@ -678,7 +727,16 @@ R.cashmng=()=>{let rows='';for(let i=0;i<6;i++){const nt=rnd(NAT);
     <button class="btn primary" data-guard="invoice">🧾 인보이스 발행</button>
   </div>`;};
 
-R.spec=(m)=>`
+R.spec=(m)=>{
+  const rt=REAL&&REAL.tables&&REAL.tables[m.u];
+  if(rt&&rt.rows&&rt.rows.length)return `
+  <div class="ph"><h1>${m.t}</h1><span class="sub">${m.note||'MySQL 비교검증'}</span><span class="url">${m.u}</span>
+    ${m.inv?'<span class="actions" style="margin-left:auto"><button class="btn primary" data-guard="invoice">🧾 INVOICE 발행</button></span>':''}</div>
+  <div class="chips" style="margin-bottom:10px">${REALBADGE}<span class="chip">${rt.rows.length}건 표시</span>${m.tag?`<span class="chip">규모 ${m.tag}</span>`:''}</div>
+  <div class="twrap"><table class="grid"><thead><tr>${rt.cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead>
+  <tbody>${rt.rows.map(r=>`<tr>${rt.cols.map((_,i)=>`<td>${esc(r[i])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+  <div class="banner">MySQL 비교검증용 <b>실데이터</b> (${m.u}) · admin 인증 전용</div>`;
+  return `
   <div class="ph"><h1>${m.t}</h1><span class="sub">화면 명세 (전체 골격)</span><span class="url">${m.u}</span>
     ${m.inv?'<span class="actions"><button class="btn primary" data-guard="invoice">🧾 INVOICE 발행</button></span>':''}</div>
   <div class="spec">
@@ -690,7 +748,7 @@ R.spec=(m)=>`
     ${m.note?`<div class="note">${m.note}</div>`:''}
     ${m.cols?`<div><div class="side-title" style="padding:0 0 8px">데이터 컬럼 (크롤 실측)</div><div class="colgrid">${m.cols.map(c=>`<span class="c">${c}</span>`).join('')}</div></div>`:'<div class="note">통계/매트릭스·캘린더·배치도형 화면 — 표준 테이블 아님.</div>'}
     <div class="card pad" style="color:var(--dim);font-size:12.5px">이 화면은 <b>전체 메뉴 골격</b> 단계로, 실렌더링은 핵심 6화면(대시보드·STUDENT LIST·DEPOSIT·기숙사현황·BACK-UP LOG·Admission Date)에 우선 적용했습니다.</div>
-  </div>`;
+  </div>`;};
 
 // ─── 상태/네비게이션 ───
 let curCat='record', curKey='dash', curMenu=null;
@@ -712,6 +770,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   const cf=document.getElementById('cf1');if(cf)cf.textContent=document.getElementById('campus').selectedOptions[0].text;
   m.querySelectorAll('[data-guard]').forEach(b=>b.addEventListener('click',()=>guard(b)));
   m.querySelectorAll('[data-excel]').forEach(b=>b.addEventListener('click',()=>exportRoomstat(+b.dataset.excel)));
+  m.querySelectorAll('[data-pkexcel]').forEach(b=>b.addEventListener('click',exportPickup));
   const preset=m.querySelector('#preset');
   if(preset)preset.addEventListener('change',()=>{
     if(preset.value==='pickup'){const [a,b]=pickupWeek();const f=m.querySelector('#depFrom'),t=m.querySelector('#depTo');
