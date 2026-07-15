@@ -491,10 +491,10 @@ function rowsStudents(n){
   <td>${campusChip(cid)}</td><td><span class="pill ${['good','warn','neutral'][seed%3]}">${['NORMAL','HOLDING','EXTEND'][seed%3]}</span></td></tr>`;seed++;}
   return s;}
 let stdState={page:0,per:50,ag:'',nat:'',cond:'',q:''};
-function stdFiltered(){const src=REAL&&REAL.studentsAll;if(!src)return null;let f=src.rows;const s=stdState;
+function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let f=src.rows;const s=stdState;
   if(s.ag)f=f.filter(r=>r[0]===s.ag);
   if(s.nat)f=f.filter(r=>(r[1]||'').toLowerCase()===s.nat.toLowerCase());
-  if(s.cond)f=f.filter(r=>(r[9]||'')===s.cond);
+  if(s.cond)f=f.filter(r=>(r[11]||'')===s.cond);
   if(s.q){const q=s.q.toLowerCase();f=f.filter(r=>(r[2]||'').toLowerCase().includes(q)||(''+(r[3]||'')).includes(s.q));}
   return f;}
 function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
@@ -503,7 +503,7 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   if(!f){box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${rowsStudents(12)}</tbody></table></div>`;makeSortable(box);return;}
   const s=stdState;const pages=Math.max(1,Math.ceil(f.length/s.per));if(s.page>=pages)s.page=pages-1;if(s.page<0)s.page=0;
   const pg=f.slice(s.page*s.per,s.page*s.per+s.per);
-  const tb=pg.map(r=>`<tr><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td>${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${esc(r[4])}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td><td>${campusChipName(r[8])}</td><td><span class="pill ${condPill(r[9])}">${(r[9]||'').toUpperCase()||'—'}</span></td></tr>`).join('');
+  const tb=pg.map(r=>`<tr><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td>${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${esc(r[4])}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td></tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -516,13 +516,42 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   box.querySelector('#pgNext').onclick=()=>go(s.page+1);box.querySelector('#pgLast').onclick=()=>go(pages-1);
   box.querySelector('#pgJump').onchange=e=>go(Math.min(pages,Math.max(1,+e.target.value||1))-1);
   box.querySelector('#pgPer').onchange=e=>{s.per=+e.target.value;s.page=0;paintStd();};}
-function exportStd(){const f=stdFiltered();const src=REAL&&REAL.studentsAll;if(!f||!src){toast('내보낼 데이터 없음','',false);return;}
+function exportStd(){const f=stdFiltered();const src=REAL&&REAL.studentsFull;if(!f||!src){toast('내보낼 데이터 없음','',false);return;}
   const cap=20000,rows=f.length>cap?f.slice(0,cap):f;
   toXls(src.cols,rows,'SMEAG_학생명단.xls',[]);
   toast('엑셀 내보내기 완료',`${rows.length.toLocaleString()}행${f.length>cap?` (상위 ${cap.toLocaleString()}, 전체 ${f.length.toLocaleString()})`:' (필터 반영)'} · 노란헤더·필터`,true);}
+// 학생 메뉴 컬럼 투영(studentsFull cols: 0AG 1NAT 2EN 3KOR 4AGE 5SEX 6등록 7출발 8시작 9종료 10기간 11상태 12코스 13객실 14CAMPUS)
+const STUPROJ={
+ 'student_list3.php':{h:['유학원명','국적','이름(영문)','나이','성별','등록일','출발일','시작일','종료일','기간','상태','연수코스','객실'],i:[0,1,2,4,5,6,7,8,9,10,11,12,13]},
+ 'student_list2.php':{h:['AGENCY','NAT','NAME','KOR','AGE','SEX','APPLY','DEPA','BEGIN','END','PERI','COND','DORM'],i:[0,1,2,3,4,5,6,7,8,9,10,11,13]},
+ 'student_history.php':{h:['유학원명','국적','이름','나이','성별','등록일','출발일','시작일','종료일','기간','상태'],i:[0,1,2,4,5,6,7,8,9,10,11]},
+ 'student_list_pay.php':{h:['유학원','국적','이름','나이','성별','상태','기간','객실'],i:[0,1,2,4,5,11,10,13]},
+ 'student_list3_en1.php':{h:['CAMPUS','COURSE','START','END','WEEK','NAME','NAT'],i:[14,12,8,9,10,2,1]},
+};
+const _specCache={};
+function specData(url){if(_specCache[url])return _specCache[url];let d=null;
+  if(REAL&&REAL.studentsFull&&STUPROJ[url]){const p=STUPROJ[url],sf=REAL.studentsFull;d={cols:p.h,rows:sf.rows.map(r=>p.i.map(ix=>r[ix]))};}
+  else if(REAL&&REAL.tables&&REAL.tables[url]&&REAL.tables[url].rows.length)d=REAL.tables[url];
+  if(d)_specCache[url]=d;return d;}
+const pgState={};
+function paintPaged(box,cols,rows,name){const st=pgState[name]||(pgState[name]={page:0,per:50});
+  const pages=Math.max(1,Math.ceil(rows.length/st.per));if(st.page>=pages)st.page=pages-1;if(st.page<0)st.page=0;
+  const pg=rows.slice(st.page*st.per,st.page*st.per+st.per);
+  box.innerHTML=`<div class="twrap"><table class="grid"><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead>
+   <tbody>${pg.map(r=>`<tr>${cols.map((_,i)=>`<td>${esc(r[i])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+   <div class="pager"><button class="btn" id="ppFirst" ${st.page<=0?'disabled':''}>«</button><button class="btn" id="ppPrev" ${st.page<=0?'disabled':''}>◀</button>
+   <span class="pginfo">페이지 <b>${st.page+1}</b> / ${pages.toLocaleString()} · 전체 <b>${rows.length.toLocaleString()}</b>건</span>
+   <button class="btn" id="ppNext" ${st.page>=pages-1?'disabled':''}>▶</button><button class="btn" id="ppLast" ${st.page>=pages-1?'disabled':''}>»</button>
+   <label>이동 <input id="ppJump" type="number" min="1" max="${pages}" value="${st.page+1}"></label>
+   <label>표시 <select id="ppPer"><option ${st.per==50?'selected':''}>50</option><option ${st.per==100?'selected':''}>100</option><option ${st.per==200?'selected':''}>200</option></select></label></div>`;
+  makeSortable(box);const go=p=>{st.page=p;paintPaged(box,cols,rows,name);};
+  box.querySelector('#ppFirst').onclick=()=>go(0);box.querySelector('#ppPrev').onclick=()=>go(st.page-1);
+  box.querySelector('#ppNext').onclick=()=>go(st.page+1);box.querySelector('#ppLast').onclick=()=>go(pages-1);
+  box.querySelector('#ppJump').onchange=e=>go(Math.min(pages,Math.max(1,+e.target.value||1))-1);
+  box.querySelector('#ppPer').onchange=e=>{st.per=+e.target.value;st.page=0;paintPaged(box,cols,rows,name);};}
 R.stdlist=()=>{
   stdState={page:0,per:50,ag:'',nat:'',cond:'',q:''};
-  const src=REAL&&REAL.studentsAll;const total=src?src.rows.length:0;
+  const src=REAL&&REAL.studentsFull;const total=src?src.rows.length:0;
   return `
   <div class="ph"><h1>STUDENT LIST</h1><span class="sub">전체 학생 명단</span><span class="url">student.php</span>
     <span class="actions" style="margin-left:auto"><button class="btn" data-stdexcel="1">📊 EXCEL</button></span></div>
@@ -653,7 +682,7 @@ R.roommove=(m)=>{
   const [thu,wed]=pickupWeek();
   return `
   <div class="ph"><h1>${m.t}</h1><span class="sub">기숙사 이동 관리 · 방변경(ROOM MOVE LIST)</span><span class="url">${m.u}</span>
-    <span class="actions" style="margin-left:auto"><button class="btn primary" data-tblexcel="${m.u}">📊 EXCEL</button></span></div>
+    <span class="actions" style="margin-left:auto"><button class="btn primary" data-specexcel="${m.u}">📊 EXCEL</button></span></div>
   <div class="filters">
     <div class="field"><label>기간 FROM (목)</label><input id="rmFrom" type="date" value="${thu}"></div>
     <div class="field"><label>기간 TO (수)</label><input id="rmTo" type="date" value="${wed}"></div>
@@ -664,11 +693,9 @@ R.roommove=(m)=>{
     <div class="field grow"><label>NAME</label><input placeholder="이름 검색"></div>
     <div class="field"><label>&nbsp;</label><button class="btn primary">SEARCH</button></div>
   </div>
-  <div class="chips" style="margin-bottom:10px"><span class="chip on">FIRST (MOVE: ${rt.rows.length})</span><span class="chip" style="color:var(--female);border-color:var(--female)">EXCLUDE: CANCEL·PAYCANCEL·CHECKING·WAITING</span>${REAL&&REAL.tables?REALBADGE:''}</div>
-  <div class="twrap"><table class="grid">
-    <thead><tr>${(rt.cols.length?rt.cols:['CAMPUS','AGENCY','NAT','NAME','AGE','SEX','A-DAY','PERI','BEFORE','D-DAY','AFTER','COND','ORDER']).map(c=>`<th>${esc(c)}</th>`).join('')}<th>CHANGE</th></tr></thead>
-    <tbody>${rt.rows.length?rt.rows.map(r=>`<tr>${rt.cols.map((_,i)=>`<td>${esc(r[i])}</td>`).join('')}<td><button class="btn" style="padding:3px 9px;font-size:11px">MDF</button></td></tr>`).join(''):`<tr><td colspan="14" style="text-align:center;color:var(--faint);padding:20px">데이터 없음 (실데이터본에서 표시)</td></tr>`}</tbody></table></div>
-  <div class="banner">기간 기본값: <b>이번주 목요일 → 다음주 수요일</b> 자동 설정 · MySQL 비교검증용 실데이터</div>`;};
+  <div class="chips" style="margin-bottom:10px"><span class="chip on">FIRST (MOVE: ${(rt.rows.length).toLocaleString()})</span><span class="chip" style="color:var(--female);border-color:var(--female)">EXCLUDE: CANCEL·PAYCANCEL·CHECKING·WAITING</span>${REAL&&REAL.tables?REALBADGE:''}</div>
+  <div id="specBody" data-key="${m.u}"></div>
+  <div class="banner">기간 기본값: <b>이번주 목요일 → 다음주 수요일</b> 자동 설정 · 페이지네이션 · MySQL 비교검증용 실데이터</div>`;};
 
 R.dailyio=(m)=>{
   const rt=(REAL&&REAL.tables&&REAL.tables[m.u])||{cols:[],rows:[]};
@@ -869,14 +896,13 @@ R.cashmng=()=>{
   </div>`;};
 
 R.spec=(m)=>{
-  const rt=REAL&&REAL.tables&&REAL.tables[m.u];
-  if(rt&&rt.rows&&rt.rows.length)return `
+  const d=specData(m.u);
+  if(d)return `
   <div class="ph"><h1>${m.t}</h1><span class="sub">${m.note||'MySQL 비교검증'}</span><span class="url">${m.u}</span>
-    ${m.inv?'<span class="actions" style="margin-left:auto"><button class="btn primary" data-guard="invoice">🧾 INVOICE 발행</button></span>':''}</div>
-  <div class="chips" style="margin-bottom:10px">${REALBADGE}<span class="chip">${rt.rows.length}건 표시</span>${m.tag?`<span class="chip">규모 ${m.tag}</span>`:''}</div>
-  <div class="twrap"><table class="grid"><thead><tr>${rt.cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead>
-  <tbody>${rt.rows.map(r=>`<tr>${rt.cols.map((_,i)=>`<td>${esc(r[i])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-  <div class="banner">MySQL 비교검증용 <b>실데이터</b> (${m.u}) · admin 인증 전용</div>`;
+    <span class="actions" style="margin-left:auto"><button class="btn" data-specexcel="${m.u}">📊 EXCEL</button>${m.inv?'<button class="btn primary" data-guard="invoice">🧾 INVOICE 발행</button>':''}</span></div>
+  <div class="chips" style="margin-bottom:10px">${REALBADGE}<span class="chip">전체 <b>${d.rows.length.toLocaleString()}</b>건</span>${m.tag?`<span class="chip">규모 ${m.tag}</span>`:''}</div>
+  <div id="specBody" data-key="${m.u}"></div>
+  <div class="banner">MySQL 비교검증용 <b>실데이터</b> (${m.u}) · 페이지네이션 · admin 인증 전용</div>`;
   return `
   <div class="ph"><h1>${m.t}</h1><span class="sub">화면 명세 (전체 골격)</span><span class="url">${m.u}</span>
     ${m.inv?'<span class="actions"><button class="btn primary" data-guard="invoice">🧾 INVOICE 발행</button></span>':''}</div>
@@ -936,6 +962,14 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     m.querySelectorAll('[data-stdexcel]').forEach(b=>b.addEventListener('click',exportStd));
     paintStd();
   }
+  // 일반 메뉴 실데이터 페이지네이션(#specBody) + EXCEL
+  const sb=m.querySelector('#specBody');
+  if(sb){const url=sb.dataset.key,d=specData(url);if(d)paintPaged(sb,d.cols,d.rows,url);}
+  m.querySelectorAll('[data-specexcel]').forEach(b=>b.addEventListener('click',()=>{
+    const d=specData(b.dataset.specexcel);if(!d){toast('내보낼 데이터 없음','',false);return;}
+    const cap=20000,rows=d.rows.length>cap?d.rows.slice(0,cap):d.rows;
+    toXls(d.cols,rows,'SMEAG_'+b.dataset.specexcel.replace(/[^\w]/g,'_')+'.xls',[]);
+    toast('엑셀 내보내기 완료',`${rows.length.toLocaleString()}행${d.rows.length>cap?` (상위 ${cap.toLocaleString()}/${d.rows.length.toLocaleString()})`:''} · 노란헤더·필터`,true);}));
   m.querySelectorAll('[data-my]').forEach(b=>b.addEventListener('click',()=>{
     roomCenter={y:+b.dataset.my,m:+b.dataset.mm};renderMain();}));
   const tw=m.querySelector('.twrap[data-mstart]');
