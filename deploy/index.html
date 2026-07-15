@@ -1,0 +1,816 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SMEAG 관리자 — 신규 화면 프로토타입</title>
+<style>
+  :root{
+    --bg:#eef1f2; --surface:#ffffff; --surface-2:#f4f6f7; --border:#dbe2e4;
+    --text:#17242b; --dim:#5c6d74; --faint:#85959c;
+    --accent:#0f766e; --accent-weak:#d6ede9; --accent-ink:#0b5751;
+    --male:#2563eb; --female:#e11d48; --family:#d97706; --empty:#aab6bc;
+    --good:#15803d; --warn:#b45309; --neutral:#64748b; --return:#7c3aed; --install:#0891b2;
+    --shadow:0 1px 2px rgba(20,40,50,.06),0 2px 8px rgba(20,40,50,.05);
+    --c-enc:#0f766e; --c-cla:#4f46e5; --c-cap:#0e7490;
+    --r:10px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0d1417; --surface:#141e22; --surface-2:#1a262b; --border:#2a393f;
+      --text:#e7edef; --dim:#93a4ab; --faint:#6c7d84;
+      --accent:#2dd4bf; --accent-weak:#123b38; --accent-ink:#9defe4;
+      --male:#60a5fa; --female:#fb7185; --family:#fbbf24; --empty:#3a4a51;
+      --good:#4ade80; --warn:#fbbf24; --neutral:#94a3b8; --return:#a78bfa; --install:#38bdf8;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 2px 10px rgba(0,0,0,.25);
+      --c-enc:#2dd4bf; --c-cla:#818cf8; --c-cap:#22d3ee;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#eef1f2; --surface:#ffffff; --surface-2:#f4f6f7; --border:#dbe2e4;
+    --text:#17242b; --dim:#5c6d74; --accent:#0f766e; --accent-weak:#d6ede9; --accent-ink:#0b5751;
+    --male:#2563eb; --female:#e11d48; --family:#d97706; --empty:#aab6bc;
+    --good:#15803d; --warn:#b45309; --neutral:#64748b; --return:#7c3aed; --install:#0891b2;
+    --c-enc:#0f766e; --c-cla:#4f46e5; --c-cap:#0e7490;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1417; --surface:#141e22; --surface-2:#1a262b; --border:#2a393f;
+    --text:#e7edef; --dim:#93a4ab; --accent:#2dd4bf; --accent-weak:#123b38; --accent-ink:#9defe4;
+    --male:#60a5fa; --female:#fb7185; --family:#fbbf24; --empty:#3a4a51;
+    --good:#4ade80; --warn:#fbbf24; --neutral:#94a3b8; --return:#a78bfa; --install:#38bdf8;
+    --c-enc:#2dd4bf; --c-cla:#818cf8; --c-cap:#22d3ee;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",Roboto,sans-serif;
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums}
+  .app{display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr;
+    grid-template-areas:"top" "main";min-height:100vh}
+
+  /* TOPBAR */
+  .top{grid-area:top;display:flex;align-items:center;gap:18px;padding:0 18px;height:56px;
+    background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:.3px;white-space:nowrap}
+  .brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--c-cap));
+    display:grid;place-items:center;color:#fff;font-size:13px;font-weight:900}
+  .brand small{font-weight:600;color:var(--dim);font-size:11px;letter-spacing:.4px}
+  .cats{display:flex;gap:4px;margin-left:6px}
+  .cat{border:0;background:transparent;color:var(--dim);font:inherit;font-weight:650;cursor:pointer;
+    padding:8px 14px;border-radius:8px;display:flex;align-items:center;gap:7px}
+  .cat:hover{background:var(--surface-2);color:var(--text)}
+  .cat.active{background:var(--accent-weak);color:var(--accent-ink)}
+  .cat .ic{font-size:15px}
+  .top .spacer{flex:1}
+  .campus-sel{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);
+    border-radius:8px;padding:5px 10px}
+  .campus-sel label{font-size:11px;color:var(--dim);font-weight:600}
+  .campus-sel select{border:0;background:transparent;color:var(--text);font:inherit;font-weight:650;cursor:pointer}
+  .who{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:13px}
+  .who .av{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px}
+  .theme-btn{border:1px solid var(--border);background:var(--surface-2);color:var(--dim);border-radius:8px;
+    width:32px;height:32px;cursor:pointer;font-size:14px}
+
+  /* 탑다운 드롭다운 네비 (상단 카테고리 아래로 펼침) */
+  .catwrap{position:relative}
+  .cat .caret{font-size:10px;opacity:.6;margin-left:2px}
+  .dropdown{position:absolute;top:calc(100% + 8px);left:0;background:var(--surface);
+    border:1px solid var(--border);border-radius:11px;box-shadow:var(--shadow);padding:7px;
+    min-width:250px;max-height:74vh;overflow-y:auto;z-index:40;display:none}
+  .dropdown.open{display:block}
+  .dd-title{font-size:10.5px;font-weight:750;letter-spacing:.5px;color:var(--faint);
+    text-transform:uppercase;padding:5px 10px 7px}
+  .dropdown a{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;
+    color:var(--dim);text-decoration:none;font-size:13px;cursor:pointer;margin-bottom:1px}
+  .dropdown a:hover{background:var(--surface-2);color:var(--text)}
+  .dropdown a.active{background:var(--accent-weak);color:var(--accent-ink);font-weight:700}
+  .dropdown a .dot{width:5px;height:5px;border-radius:50%;background:var(--empty);flex:none}
+  .dropdown a.active .dot{background:var(--accent)}
+  .dropdown a .tag{margin-left:auto;font-size:10px;color:var(--faint);font-weight:600}
+
+  /* MAIN */
+  .main{grid-area:main;padding:18px 24px 40px;overflow-x:hidden}
+  .ph{display:flex;align-items:flex-end;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+  .ph h1{font-size:20px;margin:0;font-weight:800;letter-spacing:-.2px}
+  .ph .sub{color:var(--dim);font-size:12.5px}
+  .ph .url{margin-left:auto;font-size:11.5px;color:var(--faint)}
+  .ph .actions{display:flex;gap:8px}
+  .btn{border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-weight:650;
+    padding:7px 13px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{background:var(--surface-2)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .btn .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;
+    animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.btn .spin{animation:none}}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow)}
+  .pad{padding:16px}
+
+  /* filter bar */
+  .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px}
+  .field{display:flex;flex-direction:column;gap:3px}
+  .field label{font-size:10px;color:var(--faint);font-weight:700;letter-spacing:.3px;padding-left:2px}
+  .field select,.field input{border:1px solid var(--border);background:var(--surface-2);color:var(--text);
+    font:inherit;font-size:12.5px;padding:6px 9px;border-radius:7px;min-width:110px}
+  .filters .grow{flex:1}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+  .chip{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);
+    color:var(--dim);font-weight:650}
+  .chip.on{background:var(--accent-weak);border-color:transparent;color:var(--accent-ink)}
+
+  /* table */
+  .twrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r);background:var(--surface)}
+  table.grid{border-collapse:collapse;width:100%;font-size:12.5px;min-width:640px}
+  table.grid th{position:sticky;top:0;background:var(--surface-2);text-align:left;padding:9px 11px;
+    font-size:10.5px;letter-spacing:.4px;color:var(--dim);text-transform:uppercase;font-weight:750;
+    border-bottom:1px solid var(--border);white-space:nowrap}
+  table.grid td{padding:9px 11px;border-bottom:1px solid var(--border);white-space:nowrap}
+  table.grid tr:last-child td{border-bottom:0}
+  table.grid tbody tr:hover{background:var(--surface-2)}
+  td.num,th.num{text-align:right}
+
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
+    background:var(--surface-2);color:var(--dim)}
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  .pill.male{color:var(--male);background:color-mix(in srgb,var(--male) 14%,transparent)}
+  .pill.female{color:var(--female);background:color-mix(in srgb,var(--female) 14%,transparent)}
+  .pill.family{color:var(--family);background:color-mix(in srgb,var(--family) 14%,transparent)}
+  .pill.good{color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)}
+  .pill.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
+  .pill.install{color:var(--install);background:color-mix(in srgb,var(--install) 14%,transparent)}
+  .pill.return{color:var(--return);background:color-mix(in srgb,var(--return) 14%,transparent)}
+  .pill.neutral{color:var(--neutral);background:color-mix(in srgb,var(--neutral) 14%,transparent)}
+  .cch{font-size:10.5px;font-weight:750;padding:2px 8px;border-radius:6px;letter-spacing:.3px}
+  .cch.enc{color:#fff;background:var(--c-enc)} .cch.cla{color:#fff;background:var(--c-cla)} .cch.cap{color:#fff;background:var(--c-cap)}
+  @media (prefers-color-scheme:dark){.cch{color:#08120f !important}}
+  :root[data-theme="dark"] .cch{color:#08120f !important}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 15px;box-shadow:var(--shadow)}
+  .kpi .k{font-size:11px;color:var(--dim);font-weight:650;letter-spacing:.2px}
+  .kpi .v{font-size:26px;font-weight:820;letter-spacing:-.6px;margin-top:3px}
+  .kpi .d{font-size:11px;margin-top:4px;color:var(--dim)}
+  .kpi .d b{color:var(--good)}
+  .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
+  .h3{font-size:13px;font-weight:750;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .h3 .mini{font-size:11px;color:var(--faint);font-weight:600}
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:12px}
+  .bar-row .lb{width:78px;color:var(--dim)}
+  .bar-track{flex:1;height:9px;background:var(--surface-2);border-radius:6px;overflow:hidden;display:block}
+  .bar-fill{display:block;height:100%;border-radius:6px;min-width:2px}
+  .bar-row .vv{width:52px;text-align:right;font-weight:700}
+  .feed{display:flex;flex-direction:column;gap:2px}
+  .feed .it{display:flex;gap:9px;padding:8px 4px;border-bottom:1px solid var(--border);font-size:12px;align-items:center}
+  .feed .it:last-child{border-bottom:0}
+  .feed .it .t{color:var(--faint);font-size:10.5px;width:44px;flex:none}
+  .feed .it .m{color:var(--dim)}
+
+  /* room grid */
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:var(--dim)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .zone{margin-bottom:16px}
+  .zone .zt{font-size:11px;font-weight:750;color:var(--dim);letter-spacing:.4px;margin:0 0 8px;text-transform:uppercase}
+  .rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:8px}
+  .room{border:1px solid var(--border);border-radius:9px;padding:9px;background:var(--surface);cursor:default;
+    border-left:4px solid var(--empty);transition:transform .08s}
+  .room:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+  .room.m{border-left-color:var(--male)} .room.f{border-left-color:var(--female)} .room.fam{border-left-color:var(--family)}
+  .room .rn{font-weight:800;font-size:13px} .room .rc{font-size:10.5px;color:var(--dim);margin-top:2px}
+  .room .rocc{font-size:10.5px;margin-top:5px;font-weight:700}
+  .room.m .rocc{color:var(--male)} .room.f .rocc{color:var(--female)} .room.fam .rocc{color:var(--family)}
+  .room.empty .rocc{color:var(--empty)}
+
+  /* dorm occupancy gantt (room_stat3) — 대용량 대비 (틀고정 + 월점프 + content-visibility) */
+  .dorm-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .dorm-actions .btn{font-size:11.5px;padding:6px 11px}
+  .dorm-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+  .state-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--dim)}
+  .state-legend span{display:inline-flex;align-items:center;gap:6px}
+  .state-legend i{width:15px;height:15px;border-radius:3px;display:inline-grid;place-items:center;font-size:9px;font-weight:800;color:#fff;flex:none}
+  .month-jump{margin-left:auto;display:flex;gap:5px;overflow-x:auto;max-width:60%;padding-bottom:2px}
+  .month-jump .btn{padding:5px 9px;font-size:11px;flex:none}
+  .month-jump .btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .gantt thead th.mon-cur{background:var(--accent-weak);color:var(--accent-ink)}
+
+  table.gantt{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px;background:var(--surface)}
+  table.gantt th,table.gantt td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden}
+  table.gantt thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);color:var(--dim);font-weight:750;padding:5px 4px;text-align:center;white-space:nowrap}
+  table.gantt thead th.mon{font-size:12px;color:var(--text);height:29px}
+  /* 월 행(top:0) 아래에 일 행을 고정 → 세로 스크롤 시 월·일 2행 모두 프리즈 */
+  .gantt thead th.dh{position:sticky;top:29px;z-index:2}
+  .gantt thead th.c1,.gantt thead th.c2,.gantt thead th.c3{top:0}
+  .gantt .dh{font-size:10px;padding:4px 0}
+  .gantt td.dcell{height:26px;text-align:center;font-weight:700;font-size:10px;color:var(--faint);padding:0;cursor:pointer}
+  .gantt td.dcell:hover{outline:2px solid var(--accent);outline-offset:-2px}
+  /* 셀 액션 팝업 (입실/퇴실/방배정/방변경 등) */
+  .cellpop{position:absolute;z-index:60;background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;box-shadow:var(--shadow);padding:6px;min-width:172px}
+  .cellpop .cp-h{font-size:10.5px;color:var(--faint);font-weight:700;padding:4px 8px 7px;
+    border-bottom:1px solid var(--border);margin-bottom:4px;white-space:nowrap}
+  .cellpop .cp-h b{color:var(--text);font-weight:750}
+  .cellpop button{display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;
+    color:var(--text);font:inherit;font-size:12.5px;padding:7px 9px;border-radius:7px;cursor:pointer;text-align:left}
+  .cellpop button:hover{background:var(--surface-2)}
+  .cellpop button i{width:12px;height:12px;border-radius:3px;flex:none}
+  .gantt td.info{padding:5px 9px;text-align:left;background:var(--surface);white-space:nowrap;text-overflow:ellipsis}
+  .gantt td.rno{font-weight:800;text-align:center}
+  .gantt .per{display:inline-block;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:750}
+  .gantt .per.m{background:var(--male)} .gantt .per.f{background:var(--female)} .gantt .per.fam{background:#ca8a04}
+  .gantt td.name{color:var(--return);text-overflow:ellipsis}
+  .gantt td.cx{color:var(--faint)}
+  .gantt td.cin{background:var(--good);color:#fff}
+  .gantt td.cout{background:var(--female);color:#fff}
+  .gantt td.chold{background:color-mix(in srgb,var(--return) 60%,var(--surface));color:#fff}
+  .gantt td.cempty{background:var(--surface)}
+  /* 틀고정: 좌측 3열 (방번호/인실/이름) */
+  .gantt .c1{position:sticky;left:0;z-index:1}
+  .gantt .c2{position:sticky;left:72px;z-index:1}
+  .gantt .c3{position:sticky;left:130px;z-index:1}
+  .gantt thead .c1,.gantt thead .c2,.gantt thead .c3{z-index:3}
+  .gantt td.c1,.gantt td.c2,.gantt td.c3{background:var(--surface)}
+  /* 구분 그룹 구분행 (rowspan 제거 대체) */
+  .gantt tbody.grp-head td{background:var(--surface-2);border-bottom:2px solid var(--border);padding:0}
+  .gantt .grp-label{position:sticky;left:0;display:inline-block;padding:7px 12px;font-weight:800;letter-spacing:.4px;color:var(--text)}
+  /* 방 단위 블록: content-visibility로 화면 밖 행 렌더 스킵 (네이티브 가상화) */
+  .gantt tbody.room-block{content-visibility:auto}
+  .gantt tbody.room-block>tr>td{border-top:0}
+  .gantt tbody.room-block>tr:first-child>td.info{border-top:2px solid var(--border)}
+  .gantt tbody.room-block>tr:first-child>td.c1{box-shadow:inset 3px 0 0 var(--accent-weak)}
+  /* 표 자체 스크롤 영역 → 세로로 내려가도 헤더/월버튼 고정, 월클릭 시 컬럼 가로스크롤 */
+  .twrap.dorm-scroll{max-height:calc(100vh - 300px);overflow:auto}
+
+  /* admission grid */
+  .adm{overflow-x:auto}
+  table.adm-t{border-collapse:collapse;width:100%;font-size:12px;min-width:560px}
+  table.adm-t th,table.adm-t td{border:1px solid var(--border);padding:8px 10px;text-align:center}
+  table.adm-t th{background:var(--surface-2);color:var(--dim);font-size:10.5px;text-transform:uppercase;font-weight:750}
+  table.adm-t td .av{font-weight:750}
+  .soon{color:var(--warn);font-weight:750}
+
+  /* spec card (non-core screens) */
+  .spec{display:grid;gap:14px}
+  .spec .row{display:flex;gap:10px;flex-wrap:wrap}
+  .spec .kv{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px}
+  .spec .kv b{color:var(--dim);font-weight:700;margin-right:6px;font-size:11px}
+  .colgrid{display:flex;gap:6px;flex-wrap:wrap}
+  .colgrid .c{font-size:11.5px;background:var(--surface-2);border:1px solid var(--border);padding:4px 9px;border-radius:6px;font-weight:600}
+  .note{background:var(--accent-weak);color:var(--accent-ink);border-radius:8px;padding:10px 13px;font-size:12.5px}
+
+  /* ROOM REPLACEMENT 모달 (방변경) */
+  .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:70;display:flex;
+    align-items:flex-start;justify-content:center;padding:28px;overflow:auto}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    box-shadow:var(--shadow);width:min(1140px,96vw);max-height:92vh;overflow:auto}
+  .modal-h{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;
+    border-bottom:1px solid var(--border);background:var(--surface-2);position:sticky;top:0;z-index:2}
+  .modal-h b{font-size:15px;letter-spacing:.6px}
+  .modal-x{border:1px solid var(--border);background:var(--surface);color:var(--dim);
+    border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:14px}
+  .modal-body{display:grid;grid-template-columns:1fr 1.15fr;gap:18px;padding:18px}
+  .rp-t{font-size:12px;font-weight:750;color:var(--dim);margin-bottom:8px}
+  table.rp-info,table.rp-cand{border-collapse:collapse;width:100%;font-size:12px}
+  table.rp-info th,table.rp-info td,table.rp-cand th,table.rp-cand td{border:1px solid var(--border);padding:7px 9px;text-align:left}
+  table.rp-info th{background:var(--surface-2);color:var(--dim);white-space:nowrap;width:96px}
+  table.rp-cand th{background:var(--surface-2);color:var(--dim);text-transform:uppercase;font-size:10.5px;text-align:center}
+  table.rp-cand td{text-align:center}
+  table.rp-cand td.cat{text-align:left}
+  .rp-cand .btn{padding:3px 12px;font-size:11px}
+  .rp-cand-wrap{max-height:62vh;overflow:auto;border:1px solid var(--border);border-radius:8px}
+  .rp-cand thead th{position:sticky;top:0;z-index:1}
+  @media(max-width:760px){.modal-body{grid-template-columns:1fr}}
+
+  /* toast */
+  .toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:50}
+  .toast{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--warn);
+    box-shadow:var(--shadow);border-radius:9px;padding:11px 14px;font-size:12.5px;max-width:320px;
+    animation:pop .2s ease}
+  .toast.ok{border-left-color:var(--good)}
+  .toast b{display:block;margin-bottom:2px}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .banner{font-size:11px;color:var(--faint);text-align:center;padding:10px;border-top:1px solid var(--border);margin-top:20px}
+  @media (max-width:880px){
+    .cats{display:none} .kpis{grid-template-columns:repeat(2,1fr)} .grid2{grid-template-columns:1fr}
+  }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><span class="logo">S</span> SMEAG <small>ADMIN · 신규</small></div>
+    <nav class="cats" id="cats"></nav>
+    <div class="spacer"></div>
+    <div class="campus-sel">
+      <label>캠퍼스</label>
+      <select id="campus">
+        <option value="all">ALL</option>
+        <option value="1">ENCANTO</option>
+        <option value="4">CLASSIC</option>
+        <option value="5">CAPITAL</option>
+      </select>
+    </div>
+    <button class="theme-btn" id="fsBtn" title="전체화면 (주소창까지 숨김)">⛶</button>
+    <button class="theme-btn" id="themeBtn" title="테마 전환">◐</button>
+    <div class="who"><span class="av">K</span><span>kenneth</span></div>
+  </header>
+
+  <main class="main" id="main"></main>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+// ─── 메뉴 모델 (크롤 실측 반영) ───
+const CATS=[
+  {id:'record',icon:'⌂',label:'Record'},
+  {id:'student',icon:'👤',label:"Student's"},
+  {id:'dorm',icon:'🏠',label:'Dormitory'},
+  {id:'cash',icon:'💳',label:'Cash Cards'},
+];
+const MENU={
+  record:[{k:'dash',t:'대시보드',u:'(신규 승격)',tag:'HOME'}],
+  student:[
+    {k:'stdlist',t:'STUDENT LIST',u:'student.php'},
+    {k:'enroll',t:'수강등록관리',u:'student_list.php',tag:'90,533'},
+    {k:'spec',t:'멀티수강관리',u:'student_list3.php',tag:'8,308',cols:['유학원명','국적','이름(영문)','이름','나이','성별','등록일','출발일','시작일','종료일','기간','상태','코스시작일','연수코스','객실']},
+    {k:'spec',t:'MC Report 1',u:'student_list3_en1.php',cols:['Num','Campus','Course','Start','End','Week','Info','ID']},
+    {k:'spec',t:'MC Report 2',u:'student_list3_en2.php',note:'코스×주차 매트릭스'},
+    {k:'spec',t:'Graduate',u:'student_list3_en3.php',cols:['Num','Campus','Name','Gender','Nation','Start','End','Week','Info','ID']},
+    {k:'spec',t:'APPLY LIST',u:'student_list2.php',cols:['AGENCY','NAT','NAME','KOR','BIRTH','AGE','SEX','APPLY','DEPA','BEGIN','PICKUP','END','PERI','COND','COURSE','DORM','COUNSEL','HEALTH','PA','O.S.']},
+    {k:'spec',t:'HISTORY',u:'student_history.php',cols:['유학원명','국적','이름','나이','성별','등록일','출발일','시작일','종료일','기간','상태','Pickup','Make ID','Make Date']},
+    {k:'spec',t:'변경환불홀딩',u:'student_list_change.php',cols:['AGENCY','NAME','STUDENT','APPLY DATE','CENTER','CHANGE','ADD COURSE','ETC FEE','REFUND','HOLDING','MODIFY','INVOICE','RESULT','COMPLETE','DELETE'],inv:true,note:'변경/환불/홀딩 워크플로 — INVOICE 발행 포함'},
+    {k:'spec',t:'CHG-REF-HOLD',u:'student_list_change-back.php',note:'변경환불홀딩 영문 변형'},
+    {k:'spec',t:'수금관리',u:'student_list_pay.php',tag:'90,533',cols:['유학원','국적','이름','나이','성별','수금방법','상태','기간','객실'],note:'pay_channel: center/account'},
+    {k:'deposit',t:'DEPOSIT',u:'student_payment.php'},
+    {k:'spec',t:'Deposit(test)',u:'student_payment-2.php',cols:['Deposit #','NAT','eNAME','CAMPUS','STATUS','DEPOSIT','UNIT','DATE']},
+    {k:'spec',t:'FARM & GYM',u:'student_farm.php',cols:['NAT','NAME','GYM START','GYM PERIOD','FARM ARRIVAL','FARM FLIGHT','COMMENTS','COMMISSION','APPLY']},
+    {k:'spec',t:'GYM 리포트',u:'student_gym.php',cols:['NAT','NAME','GYM START','GYM PERIOD','GYM FEE','COMMISSION','APPLY','CAMPUS']},
+    {k:'spec',t:'FARM 리포트',u:'student_farm2.php',cols:['NAT','NAME','FARM ARRIVAL','PAID','FARM FEE','COMMISSION','APPLY','CAMPUS']},
+    {k:'spec',t:'POPULATION',u:'student_population.php',note:'국적×캠퍼스(ENCANTO/CLASSIC/CAPITAL/TOTAL) 교차표'},
+    {k:'spec',t:'POPULATION2',u:'student_population2.php',note:'인구통계 변형뷰'},
+    {k:'spec',t:'STDNT STATUS',u:'student_present2.php',note:'센터×국적×일자 매트릭스(인원·%)'},
+    {k:'spec',t:'STDNT Fullsize/Encanto/Classic/Capital',u:'student_present2-*.php',note:'⚠ 4종 모두 홈(/) 리다이렉트 = 외부 에이전시 포털(관리기능 아님)'},
+    {k:'spec',t:'REGISTER STATS',u:'student_register.php',note:'신규등록 통계(fsearch)'},
+    {k:'spec',t:'GAC BOARD',u:'bbs/board.php?bo_table=office_GAC',cols:['NO','TITLE','WRITER','DATE','VIEW']},
+    {k:'spec',t:'Campus Holding',u:'bbs/board.php?bo_table=office_holding',cols:['NO','TITLE','WRITER','DATE','VIEW']},
+  ],
+  dorm:[
+    {k:'spec',t:'DORM SEARCH',u:'room_search2.php',cols:['GROUP','ROOM NUMBER','BED NUMBER','PER/ROOM(인실)','SEX','CENTER'],note:'r_limit 1~5, s_gender M/F'},
+    {k:'roomstat',t:'기숙사현황 (배치도)',u:'room_stat3.php'},
+    {k:'spec',t:'DORM STATUS',u:'room_stat2.php',note:'배치도 영문판 (MALE/FEMALE/FAMILY)'},
+    {k:'spec',t:'기숙사이동관리',u:'room_move_list.php',cols:['유학원','국적','이름','나이','성별','출발일','픽업','기간','변경전객실','처리일','변경될객실','상태','상황','상태변경']},
+    {k:'spec',t:'ROOM M-LIST',u:'room_move_list2.php',cols:['CAMPUS','AGENCY','NAT','NAME','AGE','SEX','A-DAY','DEPA','PICKUP','PERI','BEFORE','D-DAY','S-DAY','AFTER','COND','ORDER','CHANGE']},
+    {k:'spec',t:'일별 입실&퇴실',u:'room_use_count_list.php',cols:['처리일자','신규입실','연장입실','홀딩사용입실','일반퇴실','환불퇴실','퇴교퇴실','홀딩퇴실']},
+    {k:'spec',t:'DAY IN&OUT',u:'room_use_count_list2.php',note:'일별 입퇴실 영문 매트릭스'},
+    {k:'spec',t:'ELEC & WATER',u:'room_elec.php',note:'전기·수도 요금 계산 (search_condition S/C/E)'},
+    {k:'spec',t:'VISIT (detail)',u:'uhak_agency_visit.php',cols:['No','AGENCY NAME','VISIT DATE','VISIT TIME','VISITER','PHONE','REQUIREMENT','RESULT'],note:'d_state W=WAIT/Y=COMPLETE/C=CANCEL'},
+    {k:'spec',t:'VISIT (calendar)',u:'uhak_agency_schedule_list.php',note:'월 캘린더(SUN~SAT)'},
+    {k:'spec',t:'DORM LIST',u:'room_list.php',tag:'1,127실',cols:['NO','CATEGORY','R-NO','CAPACITY','SEX','KOR','CHI','JAP','TWA','VTN','ETC','CENTER','CHECK']},
+    {k:'changelog',t:'BACK-UP LOG',u:'room_change_log.php',tag:'552K'},
+    {k:'spec',t:'DAYOFF / Scheduler',u:'scheduler_index(-all).php',note:'매니저 휴무 월/주/일 캘린더'},
+    {k:'admission',t:'Admission Date',u:'smeag_admissiondate.php'},
+    {k:'spec',t:'SME_BOARD',u:'bbs/board.php?bo_table=office_share',cols:['NO','TITLE','WRITER','DATE','VIEW']},
+  ],
+  cash:[
+    {k:'cashmng',t:'Manage Cash',u:'student_cash_payment.php'},
+    {k:'spec',t:'Group Students',u:'student_group_payment.php',cols:['#','Group Name','Country','# of Students','Status','Added by','Created','Action'],note:'그룹결제·엑셀 내보내기'},
+    {k:'spec',t:'Pre-paid Info',u:'student_payment-2.php',cols:['Deposit #','NAT','eNAME','CAMPUS','STATUS','DEPOSIT','UNIT','DATE']},
+  ],
+};
+const SIDE_TITLE={record:'RECORD',student:"STUDENT'S",dorm:'DORMITORY',cash:'CASH CARDS'};
+
+// ─── 샘플(가상) 데이터 — 실제 개인정보 아님 ───
+const F=['Aria','Noah','Mei','Yuki','Ivan','Linh','Omar','Sofia','Kenji','Nadia','Tariq','Elena'];
+const L=['K.','R.','S.','T.','V.','P.','N.','M.','B.','C.'];
+// ─── 실옵션(레거시 dict_options 크롤 실측) — 필터/셀렉트 실데이터 반영 ───
+const DICT={"uhak":[{"v":"","t":"AGENCY"},{"v":"doa","t":"\"DELGER OD AND\" LLC"},{"v":"amahn","t":"(1)AMAHN"},{"v":"ames","t":"(1)AMES"},{"v":"blueocean","t":"(1)BLUE OCEAN GROUP"},{"v":"OEA","t":"(1)BrainClick Vietnam/OEA Vietnam"},{"v":"bridgeblue","t":"(1)Bridge Blue"},{"v":"bbblue","t":"(1)Bridge Blue"},{"v":"catta","t":"(1)CATTA"},{"v":"EBVN","t":"(1)EduBridge Viet Nam"},{"v":"eduvietglobal","t":"(1)Eduviet Global"},{"v":"eduzone","t":"(1)Eduzone"},{"v":"Futurelink","t":"(1)Futurelink"},{"v":"gitizen","t":"(1)gitizen"},{"v":"hathai","t":"(1)Ha Thai Tour and Travel"},{"v":"hungcuong","t":"(1)Hung Cuong"},{"v":"idc","t":"(1)IDC"},{"v":"indec","t":"(1)INTELLECTUAL DEVELOPMENT COMPANY (IND"},{"v":"Interconex","t":"(1)Interconex"},{"v":"isd","t":"(1)International Study Development JSC."},{"v":"Jellyfish","t":"(1)Jellyfish"},{"v":"ladeco","t":"(1)LADECO CORP"},{"v":"lienchau","t":"(1)Lien Chau Company, Ltd."},{"v":"megastudy","t":"(1)MEGA STUDY FPT"},{"v":"newstar","t":"(1)newstar"},{"v":"AIT","t":"(1)PHUONG ANH"},{"v":"queensland","t":"(1)Queensland"},{"v":"sunmoon","t":"(1)sunmoon"},{"v":"sunrisevietnam","t":"(1)Sunrise Vietnam Agency"},{"v":"tve","t":"(1)Tan Viet Education"},{"v":"tec","t":"(1)TEC Academy"},{"v":"viet","t":"(1)Viet Vision"},{"v":"aauco","t":"(2)A Au Co"},{"v":"AMA","t":"(2)AMA"},{"v":"coc","t":"(2)COC Vietnam"},{"v":"compass","t":"(2)COMPASS EDU"},{"v":"dtu","t":"(2)Duc Tu Trading Corporation-DTU"},{"v":"edulinks","t":"(2)EDULINKS"},{"v":"GOLDENWAY","t":"(2)GOLDENWAY"},{"v":"icsa","t":"(2)ICSA"},{"v":"inec","t":"(2)INEC"},{"v":"mice","t":"(2)MICE"},{"v":"newsky","t":"(2)New Sky"},{"v":"newworld","t":"(2)New World"},{"v":"saigontourist","t":"(2)Saigon Tourist"},{"v":"udc","t":"(2)United Education Corporation"},{"v":"VINAM","t":"(2)VI NAM INTERNATIONAL COMPANY"},{"v":"vicom","t":"(2)VICOM"},{"v":"vietclever","t":"(2)Vietclever"}],"nation":[{"v":"","t":"COUNTRY"},{"v":"kor","t":"KOR[한국]"},{"v":"chi","t":"CHI[중국]"},{"v":"jap","t":"JAP[일본]"},{"v":"twa","t":"TWA[대만]"},{"v":"vtn","t":"VTN[베트남]"},{"v":"tha","t":"THA[태국]"},{"v":"rus","t":"RUS[러시아]"},{"v":"mgl","t":"MGL[몽고]"},{"v":"om","t":"OM[오만]"},{"v":"etc","t":"ETC[기타]"}],"now_status":[{"v":"","t":"CONDITION"},{"v":"normal","t":"NORMAL[정상]"},{"v":"extend","t":"EXTEND[연장]"},{"v":"refund","t":"REFUND[환불]"},{"v":"exchange","t":"EXCHANGE[변경]"},{"v":"out","t":"OUT[퇴교]"},{"v":"holding","t":"HOLDING[홀딩]"},{"v":"holdinguse","t":"HOLDINGUSE[홀딩사용]"},{"v":"graduated","t":"GRADUATED[졸업]"},{"v":"cancel","t":"취소"},{"v":"paycancel","t":"납부취소"},{"v":"waiting","t":"보류"},{"v":"checking","t":"관리"},{"v":"etc","t":"ETC[기타]"}],"campus":[{"v":"","t":"::캠퍼스::"},{"v":"sparta","t":"엔칸토"},{"v":"classic","t":"클래식"},{"v":"capital","t":"캐피탈"}],"pay_status":[{"v":"","t":"납부상태"},{"v":"N","t":"미납(UNPAID)"},{"v":"Y","t":"완납(PAID)"},{"v":"X","t":"분납(INSTALL)"},{"v":"R","t":"반환(RETURN)"}],"pay_channel":[{"v":"","t":"납부방법"},{"v":"center","t":"센터수금(center)"},{"v":"account","t":"계좌수금(account)"}],"room_gubun":[{"v":"1","t":"TEMPORARY/FAMILY"},{"v":"68","t":"CAPITAL1/MALE"},{"v":"71","t":"CAPITAL1/FEMALE"},{"v":"69","t":"CAPITAL2/MALE"},{"v":"75","t":"CAPITAL2/FEMALE"},{"v":"82","t":"S hotel(H)_M/MALE"},{"v":"83","t":"S hotel(H)_F/FEMALE"},{"v":"137","t":"Amethyst(AM)_F/FEMALE"},{"v":"130","t":"ENCANTO2/FAMILY"},{"v":"133","t":"ENCANTO(VIP)/FAMILY"}],"course_info1":[{"v":"","t":"::FIRST COURSE::"},{"v":"14","t":"ESL(CAPITAL)"},{"v":"16","t":"Pre-IELTS"},{"v":"17","t":"IELTS 5.5"},{"v":"18","t":"IELTS 6.0"},{"v":"31","t":"IELTS 6.5"},{"v":"32","t":"IELTS 7.0"},{"v":"25","t":"TOEIC 600"},{"v":"26","t":"TOEIC 700"},{"v":"50","t":"TOEFL 4.0(80)"},{"v":"38","t":"GAC Level 1"},{"v":"52","t":"Business"}],"pay_result":[{"v":"","t":"::비용처리::"},{"v":"center","t":"센터수납미처리(Center not yet)"},{"v":"account","t":"계좌수납미처리(Account not yet)"},{"v":"collection","t":"수금완료(Paid)"},{"v":"refund","t":"환급완료(Refunded)"},{"v":"holding","t":"홀딩확정(Holding)"},{"v":"cancel","t":"취소(Cancel)"}],"r_limit":[{"v":"","t":"::per/room::"},{"v":"1","t":"1per/room"},{"v":"2","t":"2per/room"},{"v":"3","t":"3per/room"},{"v":"4","t":"4per/room"},{"v":"5","t":"5per/room"}]};
+// 옵션 HTML 생성 (실옵션 → <option>)
+const ddOpts=(list,allLabel)=>((allLabel?`<option value="">${allLabel}</option>`:'')+list.filter(o=>o.v).map(o=>`<option value="${o.v}">${o.t}</option>`).join(''));
+const NAT=DICT.nation.filter(o=>o.v).map(o=>[o.t.split('[')[0],o.v]);   // [['KOR','kor'],...] 실측
+const AG=DICT.uhak.filter(o=>o.v).map(o=>o.v);                          // 유학원 코드 실측
+function rnd(a){return a[Math.floor((Math.sin(seed++)*1e4%1+1)%1*a.length)]}
+let seed=7;
+function fakeName(){return rnd(F)+' '+rnd(L)}
+
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
+const campusChip=(id)=>({'1':'<span class="cch enc">ENCANTO</span>','4':'<span class="cch cla">CLASSIC</span>','5':'<span class="cch cap">CAPITAL</span>'}[id]||'');
+
+// ─── 렌더러 ───
+const R={};
+let roomCenter={y:2026,m:7}; // 배치도 캘린더 중심월(선택월)
+// ─── 실데이터 (레거시 MySQL 덤프 슬라이스 · MySQL 비교검증용 · admin 인증 전용) ───
+let REAL=null; /*__REALDATA__*/
+const campusChipName=(n)=>({ENCANTO:'<span class="cch enc">ENCANTO</span>',CLASSIC:'<span class="cch cla">CLASSIC</span>',CAPITAL:'<span class="cch cap">CAPITAL</span>'}[(n||'').toUpperCase()]||(n||'—'));
+const condPill=(c)=>({normal:'good',holding:'warn',holdinguse:'warn',extend:'install',refund:'return',exchange:'install',out:'neutral',graduated:'neutral'}[(c||'').toLowerCase()]||'neutral');
+const depStatus=(s)=>({N:['미납','warn'],Y:['완납','good'],X:['분납','install'],R:['반환','return']}[(s||'').toUpperCase()]||['-','neutral']);
+const REALBADGE=`<span class="chip on" style="background:var(--good);color:#fff;border:0">● 실데이터(MySQL)</span>`;
+// 픽업 주간: 기준일이 속한 주의 목요일 → 다음주 수요일(목+6일) 자동 산출
+function pickupWeek(base){const d=base?new Date(base):new Date();
+  const diff=(d.getDay()-4+7)%7; // 목요일(4) 이후 경과일
+  const thu=new Date(d); thu.setDate(d.getDate()-diff);
+  const wed=new Date(thu); wed.setDate(thu.getDate()+6);
+  const f=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  return [f(thu),f(wed)];}
+R.dash=()=>`
+  <div class="ph"><h1>대시보드</h1><span class="sub">Record · 종합 현황</span><span class="url">신규 승격 화면</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="k">재학생</div><div class="v mono">90,533</div><div class="d"><b>+34</b> 오늘 신규</div></div>
+    <div class="kpi"><div class="k">기숙사 재실</div><div class="v mono">1,038<span style="font-size:14px;color:var(--dim)"> / 1,127실</span></div><div class="d">가동률 <b>92%</b></div></div>
+    <div class="kpi"><div class="k">오늘 입/퇴실</div><div class="v mono">34 / 27</div><div class="d">홀딩사용 6</div></div>
+    <div class="kpi"><div class="k">미납(N)</div><div class="v mono" style="color:var(--warn)">1,208</div><div class="d">분납(X) 342 · 반환(R) 12</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card pad">
+      <div class="h3">캠퍼스별 재실률 <span class="mini">occupancy</span></div>
+      ${[['ENCANTO',94,'var(--c-enc)'],['CLASSIC',88,'var(--c-cla)'],['CAPITAL',91,'var(--c-cap)']].map(([n,v,c])=>`
+        <div class="bar-row"><span class="lb">${n}</span><span class="bar-track"><span class="bar-fill" style="width:${v}%;background:${c}"></span></span><span class="vv mono">${v}%</span></div>`).join('')}
+      <div class="h3" style="margin-top:18px">국적 분포 <span class="mini">top</span></div>
+      ${[['KOR',38,'var(--male)'],['VTN',22,'var(--good)'],['JAP',14,'var(--family)'],['CHI',11,'var(--female)'],['ETC',15,'var(--neutral)']].map(([n,v,c])=>`
+        <div class="bar-row"><span class="lb">${n}</span><span class="bar-track"><span class="bar-fill" style="width:${v*2.3}%;background:${c}"></span></span><span class="vv mono">${v}%</span></div>`).join('')}
+    </div>
+    <div class="card pad">
+      <div class="h3">최근 방변경 로그 <span class="mini">audit · 552K</span></div>
+      <div class="feed">
+        ${[['09:41','E203 → E205 이동','ENCANTO'],['09:12','신규 입실 C-Hotel 3F','CAPITAL'],['08:55','홀딩사용 입실','CLASSIC'],['08:30','퇴실 처리','ENCANTO'],['08:02','2인실 룸메이트 배정','CAPITAL']].map(([t,m])=>`
+          <div class="it"><span class="t mono">${t}</span><span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--accent)"></span><span class="m">${m}</span></div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+
+function rowsStudents(n){
+  if(REAL&&REAL.students&&REAL.students.length){return REAL.students.map(s=>{const sx=(s.sex||'').toUpperCase();
+    return `<tr><td>${s.ag||'—'}</td><td class="mono">${(s.nat||'').toUpperCase()}</td><td>${s.en||''}</td><td>${s.kor||'—'}</td>
+    <td class="num mono">${s.age||''}</td><td><span class="pill ${sx==='F'?'female':'male'}">${sx==='F'?'여':'남'}</span></td>
+    <td class="mono">${s.apply||'—'}</td><td class="mono">${s.depa||'—'}</td>
+    <td>${campusChipName(s.campus)}</td><td><span class="pill ${condPill(s.cond)}">${(s.cond||'').toUpperCase()||'—'}</span></td></tr>`;}).join('');}
+  let s='';for(let i=0;i<n;i++){const nt=rnd(NAT);const sex=(seed%2)?'M':'F';const cid=rnd(['1','4','5']);
+  s+=`<tr><td>${rnd(AG)}</td><td class="mono">${nt[0]}</td><td>${fakeName()}</td><td>—</td><td class="num mono">${18+seed%12}</td>
+  <td><span class="pill ${sex==='M'?'male':'female'}">${sex==='M'?'남':'여'}</span></td>
+  <td class="mono">2026-0${1+seed%9}-1${seed%9}</td><td class="mono">2026-1${seed%2}-0${1+seed%8}</td>
+  <td>${campusChip(cid)}</td><td><span class="pill ${['good','warn','neutral'][seed%3]}">${['NORMAL','HOLDING','EXTEND'][seed%3]}</span></td></tr>`;seed++;}
+  return s;}
+R.stdlist=()=>`
+  <div class="ph"><h1>STUDENT LIST</h1><span class="sub">전체 학생 명단</span><span class="url">student.php</span></div>
+  <div class="filters">
+    <div class="field"><label>리스트 프리셋</label><select id="preset"><option value="">기본(직접선택)</option><option value="pickup">🛬 픽업 주간 (목→다음주 수)</option></select></div>
+    <div class="field"><label>DEPARTURE 시작</label><input id="depFrom" type="date" value="2026-01-01"></div>
+    <div class="field"><label>DEPARTURE 종료</label><input id="depTo" type="date" value="2026-12-31"></div>
+    <div class="field"><label>AGENCY</label><select>${ddOpts(DICT.uhak,'ALL')}</select></div>
+    <div class="field"><label>국적</label><select>${ddOpts(DICT.nation,'ALL')}</select></div>
+    <div class="field"><label>상태(condition)</label><select>${ddOpts(DICT.now_status,'ALL')}</select></div>
+    <div class="field grow"><label>이름 검색</label><input placeholder="영문/한글 이름"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn primary">검색</button></div>
+  </div>
+  <div class="chips"><span class="chip on">캠퍼스: <span id="cf1">ALL</span></span><span class="chip">DEPARTURE 2026</span><span class="chip">전체 90,524건</span>${REAL&&REAL.students?REALBADGE:''}</div>
+  <div style="height:10px"></div>
+  <div class="twrap"><table class="grid">
+    <thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>SEX</th><th>APPLY</th><th>DEPA</th><th>CAMPUS</th><th>COND</th></tr></thead>
+    <tbody>${rowsStudents(12)}</tbody>
+  </table></div>
+  <div class="banner">${REAL&&REAL.students?`MySQL 비교검증용 <b>실데이터</b> ${REAL.students.length}건 표시 (legacy.student_info 최근분 · 전체 90,524) · admin 인증 전용`:'서버 페이징 · 가상 스크롤 전제 (90K행) · 표시 데이터는 가상 샘플'}</div>`;
+
+R.deposit=()=>{const st=[['미납','warn','N'],['완납','good','Y'],['분납','install','X'],['반환','return','R']];let rows='';
+  if(REAL&&REAL.deposits&&REAL.deposits.length){rows=REAL.deposits.map(d=>{const ds=depStatus(d.status);
+    return `<tr><td class="mono">${d.no||''}</td><td class="mono">${(d.nat||'').toUpperCase()}</td><td>${d.name||''}</td>
+    <td class="mono">${d.begin||'—'}</td><td class="mono">${d.end||'—'}</td>
+    <td><span class="pill ${ds[1]}">${(d.status||'-')} ${ds[0]}</span></td><td class="num mono">${d.amount||'—'}</td><td class="mono">${d.unit||''}</td></tr>`;}).join('');}
+  else for(let i=0;i<10;i++){const nt=rnd(NAT);const s=st[seed%4];
+    rows+=`<tr><td class="mono">${1000+i}</td><td class="mono">${nt[0]}</td><td>${fakeName()}</td>
+    <td class="mono">2026-0${1+seed%9}-01</td><td class="mono">2026-1${seed%2}-01</td>
+    <td><span class="pill ${s[1]}">${s[2]} ${s[0]}</span></td><td class="num mono">${(seed*137%9+1)},${(seed*31%900+100)}</td><td class="mono">USD</td></tr>`;seed++;}
+  return `
+  <div class="ph"><h1>DEPOSIT</h1><span class="sub">예치금 관리</span><span class="url">student_payment.php</span></div>
+  <div class="filters">
+    <div class="field"><label>GROUP(YYMM)</label><select><option>ALL</option><option>2601</option><option>2602</option><option>2603</option></select></div>
+    <div class="field"><label>국적</label><select>${ddOpts(DICT.nation,'ALL')}</select></div>
+    <div class="field"><label>결제상태</label><select>${ddOpts(DICT.pay_status,'ALL')}</select></div>
+    <div class="field"><label>BEGIN</label><input type="date"></div>
+    <div class="field"><label>END</label><input type="date"></div>
+    <div class="field grow"><label>이름</label><input placeholder="이름"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn primary">검색</button></div>
+  </div>
+  <div class="note" style="margin-bottom:12px">결제상태 코드 실측: <b>N</b>=미납 · <b>Y</b>=완납 · <b>X</b>=분납(INSTALL) · <b>R</b>=반환 &nbsp;— 기존 문서의 “X=예외”는 정정됨</div>
+  <div class="twrap"><table class="grid">
+    <thead><tr><th>NO</th><th>NAT</th><th>NAME</th><th>BEGIN</th><th>END</th><th>STATUS</th><th class="num">DEPOSIT</th><th>UNIT</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;};
+
+R.roomstat=()=>{
+  const CELLW=22, INFOW=72+58+230; // 방번호+인실+이름 = 좌측 고정폭
+  const pad=n=>String(n).padStart(2,'0');
+  const daysIn=(y,m)=>new Date(y,m,0).getDate();
+  // 선택월(roomCenter) 기준 ±6개월 = 13개월
+  const months=[];
+  for(let off=-6;off<=6;off++){let y=roomCenter.y,m=roomCenter.m+off;
+    while(m<1){m+=12;y--;}while(m>12){m-=12;y++;}months.push({y,m,days:daysIn(y,m),off});}
+  const TOTAL=months.reduce((s,x)=>s+x.days,0);
+  let daysBefore=0;for(let i=0;i<6;i++)daysBefore+=months[i].days; // 중심월 시작 오프셋(일)
+  const centerStart=daysBefore*CELLW, centerWidth=months[6].days*CELLW;
+  // 전체 날짜 라벨(셀 클릭 액션용)
+  const dateLabels=[];months.forEach(mo=>{for(let d=1;d<=mo.days;d++)dateLabels.push(`${mo.y}-${pad(mo.m)}-${pad(d)}`);});
+
+  const nm=(n)=>Array.from({length:n},fakeName).join(' - ');
+  const c=daysBefore;
+  function pat(kind){const a=Array(TOTAL).fill('x');const s=seed++;
+    if(kind==='empty')return Array(TOTAL).fill('e');
+    if(kind==='full'){if(s%3===0){a[c+3]='hold';a[c+4]='in';}if(s%5===0){a[c+24]='hold';a[c+25]='out';}return a;}
+    if(kind==='latein'){const d=c+(2+s%6);for(let i=0;i<d;i++)a[i]='e';if(a[d]!==undefined)a[d]='in';return a;}
+    if(kind==='earlyout'){const d=c+(12+s%10);for(let i=d+1;i<TOTAL;i++)a[i]='e';if(a[d]!==undefined)a[d]='out';return a;}
+    if(kind==='gap'){const d1=c+(8+s%6),d2=d1+3;a[d1]='out';for(let i=d1+1;i<d2;i++)a[i]='e';if(a[d2]!==undefined)a[d2]='in';return a;}
+    return a;}
+  const KINDS=['full','full','latein','full','earlyout','full','gap','full','full','latein'];let ki=0;
+  const nextKind=()=>KINDS[ki++%KINDS.length];
+
+  const groups=[];
+  // TEMPORARY — 공용(FAMILY), 1인실, 전실 공실
+  {const rooms=[];for(let i=0;i<16;i++)rooms.push({no:(100+i)+'-temp',gender:'fam',per:'1인실',beds:[{name:'',pat:pat('empty')}]});
+    groups.push({name:'TEMPORARY / FAMILY',rooms});}
+  // CAPITAL1 — 남자(MALE)
+  {const rooms=[];
+    rooms.push({no:'301-1',gender:'m',per:'1인실',beds:[{name:fakeName()+' _single use',pat:pat('full')}]});
+    rooms.push({no:'301-2',gender:'m',per:'1인실',beds:[{name:'staff_'+fakeName(),pat:pat('full')}]});
+    for(let r=302;r<=311;r++){const beds=[];
+      for(let b=0;b<3;b++){const tail=((r+b)%4===0)?' ('+fakeName().split(' ')[0]+' Univ.)':((r+b)%5===0)?' - holding student':'';
+        beds.push({name:nm(2+((r+b)%3))+tail,pat:pat(nextKind())});}
+      rooms.push({no:String(r),gender:'m',per:'3인실',beds});}
+    groups.push({name:'CAPITAL1 / MALE',rooms});}
+  // CAPITAL2 — 여자(FEMALE)
+  {const rooms=[];for(let r=401;r<=406;r++){const per=(r%3===0)?'2인실':'3인실';const bn=per==='2인실'?2:3;const beds=[];
+      for(let b=0;b<bn;b++)beds.push({name:nm(1+((r+b)%2)+1),pat:pat(nextKind())});
+      rooms.push({no:String(r),gender:'f',per,beds});}
+    groups.push({name:'CAPITAL2 / FEMALE',rooms});}
+  // S hotel(H) — 공용
+  {const rooms=[];for(let r=1;r<=4;r++){rooms.push({no:'H30'+r,gender:'fam',per:'2인실',beds:[{name:nm(2),pat:pat(nextKind())}]});}
+    groups.push({name:'S hotel(H) / FAMILY',rooms});}
+
+  const CLS={x:'cx',in:'cin',out:'cout',hold:'chold',e:'cempty'};
+  const dcells=(p)=>p.map((st,i)=>`<td class="dcell ${CLS[st]}" data-date="${dateLabels[i]}">${st==='e'?'':'X'}</td>`).join('');
+  const colg=`<colgroup><col style="width:72px"><col style="width:58px"><col style="width:230px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
+  const monRow=months.map(mo=>`<th class="mon${mo.off===0?' mon-cur':''}" colspan="${mo.days}">${mo.y} 년 ${pad(mo.m)} 월</th>`).join('');
+  const dayRow=months.map(mo=>Array.from({length:mo.days},(_,i)=>`<th class="dh">${i+1}</th>`).join('')).join('');
+  const head=`<thead><tr><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
+
+  let body='';
+  groups.forEach(g=>{
+    body+=`<tbody class="grp-head"><tr><td colspan="${3+TOTAL}"><span class="grp-label">${g.name}</span></td></tr></tbody>`;
+    g.rooms.forEach(r=>{
+      const h=r.beds.length*27;
+      body+=`<tbody class="room-block" style="contain-intrinsic-size:auto ${h}px">`;
+      r.beds.forEach((bed,bi)=>{
+        body+=`<tr><td class="info rno c1">${bi===0?r.no:''}</td>`
+            +`<td class="info c2"><span class="per ${r.gender}">${r.per}</span></td>`
+            +`<td class="info name c3">${bed.name||''}</td>`
+            +dcells(bed.pat)+`</tr>`;
+      });
+      body+=`</tbody>`;
+    });
+  });
+
+  const sel=months.map(mo=>`<button class="btn${mo.off===0?' on':''}" data-my="${mo.y}" data-mm="${mo.m}" title="${mo.y}년 ${pad(mo.m)}월">${String(mo.y).slice(2)}.${pad(mo.m)}</button>`).join('');
+
+  return `
+  <div class="ph"><h1>기숙사 현황 (배치도)</h1><span class="sub">room_stat3.php · 방배치 캘린더</span>
+    <span class="actions dorm-actions" style="margin-left:auto">
+      <button class="btn">📊 1MONTH EXCEL(TOTAL)</button>
+      <button class="btn">📊 2MONTH EXCEL(TOTAL)</button>
+      <button class="btn">⚠ ROOM ERROR CHECK</button>
+    </span></div>
+  <div class="dorm-bar">
+    <div class="legend" style="margin:0">
+      <span><i style="background:var(--male)"></i> 남자 (MALE)</span>
+      <span><i style="background:var(--female)"></i> 여자 (FEMALE)</span>
+      <span><i style="background:#ca8a04"></i> 공용 (FAMILY)</span>
+    </div>
+    <div class="month-jump" title="선택월이 중앙으로 정렬됩니다 (±6개월)">${sel}</div>
+  </div>
+  <div class="state-legend" style="margin-bottom:12px">
+    <span><i style="background:var(--good)">X</i> 입실 (CHECK-IN)</span>
+    <span><i style="background:var(--female)">X</i> 퇴실 (CHECK-OUT)</span>
+    <span><i style="background:var(--return)">X</i> 홀딩/방변경 (HOLD/MOVE)</span>
+    <span><i style="background:var(--surface-2);color:var(--faint);border:1px solid var(--border)">X</i> 재실 (STAY)</span>
+    <span><i style="background:var(--surface);border:1px solid var(--border)"></i> 빈방 (VACANT)</span>
+  </div>
+  <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}"><table class="gantt" style="width:${INFOW+TOTAL*CELLW}px">${colg}${head}${body}</table></div>
+  <div class="note" style="margin-top:12px">레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬되며 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b> · content-visibility. 표시 데이터는 가상 샘플(실제 개인정보 아님).</div>`;};
+
+R.changelog=()=>{let rows='';const mg=['kenneth','katie','anna','joon','doris'];
+  if(REAL&&REAL.changelog&&REAL.changelog.length){rows=REAL.changelog.map(c=>
+    `<tr><td>—</td><td class="mono">#${c.sidx||''}</td><td>${c.name||''}</td><td class="mono">${c.apply||'—'}</td>
+    <td class="mono">${c.period||'—'}</td><td class="mono">${c.oldr||c.oldc||'—'}</td>
+    <td class="mono">${c.newr||c.newc||'—'}</td><td>${c.mgr||'—'}</td></tr>`).join('');}
+  else for(let i=0;i<12;i++){rows+=`<tr><td>${rnd(AG)}</td><td class="mono">#${20000+seed}</td><td>${fakeName()}</td>
+  <td class="mono">2026-07-1${seed%9} 0${seed%9}:${10+seed%49}</td><td class="mono">${4+seed%8}wk</td>
+  <td class="mono">C10${seed%9}:4bed</td><td class="mono">C20${seed%9}:2bed</td><td>${rnd(mg)}</td></tr>`;seed++;}
+  return `
+  <div class="ph"><h1>BACK-UP LOG (방변경 audit)</h1><span class="sub">room_change_log.php</span><span class="url">552,177건 · 감사로그</span></div>
+  <div class="filters">
+    <div class="field"><label>매니저</label><select><option>ALL</option><option>kenneth</option><option>katie</option></select></div>
+    <div class="field"><label>학생 ID#</label><input placeholder="#20000"></div>
+    <div class="field grow"><label>이름</label><input></div>
+    <div class="field"><label>기간</label><input type="date"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn primary">검색</button></div>
+  </div>
+  <div class="note" style="margin-bottom:12px">대용량 audit — (student_id, changed_at) 인덱스 + 월 파티셔닝 + 서버 페이징 전제. 필터 없이 전체조회 차단.</div>
+  <div class="twrap"><table class="grid">
+    <thead><tr><th>AGENCY</th><th>ID#</th><th>STUDENT</th><th>CHANGE TIME</th><th>STUDY</th><th>PRE-DORM</th><th>CHANGE-DORM</th><th>MANAGER</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;};
+
+R.admission=()=>{
+  const caps=['1인실','2인실','3인실','4인실'];
+  const cell=(soon)=>soon?`<td><span class="av soon">7/2${1+seed++%7} 대기</span></td>`:`<td><span class="av" style="color:var(--good)">즉시</span></td>`;
+  const rowFor=(camp)=>`<tr><td><b>${camp}</b></td>${caps.map((c,i)=>cell((seed+i)%3===0)).join('')}</tr>`;
+  return `
+  <div class="ph"><h1>Admission Date (입학가능일)</h1><span class="sub">smeag_admissiondate.php</span><span class="url">캠퍼스×성별×인실</span></div>
+  <div class="chips" style="margin-bottom:12px"><span class="chip on">성별: 남</span><span class="chip">여</span></div>
+  <div class="card pad adm"><table class="adm-t">
+    <thead><tr><th>캠퍼스</th>${caps.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${['ENCANTO','CLASSIC','CAPITAL','CAPITAL(O)'].map(rowFor).join('')}</tbody>
+  </table></div>
+  <div class="note" style="margin-top:12px">공지: 취소자리 대기 접수 중 · 배정 문의는 담당 매니저</div>`;};
+
+R.cashmng=()=>{let rows='';for(let i=0;i<6;i++){const nt=rnd(NAT);
+  rows+=`<tr><td class="mono">${i+1}</td><td>${fakeName()}</td><td class="mono">${nt[0]}</td>
+  <td class="num mono">${seed*13%900+100}</td><td class="num mono" style="color:var(--good)">+${seed*7%300}</td>
+  <td class="num mono" style="color:var(--female)">-${seed*5%200}</td><td class="mono">2026-07-1${seed%9}</td>
+  <td><button class="btn" style="padding:4px 9px;font-size:11px">상세</button></td></tr>`;seed++;}
+  return `
+  <div class="ph"><h1>Manage Cash</h1><span class="sub">현금 잔액/입출금 (신규 재설계)</span><span class="url">student_cash_payment.php</span>
+    <span class="actions"><button class="btn primary" data-guard="save">💾 저장</button></span></div>
+  <div class="note" style="margin-bottom:12px">레거시 미완성 모듈 → 신규는 cash_account + cash_tx(입/출금) 분리. <b>저장/발행 중복실행 방지 적용</b>(아래 버튼으로 데모).</div>
+  <div class="twrap"><table class="grid">
+    <thead><tr><th>#</th><th>Name</th><th>Country</th><th class="num">Balance</th><th class="num">Cash-in</th><th class="num">Cash-out</th><th>Created</th><th>Action</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+  <div class="card pad" style="margin-top:14px">
+    <div class="h3">인보이스 발행 (중복방지 데모)</div>
+    <p style="color:var(--dim);font-size:12.5px;margin:0 0 12px">한 번 발행하면 처리 중 재클릭은 <b>“이미 실행 중입니다”</b>로 차단하고, 멱등키로 중복 레코드 생성을 막습니다.</p>
+    <button class="btn primary" data-guard="invoice">🧾 인보이스 발행</button>
+  </div>`;};
+
+R.spec=(m)=>`
+  <div class="ph"><h1>${m.t}</h1><span class="sub">화면 명세 (전체 골격)</span><span class="url">${m.u}</span>
+    ${m.inv?'<span class="actions"><button class="btn primary" data-guard="invoice">🧾 INVOICE 발행</button></span>':''}</div>
+  <div class="spec">
+    <div class="row">
+      <div class="kv"><b>레거시 URL</b><span class="mono">${m.u}</span></div>
+      ${m.tag?`<div class="kv"><b>규모</b>${m.tag}</div>`:''}
+      <div class="kv"><b>캠퍼스 필터</b>전역(campus_id) 적용</div>
+    </div>
+    ${m.note?`<div class="note">${m.note}</div>`:''}
+    ${m.cols?`<div><div class="side-title" style="padding:0 0 8px">데이터 컬럼 (크롤 실측)</div><div class="colgrid">${m.cols.map(c=>`<span class="c">${c}</span>`).join('')}</div></div>`:'<div class="note">통계/매트릭스·캘린더·배치도형 화면 — 표준 테이블 아님.</div>'}
+    <div class="card pad" style="color:var(--dim);font-size:12.5px">이 화면은 <b>전체 메뉴 골격</b> 단계로, 실렌더링은 핵심 6화면(대시보드·STUDENT LIST·DEPOSIT·기숙사현황·BACK-UP LOG·Admission Date)에 우선 적용했습니다.</div>
+  </div>`;
+
+// ─── 상태/네비게이션 ───
+let curCat='record', curKey='dash', curMenu=null;
+function closeDropdowns(){document.querySelectorAll('.dropdown.open').forEach(d=>d.classList.remove('open'));}
+function renderCats(){const c=document.getElementById('cats');c.innerHTML='';
+  CATS.forEach(ct=>{
+    const wrap=el('div','catwrap');
+    const b=el('button','cat'+(ct.id===curCat?' active':''),`<span class="ic">${ct.icon}</span>${ct.label}<span class="caret">▾</span>`);
+    const dd=el('div','dropdown');
+    dd.appendChild(el('div','dd-title',SIDE_TITLE[ct.id]));
+    MENU[ct.id].forEach(m=>{const a=el('a',(ct.id===curCat&&m===curMenu?'active':''),`<span class="dot"></span><span>${m.t}</span>${m.tag?`<span class="tag">${m.tag}</span>`:''}`);
+      a.onclick=(e)=>{e.stopPropagation();curCat=ct.id;curKey=m.k;curMenu=m;closeDropdowns();renderAll();};
+      dd.appendChild(a);});
+    b.onclick=(e)=>{e.stopPropagation();const wasOpen=dd.classList.contains('open');closeDropdowns();if(!wasOpen)dd.classList.add('open');};
+    wrap.appendChild(b);wrap.appendChild(dd);c.appendChild(wrap);
+  });}
+function renderMain(){const m=document.getElementById('main');seed=(curKey.length*13+7);
+  const fn=R[curKey]||R.spec;m.innerHTML=fn(curMenu);
+  const cf=document.getElementById('cf1');if(cf)cf.textContent=document.getElementById('campus').selectedOptions[0].text;
+  m.querySelectorAll('[data-guard]').forEach(b=>b.addEventListener('click',()=>guard(b)));
+  const preset=m.querySelector('#preset');
+  if(preset)preset.addEventListener('change',()=>{
+    if(preset.value==='pickup'){const [a,b]=pickupWeek();const f=m.querySelector('#depFrom'),t=m.querySelector('#depTo');
+      if(f)f.value=a;if(t)t.value=b;
+      toast('픽업 주간 자동설정',`${a} (목) → ${b} (수) · Room & List 픽업 대상 기간이 설정되었습니다.`,true);}});
+  m.querySelectorAll('[data-my]').forEach(b=>b.addEventListener('click',()=>{
+    roomCenter={y:+b.dataset.my,m:+b.dataset.mm};renderMain();}));
+  const tw=m.querySelector('.twrap[data-mstart]');
+  if(tw){const ms=+tw.dataset.mstart,mw=+tw.dataset.mwidth,iw=+tw.dataset.infow;
+    tw.scrollLeft=Math.max(0,ms-((tw.clientWidth-iw-mw)/2));} // 선택월을 가시영역 중앙으로
+  try{history.replaceState(null,'','#'+curCat+'.'+MENU[curCat].indexOf(curMenu));}catch(e){}
+  window.scrollTo(0,0);}
+function renderAll(){if(!curMenu)curMenu=MENU[curCat][0];renderCats();renderMain();}
+function applyHash(){const [cat,idx]=location.hash.replace('#','').split('.');
+  if(cat&&MENU[cat]){curCat=cat;curMenu=MENU[cat][+idx]||MENU[cat][0];curKey=curMenu.k;}}
+
+// ─── 중복실행 방지(idempotency) 데모 ───
+const running={};
+function guard(btn){const kind=btn.dataset.guard;
+  if(running[kind]){toast('이미 실행 중입니다',`${kind==='invoice'?'인보이스 발행':'저장'}이 진행 중입니다. 중복 요청이 차단되었습니다 (멱등키 재사용 → 중복 레코드 미생성).`,false);return;}
+  running[kind]=true;const orig=btn.innerHTML;btn.disabled=true;btn.innerHTML=`<span class="spin"></span> 처리 중…`;
+  setTimeout(()=>{running[kind]=false;btn.disabled=false;btn.innerHTML=orig;
+    toast(kind==='invoice'?'인보이스 발행 완료':'저장 완료',`멱등키 확정 · 중복 없이 1건 처리되었습니다.`,true);},1800);}
+function toast(title,msg,ok){const t=document.getElementById('toasts');const d=el('div','toast'+(ok?' ok':''),`<b>${title}</b>${msg}`);
+  t.appendChild(d);setTimeout(()=>{d.style.opacity=0;setTimeout(()=>d.remove(),300);},ok?2600:3400);}
+
+// 캠퍼스 필터 → 칩 갱신
+document.getElementById('campus').addEventListener('change',()=>{const cf=document.getElementById('cf1');if(cf)cf.textContent=document.getElementById('campus').selectedOptions[0].text;});
+// 테마 토글
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  const r=document.documentElement;const cur=r.getAttribute('data-theme');
+  const dark=cur?cur==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+  r.setAttribute('data-theme',dark?'light':'dark');});
+// 전체화면 토글 (브라우저 주소창까지 숨겨 꽉 찬 화면)
+document.getElementById('fsBtn').addEventListener('click',()=>{
+  const el=document.documentElement;
+  if(!document.fullscreenElement){(el.requestFullscreen||el.webkitRequestFullscreen||(()=>{})).call(el);}
+  else{(document.exitFullscreen||document.webkitExitFullscreen||(()=>{})).call(document);}});
+document.addEventListener('fullscreenchange',()=>{
+  const b=document.getElementById('fsBtn');if(b)b.textContent=document.fullscreenElement?'✕':'⛶';
+  document.body.classList.toggle('is-fs',!!document.fullscreenElement);});
+
+// ─── 배치도 셀 액션 (입실/퇴실/방배정/방변경/홀딩/빈방) ───
+const CELL_ACTIONS=[
+  ['입실 (CHECK-IN)','cin','var(--good)'],
+  ['퇴실 (CHECK-OUT)','cout','var(--female)'],
+  ['방배정 (ASSIGN)','cx','var(--male)'],
+  ['방변경 (MOVE)','chold','var(--return)'],
+  ['홀딩 (HOLD)','chold','var(--return)'],
+  ['빈방 (취소/CLEAR)','cempty','var(--empty)'],
+];
+function closeCellPop(){const p=document.getElementById('cellpop');if(p)p.remove();}
+function openCellPop(cell,ev){
+  closeCellPop();
+  const tr=cell.closest('tr');
+  const name=(tr.querySelector('.name')||{}).textContent||'(빈 침대)';
+  let room=(tr.querySelector('.rno')||{}).textContent||'';
+  if(!room){const blk=cell.closest('tbody.room-block');if(blk)room=(blk.querySelector('.rno')||{}).textContent||'';}
+  const date=cell.dataset.date||'';
+  const pop=el('div','cellpop');pop.id='cellpop';
+  pop.appendChild(el('div','cp-h',`<b>${room||'-'}</b> · ${date}<br>${name}`));
+  CELL_ACTIONS.forEach(([label,cls,color])=>{
+    const b=el('button',null,`<i style="background:${color}"></i>${label}`);
+    b.onclick=(e)=>{e.stopPropagation();
+      if(label.startsWith('방변경')){closeCellPop();openRoomReplace(cell,room,name,date);return;}
+      cell.className='dcell '+cls;cell.textContent=(cls==='cempty')?'':'X';
+      closeCellPop();
+      toast(label.split(' ')[0]+' 처리 완료',`${room||'-'} · ${name} · ${date} (멱등 처리 · 중복 반영 없음)`,true);};
+    pop.appendChild(b);
+  });
+  document.body.appendChild(pop);
+  const r=cell.getBoundingClientRect();const pw=pop.offsetWidth,ph=pop.offsetHeight;
+  let left=r.left+window.scrollX, top=r.bottom+window.scrollY+4;
+  if(left+pw>window.scrollX+innerWidth-8)left=window.scrollX+innerWidth-pw-8;
+  if(top+ph>window.scrollY+innerHeight-8)top=r.top+window.scrollY-ph-4;
+  pop.style.left=left+'px';pop.style.top=top+'px';
+}
+// ─── ROOM REPLACEMENT (방변경) 모달 — 레거시 reserve_move.php 재현 ───
+function openRoomReplace(srcCell,room,name,date){
+  const GEN={MALE:['M','var(--male)'],FEMALE:['F','var(--female)'],FAMILY:['FAM','#ca8a04']};
+  const endD=(()=>{const d=new Date(date||'2026-07-08');d.setDate(d.getDate()+24);return d.toISOString().slice(0,10);})();
+  // 후보 방목록 (실 room_gubun 카테고리)
+  let rows='';
+  DICT.room_gubun.forEach((g,gi)=>{const [cat,sx]=g.t.split('/');const [sl,sc]=GEN[sx]||['-','var(--dim)'];
+    const cnt=2+(gi%2);
+    for(let i=0;i<cnt;i++){const cap=1+((gi+i)%4);const bed=(1+(gi%4))+'bed';
+      rows+=`<tr><td class="cat">${cat}</td><td class="mono">${100+gi*13+i}</td><td class="mono">${cap} ${bed}</td>`
+          +`<td style="color:${sc};font-weight:750">${sl}</td><td><button class="btn rp-move" data-to="${cat} ${100+gi*13+i}">MOVE</button></td></tr>`;}
+  });
+  const info=(k,v)=>`<tr><th>${k}</th><td>${v}</td></tr>`;
+  const ov=el('div','modal-ov');ov.id='roomModal';
+  ov.innerHTML=`<div class="modal">
+    <div class="modal-h"><b>ROOM REPLACEMENT</b><button class="modal-x" id="rpClose">✕</button></div>
+    <div class="modal-body">
+      <div class="rp-left">
+        <div class="rp-t">※ STUDENT INFORMATION</div>
+        <table class="rp-info">
+          ${info('NAME',name||'-')}${info('KOR',name||'-')}
+          ${info('AGE','18')}${info('SEX','M')}
+          ${info('DEPARTURE',date||'-')}${info('FLIGHT','5J5065 15:30pm')}
+          ${info('COURSE','4 weeks-ESL(CAPITAL)')}${info('DORM','4 Weeks-3 Persons/room-CAPITAL')}
+          ${info('NATIONALITY','jap')}${info('CONDITION','normal')}
+          ${info('STAFF COMMENT','<textarea rows=2 style="width:100%;border:1px solid var(--border);background:var(--surface-2);border-radius:6px"></textarea>')}
+          ${info('AGENTS COMMENT','<textarea rows=2 style="width:100%;border:1px solid var(--border);background:var(--surface-2);border-radius:6px"></textarea>')}
+        </table>
+        <div class="rp-t" style="margin-top:14px">※ DORMITORY RESERVED INFORMATION</div>
+        <table class="rp-info"><tr><th>ROOM NUMBER</th><th>CAPACITY</th><th>PERIOD</th></tr>
+          <tr><td class="mono">${room||'-'}</td><td>3bed</td><td class="mono">${date||'-'} ~ ${endD}</td></tr></table>
+      </div>
+      <div class="rp-right">
+        <div class="rp-t">※ CHANGE PERIOD : ${date||'-'} ~ ${endD}</div>
+        <div class="rp-cand-wrap"><table class="rp-cand">
+          <thead><tr><th>CATEGORY</th><th>ROOM NUMBER</th><th>CAPA</th><th>SEX</th><th></th></tr></thead>
+          <tbody>${rows}</tbody></table></div>
+      </div>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#rpClose').onclick=()=>ov.remove();
+  ov.onclick=(e)=>{if(e.target===ov)ov.remove();};
+  ov.querySelectorAll('.rp-move').forEach(b=>b.onclick=()=>{
+    if(srcCell){srcCell.className='dcell chold';srcCell.textContent='X';}
+    ov.remove();
+    toast('방변경 완료',`${room||'-'} → ${b.dataset.to} · ${name} (${date}) · 멱등 처리`,true);});
+}
+document.addEventListener('click',(e)=>{
+  if(!e.target.closest('.catwrap'))closeDropdowns();
+  const cell=e.target.closest('.gantt td.dcell');
+  if(cell){e.stopPropagation();openCellPop(cell,e);return;}
+  if(!e.target.closest('#cellpop'))closeCellPop();
+});
+document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();closeDropdowns();}});
+
+applyHash();renderAll();
+window.addEventListener('hashchange',()=>{applyHash();renderAll();});
+</script>

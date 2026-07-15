@@ -17,3 +17,7 @@ exploration/shots/
 exploration/state.json
 exploration/*.json
 exploration/*.txt
+
+# 실데이터(PII) 로컬 전용 — 커밋 금지
+docs/design-admin/prototype.realdata.html
+deploy/.vercel/

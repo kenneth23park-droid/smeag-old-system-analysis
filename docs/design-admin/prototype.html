@@ -196,7 +196,10 @@
   table.gantt{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px;background:var(--surface)}
   table.gantt th,table.gantt td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden}
   table.gantt thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);color:var(--dim);font-weight:750;padding:5px 4px;text-align:center;white-space:nowrap}
-  table.gantt thead th.mon{font-size:12px;color:var(--text)}
+  table.gantt thead th.mon{font-size:12px;color:var(--text);height:29px}
+  /* 월 행(top:0) 아래에 일 행을 고정 → 세로 스크롤 시 월·일 2행 모두 프리즈 */
+  .gantt thead th.dh{position:sticky;top:29px;z-index:2}
+  .gantt thead th.c1,.gantt thead th.c2,.gantt thead th.c3{top:0}
   .gantt .dh{font-size:10px;padding:4px 0}
   .gantt td.dcell{height:26px;text-align:center;font-weight:700;font-size:10px;color:var(--faint);padding:0;cursor:pointer}
   .gantt td.dcell:hover{outline:2px solid var(--accent);outline-offset:-2px}
@@ -254,6 +257,29 @@
   .colgrid .c{font-size:11.5px;background:var(--surface-2);border:1px solid var(--border);padding:4px 9px;border-radius:6px;font-weight:600}
   .note{background:var(--accent-weak);color:var(--accent-ink);border-radius:8px;padding:10px 13px;font-size:12.5px}
 
+  /* ROOM REPLACEMENT 모달 (방변경) */
+  .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:70;display:flex;
+    align-items:flex-start;justify-content:center;padding:28px;overflow:auto}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    box-shadow:var(--shadow);width:min(1140px,96vw);max-height:92vh;overflow:auto}
+  .modal-h{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;
+    border-bottom:1px solid var(--border);background:var(--surface-2);position:sticky;top:0;z-index:2}
+  .modal-h b{font-size:15px;letter-spacing:.6px}
+  .modal-x{border:1px solid var(--border);background:var(--surface);color:var(--dim);
+    border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:14px}
+  .modal-body{display:grid;grid-template-columns:1fr 1.15fr;gap:18px;padding:18px}
+  .rp-t{font-size:12px;font-weight:750;color:var(--dim);margin-bottom:8px}
+  table.rp-info,table.rp-cand{border-collapse:collapse;width:100%;font-size:12px}
+  table.rp-info th,table.rp-info td,table.rp-cand th,table.rp-cand td{border:1px solid var(--border);padding:7px 9px;text-align:left}
+  table.rp-info th{background:var(--surface-2);color:var(--dim);white-space:nowrap;width:96px}
+  table.rp-cand th{background:var(--surface-2);color:var(--dim);text-transform:uppercase;font-size:10.5px;text-align:center}
+  table.rp-cand td{text-align:center}
+  table.rp-cand td.cat{text-align:left}
+  .rp-cand .btn{padding:3px 12px;font-size:11px}
+  .rp-cand-wrap{max-height:62vh;overflow:auto;border:1px solid var(--border);border-radius:8px}
+  .rp-cand thead th{position:sticky;top:0;z-index:1}
+  @media(max-width:760px){.modal-body{grid-template-columns:1fr}}
+
   /* toast */
   .toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:50}
   .toast{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--warn);
@@ -282,6 +308,7 @@
         <option value="5">CAPITAL</option>
       </select>
     </div>
+    <button class="theme-btn" id="fsBtn" title="전체화면 (주소창까지 숨김)">⛶</button>
     <button class="theme-btn" id="themeBtn" title="테마 전환">◐</button>
     <div class="who"><span class="av">K</span><span>kenneth</span></div>
   </header>
@@ -369,6 +396,19 @@ const campusChip=(id)=>({'1':'<span class="cch enc">ENCANTO</span>','4':'<span c
 // ─── 렌더러 ───
 const R={};
 let roomCenter={y:2026,m:7}; // 배치도 캘린더 중심월(선택월)
+// ─── 실데이터 (레거시 MySQL 덤프 슬라이스 · MySQL 비교검증용 · admin 인증 전용) ───
+let REAL=null; /*__REALDATA__*/
+const campusChipName=(n)=>({ENCANTO:'<span class="cch enc">ENCANTO</span>',CLASSIC:'<span class="cch cla">CLASSIC</span>',CAPITAL:'<span class="cch cap">CAPITAL</span>'}[(n||'').toUpperCase()]||(n||'—'));
+const condPill=(c)=>({normal:'good',holding:'warn',holdinguse:'warn',extend:'install',refund:'return',exchange:'install',out:'neutral',graduated:'neutral'}[(c||'').toLowerCase()]||'neutral');
+const depStatus=(s)=>({N:['미납','warn'],Y:['완납','good'],X:['분납','install'],R:['반환','return']}[(s||'').toUpperCase()]||['-','neutral']);
+const REALBADGE=`<span class="chip on" style="background:var(--good);color:#fff;border:0">● 실데이터(MySQL)</span>`;
+// 픽업 주간: 기준일이 속한 주의 목요일 → 다음주 수요일(목+6일) 자동 산출
+function pickupWeek(base){const d=base?new Date(base):new Date();
+  const diff=(d.getDay()-4+7)%7; // 목요일(4) 이후 경과일
+  const thu=new Date(d); thu.setDate(d.getDate()-diff);
+  const wed=new Date(thu); wed.setDate(thu.getDate()+6);
+  const f=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  return [f(thu),f(wed)];}
 R.dash=()=>`
   <div class="ph"><h1>대시보드</h1><span class="sub">Record · 종합 현황</span><span class="url">신규 승격 화면</span></div>
   <div class="kpis">
@@ -395,7 +435,13 @@ R.dash=()=>`
     </div>
   </div>`;
 
-function rowsStudents(n){let s='';for(let i=0;i<n;i++){const nt=rnd(NAT);const sex=(seed%2)?'M':'F';const cid=rnd(['1','4','5']);
+function rowsStudents(n){
+  if(REAL&&REAL.students&&REAL.students.length){return REAL.students.map(s=>{const sx=(s.sex||'').toUpperCase();
+    return `<tr><td>${s.ag||'—'}</td><td class="mono">${(s.nat||'').toUpperCase()}</td><td>${s.en||''}</td><td>${s.kor||'—'}</td>
+    <td class="num mono">${s.age||''}</td><td><span class="pill ${sx==='F'?'female':'male'}">${sx==='F'?'여':'남'}</span></td>
+    <td class="mono">${s.apply||'—'}</td><td class="mono">${s.depa||'—'}</td>
+    <td>${campusChipName(s.campus)}</td><td><span class="pill ${condPill(s.cond)}">${(s.cond||'').toUpperCase()||'—'}</span></td></tr>`;}).join('');}
+  let s='';for(let i=0;i<n;i++){const nt=rnd(NAT);const sex=(seed%2)?'M':'F';const cid=rnd(['1','4','5']);
   s+=`<tr><td>${rnd(AG)}</td><td class="mono">${nt[0]}</td><td>${fakeName()}</td><td>—</td><td class="num mono">${18+seed%12}</td>
   <td><span class="pill ${sex==='M'?'male':'female'}">${sex==='M'?'남':'여'}</span></td>
   <td class="mono">2026-0${1+seed%9}-1${seed%9}</td><td class="mono">2026-1${seed%2}-0${1+seed%8}</td>
@@ -404,24 +450,29 @@ function rowsStudents(n){let s='';for(let i=0;i<n;i++){const nt=rnd(NAT);const s
 R.stdlist=()=>`
   <div class="ph"><h1>STUDENT LIST</h1><span class="sub">전체 학생 명단</span><span class="url">student.php</span></div>
   <div class="filters">
-    <div class="field"><label>DEPARTURE 시작</label><input type="date" value="2026-01-01"></div>
-    <div class="field"><label>DEPARTURE 종료</label><input type="date" value="2026-12-31"></div>
+    <div class="field"><label>리스트 프리셋</label><select id="preset"><option value="">기본(직접선택)</option><option value="pickup">🛬 픽업 주간 (목→다음주 수)</option></select></div>
+    <div class="field"><label>DEPARTURE 시작</label><input id="depFrom" type="date" value="2026-01-01"></div>
+    <div class="field"><label>DEPARTURE 종료</label><input id="depTo" type="date" value="2026-12-31"></div>
     <div class="field"><label>AGENCY</label><select>${ddOpts(DICT.uhak,'ALL')}</select></div>
     <div class="field"><label>국적</label><select>${ddOpts(DICT.nation,'ALL')}</select></div>
     <div class="field"><label>상태(condition)</label><select>${ddOpts(DICT.now_status,'ALL')}</select></div>
     <div class="field grow"><label>이름 검색</label><input placeholder="영문/한글 이름"></div>
     <div class="field"><label>&nbsp;</label><button class="btn primary">검색</button></div>
   </div>
-  <div class="chips"><span class="chip on">캠퍼스: <span id="cf1">ALL</span></span><span class="chip">DEPARTURE 2026</span><span class="chip">결과 90,533건</span></div>
+  <div class="chips"><span class="chip on">캠퍼스: <span id="cf1">ALL</span></span><span class="chip">DEPARTURE 2026</span><span class="chip">전체 90,524건</span>${REAL&&REAL.students?REALBADGE:''}</div>
   <div style="height:10px"></div>
   <div class="twrap"><table class="grid">
     <thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>SEX</th><th>APPLY</th><th>DEPA</th><th>CAMPUS</th><th>COND</th></tr></thead>
     <tbody>${rowsStudents(12)}</tbody>
   </table></div>
-  <div class="banner">서버 페이징 · 가상 스크롤 전제 (90K행) · 표시 데이터는 가상 샘플</div>`;
+  <div class="banner">${REAL&&REAL.students?`MySQL 비교검증용 <b>실데이터</b> ${REAL.students.length}건 표시 (legacy.student_info 최근분 · 전체 90,524) · admin 인증 전용`:'서버 페이징 · 가상 스크롤 전제 (90K행) · 표시 데이터는 가상 샘플'}</div>`;
 
 R.deposit=()=>{const st=[['미납','warn','N'],['완납','good','Y'],['분납','install','X'],['반환','return','R']];let rows='';
-  for(let i=0;i<10;i++){const nt=rnd(NAT);const s=st[seed%4];
+  if(REAL&&REAL.deposits&&REAL.deposits.length){rows=REAL.deposits.map(d=>{const ds=depStatus(d.status);
+    return `<tr><td class="mono">${d.no||''}</td><td class="mono">${(d.nat||'').toUpperCase()}</td><td>${d.name||''}</td>
+    <td class="mono">${d.begin||'—'}</td><td class="mono">${d.end||'—'}</td>
+    <td><span class="pill ${ds[1]}">${(d.status||'-')} ${ds[0]}</span></td><td class="num mono">${d.amount||'—'}</td><td class="mono">${d.unit||''}</td></tr>`;}).join('');}
+  else for(let i=0;i<10;i++){const nt=rnd(NAT);const s=st[seed%4];
     rows+=`<tr><td class="mono">${1000+i}</td><td class="mono">${nt[0]}</td><td>${fakeName()}</td>
     <td class="mono">2026-0${1+seed%9}-01</td><td class="mono">2026-1${seed%2}-01</td>
     <td><span class="pill ${s[1]}">${s[2]} ${s[0]}</span></td><td class="num mono">${(seed*137%9+1)},${(seed*31%900+100)}</td><td class="mono">USD</td></tr>`;seed++;}
@@ -540,7 +591,11 @@ R.roomstat=()=>{
   <div class="note" style="margin-top:12px">레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬되며 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b> · content-visibility. 표시 데이터는 가상 샘플(실제 개인정보 아님).</div>`;};
 
 R.changelog=()=>{let rows='';const mg=['kenneth','katie','anna','joon','doris'];
-  for(let i=0;i<12;i++){rows+=`<tr><td>${rnd(AG)}</td><td class="mono">#${20000+seed}</td><td>${fakeName()}</td>
+  if(REAL&&REAL.changelog&&REAL.changelog.length){rows=REAL.changelog.map(c=>
+    `<tr><td>—</td><td class="mono">#${c.sidx||''}</td><td>${c.name||''}</td><td class="mono">${c.apply||'—'}</td>
+    <td class="mono">${c.period||'—'}</td><td class="mono">${c.oldr||c.oldc||'—'}</td>
+    <td class="mono">${c.newr||c.newc||'—'}</td><td>${c.mgr||'—'}</td></tr>`).join('');}
+  else for(let i=0;i<12;i++){rows+=`<tr><td>${rnd(AG)}</td><td class="mono">#${20000+seed}</td><td>${fakeName()}</td>
   <td class="mono">2026-07-1${seed%9} 0${seed%9}:${10+seed%49}</td><td class="mono">${4+seed%8}wk</td>
   <td class="mono">C10${seed%9}:4bed</td><td class="mono">C20${seed%9}:2bed</td><td>${rnd(mg)}</td></tr>`;seed++;}
   return `
@@ -621,6 +676,11 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   const fn=R[curKey]||R.spec;m.innerHTML=fn(curMenu);
   const cf=document.getElementById('cf1');if(cf)cf.textContent=document.getElementById('campus').selectedOptions[0].text;
   m.querySelectorAll('[data-guard]').forEach(b=>b.addEventListener('click',()=>guard(b)));
+  const preset=m.querySelector('#preset');
+  if(preset)preset.addEventListener('change',()=>{
+    if(preset.value==='pickup'){const [a,b]=pickupWeek();const f=m.querySelector('#depFrom'),t=m.querySelector('#depTo');
+      if(f)f.value=a;if(t)t.value=b;
+      toast('픽업 주간 자동설정',`${a} (목) → ${b} (수) · Room & List 픽업 대상 기간이 설정되었습니다.`,true);}});
   m.querySelectorAll('[data-my]').forEach(b=>b.addEventListener('click',()=>{
     roomCenter={y:+b.dataset.my,m:+b.dataset.mm};renderMain();}));
   const tw=m.querySelector('.twrap[data-mstart]');
@@ -649,6 +709,14 @@ document.getElementById('themeBtn').addEventListener('click',()=>{
   const r=document.documentElement;const cur=r.getAttribute('data-theme');
   const dark=cur?cur==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
   r.setAttribute('data-theme',dark?'light':'dark');});
+// 전체화면 토글 (브라우저 주소창까지 숨겨 꽉 찬 화면)
+document.getElementById('fsBtn').addEventListener('click',()=>{
+  const el=document.documentElement;
+  if(!document.fullscreenElement){(el.requestFullscreen||el.webkitRequestFullscreen||(()=>{})).call(el);}
+  else{(document.exitFullscreen||document.webkitExitFullscreen||(()=>{})).call(document);}});
+document.addEventListener('fullscreenchange',()=>{
+  const b=document.getElementById('fsBtn');if(b)b.textContent=document.fullscreenElement?'✕':'⛶';
+  document.body.classList.toggle('is-fs',!!document.fullscreenElement);});
 
 // ─── 배치도 셀 액션 (입실/퇴실/방배정/방변경/홀딩/빈방) ───
 const CELL_ACTIONS=[
@@ -672,6 +740,7 @@ function openCellPop(cell,ev){
   CELL_ACTIONS.forEach(([label,cls,color])=>{
     const b=el('button',null,`<i style="background:${color}"></i>${label}`);
     b.onclick=(e)=>{e.stopPropagation();
+      if(label.startsWith('방변경')){closeCellPop();openRoomReplace(cell,room,name,date);return;}
       cell.className='dcell '+cls;cell.textContent=(cls==='cempty')?'':'X';
       closeCellPop();
       toast(label.split(' ')[0]+' 처리 완료',`${room||'-'} · ${name} · ${date} (멱등 처리 · 중복 반영 없음)`,true);};
@@ -683,6 +752,53 @@ function openCellPop(cell,ev){
   if(left+pw>window.scrollX+innerWidth-8)left=window.scrollX+innerWidth-pw-8;
   if(top+ph>window.scrollY+innerHeight-8)top=r.top+window.scrollY-ph-4;
   pop.style.left=left+'px';pop.style.top=top+'px';
+}
+// ─── ROOM REPLACEMENT (방변경) 모달 — 레거시 reserve_move.php 재현 ───
+function openRoomReplace(srcCell,room,name,date){
+  const GEN={MALE:['M','var(--male)'],FEMALE:['F','var(--female)'],FAMILY:['FAM','#ca8a04']};
+  const endD=(()=>{const d=new Date(date||'2026-07-08');d.setDate(d.getDate()+24);return d.toISOString().slice(0,10);})();
+  // 후보 방목록 (실 room_gubun 카테고리)
+  let rows='';
+  DICT.room_gubun.forEach((g,gi)=>{const [cat,sx]=g.t.split('/');const [sl,sc]=GEN[sx]||['-','var(--dim)'];
+    const cnt=2+(gi%2);
+    for(let i=0;i<cnt;i++){const cap=1+((gi+i)%4);const bed=(1+(gi%4))+'bed';
+      rows+=`<tr><td class="cat">${cat}</td><td class="mono">${100+gi*13+i}</td><td class="mono">${cap} ${bed}</td>`
+          +`<td style="color:${sc};font-weight:750">${sl}</td><td><button class="btn rp-move" data-to="${cat} ${100+gi*13+i}">MOVE</button></td></tr>`;}
+  });
+  const info=(k,v)=>`<tr><th>${k}</th><td>${v}</td></tr>`;
+  const ov=el('div','modal-ov');ov.id='roomModal';
+  ov.innerHTML=`<div class="modal">
+    <div class="modal-h"><b>ROOM REPLACEMENT</b><button class="modal-x" id="rpClose">✕</button></div>
+    <div class="modal-body">
+      <div class="rp-left">
+        <div class="rp-t">※ STUDENT INFORMATION</div>
+        <table class="rp-info">
+          ${info('NAME',name||'-')}${info('KOR',name||'-')}
+          ${info('AGE','18')}${info('SEX','M')}
+          ${info('DEPARTURE',date||'-')}${info('FLIGHT','5J5065 15:30pm')}
+          ${info('COURSE','4 weeks-ESL(CAPITAL)')}${info('DORM','4 Weeks-3 Persons/room-CAPITAL')}
+          ${info('NATIONALITY','jap')}${info('CONDITION','normal')}
+          ${info('STAFF COMMENT','<textarea rows=2 style="width:100%;border:1px solid var(--border);background:var(--surface-2);border-radius:6px"></textarea>')}
+          ${info('AGENTS COMMENT','<textarea rows=2 style="width:100%;border:1px solid var(--border);background:var(--surface-2);border-radius:6px"></textarea>')}
+        </table>
+        <div class="rp-t" style="margin-top:14px">※ DORMITORY RESERVED INFORMATION</div>
+        <table class="rp-info"><tr><th>ROOM NUMBER</th><th>CAPACITY</th><th>PERIOD</th></tr>
+          <tr><td class="mono">${room||'-'}</td><td>3bed</td><td class="mono">${date||'-'} ~ ${endD}</td></tr></table>
+      </div>
+      <div class="rp-right">
+        <div class="rp-t">※ CHANGE PERIOD : ${date||'-'} ~ ${endD}</div>
+        <div class="rp-cand-wrap"><table class="rp-cand">
+          <thead><tr><th>CATEGORY</th><th>ROOM NUMBER</th><th>CAPA</th><th>SEX</th><th></th></tr></thead>
+          <tbody>${rows}</tbody></table></div>
+      </div>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#rpClose').onclick=()=>ov.remove();
+  ov.onclick=(e)=>{if(e.target===ov)ov.remove();};
+  ov.querySelectorAll('.rp-move').forEach(b=>b.onclick=()=>{
+    if(srcCell){srcCell.className='dcell chold';srcCell.textContent='X';}
+    ov.remove();
+    toast('방변경 완료',`${room||'-'} → ${b.dataset.to} · ${name} (${date}) · 멱등 처리`,true);});
 }
 document.addEventListener('click',(e)=>{
   if(!e.target.closest('.catwrap'))closeDropdowns();
