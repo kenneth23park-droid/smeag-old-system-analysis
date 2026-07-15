@@ -490,12 +490,19 @@ function rowsStudents(n){
   <td class="mono">2026-0${1+seed%9}-1${seed%9}</td><td class="mono">2026-1${seed%2}-0${1+seed%8}</td>
   <td>${campusChip(cid)}</td><td><span class="pill ${['good','warn','neutral'][seed%3]}">${['NORMAL','HOLDING','EXTEND'][seed%3]}</span></td></tr>`;seed++;}
   return s;}
-let stdState={page:0,per:50,ag:'',nat:'',cond:'',q:''};
+let stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:'2025-01-01',to:'2027-12-31'};
 function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let f=src.rows;const s=stdState;
+  // 날짜(등록/출발/시작/종료 중 하나) 범위 — 기본 2025년~현재
+  const dts=r=>[r[6],r[7],r[8],r[9]].filter(d=>d&&d.length>=7);
+  if(s.from)f=f.filter(r=>dts(r).some(d=>d>=s.from));
+  if(s.to)f=f.filter(r=>dts(r).some(d=>d<=s.to));
   if(s.ag)f=f.filter(r=>r[0]===s.ag);
   if(s.nat)f=f.filter(r=>(r[1]||'').toLowerCase()===s.nat.toLowerCase());
   if(s.cond)f=f.filter(r=>(r[11]||'')===s.cond);
   if(s.q){const q=s.q.toLowerCase();f=f.filter(r=>(r[2]||'').toLowerCase().includes(q)||(''+(r[3]||'')).includes(s.q));}
+  // 최근순(내림차순): 출발일(도착) 우선, 없으면 등록/시작/종료 최신
+  const key=r=>(r[7]&&r[7].length>=7)?r[7]:dts(r).reduce((mm,d)=>d>mm?d:mm,'');
+  f=f.slice().sort((a,b)=>key(b).localeCompare(key(a)));
   return f;}
 function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   const cols='<thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>SEX</th><th>APPLY</th><th>DEPA</th><th>CAMPUS</th><th>COND</th></tr></thead>';
@@ -550,22 +557,22 @@ function paintPaged(box,cols,rows,name){const st=pgState[name]||(pgState[name]={
   box.querySelector('#ppJump').onchange=e=>go(Math.min(pages,Math.max(1,+e.target.value||1))-1);
   box.querySelector('#ppPer').onchange=e=>{st.per=+e.target.value;st.page=0;paintPaged(box,cols,rows,name);};}
 R.stdlist=()=>{
-  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:''};
+  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:'2025-01-01',to:'2027-12-31'};
   const src=REAL&&REAL.studentsFull;const total=src?src.rows.length:0;
   return `
   <div class="ph"><h1>STUDENT LIST</h1><span class="sub">전체 학생 명단</span><span class="url">student.php</span>
     <span class="actions" style="margin-left:auto"><button class="btn" data-stdexcel="1">📊 EXCEL</button></span></div>
   <div class="filters">
     <div class="field"><label>리스트 프리셋</label><select id="preset"><option value="">기본(직접선택)</option><option value="pickup">🛬 픽업 주간 (목→다음주 수)</option></select></div>
-    <div class="field"><label>DEPARTURE 시작</label><input id="depFrom" type="date"></div>
-    <div class="field"><label>DEPARTURE 종료</label><input id="depTo" type="date"></div>
+    <div class="field"><label>기간 시작(등록/출발)</label><input id="depFrom" type="date" value="2025-01-01"></div>
+    <div class="field"><label>기간 종료</label><input id="depTo" type="date" value="2027-12-31"></div>
     <div class="field"><label>AGENCY</label><select id="fAg">${ddOpts(DICT.uhak,'ALL')}</select></div>
     <div class="field"><label>국적</label><select id="fNat">${ddOpts(DICT.nation,'ALL')}</select></div>
     <div class="field"><label>상태(condition)</label><select id="fCond">${ddOpts(DICT.now_status,'ALL')}</select></div>
     <div class="field grow"><label>이름 검색</label><input id="fq" placeholder="영문/한글 이름"></div>
     <div class="field"><label>&nbsp;</label><button class="btn primary" id="fSearch">검색</button></div>
   </div>
-  <div class="chips"><span class="chip on">캠퍼스: <span id="cf1">ALL</span></span>${src?REALBADGE:''}<span class="chip">전체 <b>${total.toLocaleString()}</b>명</span></div>
+  <div class="chips"><span class="chip on">캠퍼스: <span id="cf1">ALL</span></span>${src?REALBADGE:''}<span class="chip">2025~2027 · 최근순</span><span class="chip"><b>${total.toLocaleString()}</b>명</span></div>
   <div style="height:10px"></div>
   <div id="stdBody"></div>
   <div class="banner">${src?`전체 <b>${total.toLocaleString()}명</b> 임베드 · 클라이언트 페이지네이션·필터·검색 (legacy.student_info 전량 · MySQL 비교검증)`:'가상 샘플'}</div>`;};
@@ -941,7 +948,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   m.querySelectorAll('[data-tblexcel]').forEach(b=>b.addEventListener('click',()=>exportGridXls('SMEAG_'+b.dataset.tblexcel.replace(/[^\w]/g,'_')+'.xls')));
   makeSortable(m);
   // FROM 날짜 변경 시 TO = FROM+6일(목→다음주 수) 자동 반영
-  [['rmFrom','rmTo'],['ioFrom','ioTo'],['pkFrom','pkTo'],['depFrom','depTo']].forEach(([fid,tid])=>{
+  [['rmFrom','rmTo'],['ioFrom','ioTo'],['pkFrom','pkTo']].forEach(([fid,tid])=>{
     const ff=m.querySelector('#'+fid),tt=m.querySelector('#'+tid);
     if(ff&&tt)ff.addEventListener('change',()=>{if(!ff.value)return;const d=new Date(ff.value);d.setDate(d.getDate()+6);
       tt.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -955,8 +962,9 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   // STUDENT LIST 전체 학생 페이지네이션·필터·검색
   if(m.querySelector('#stdBody')){
     const upd=()=>{stdState.ag=(m.querySelector('#fAg')||{}).value||'';stdState.nat=(m.querySelector('#fNat')||{}).value||'';
-      stdState.cond=(m.querySelector('#fCond')||{}).value||'';stdState.q=(m.querySelector('#fq')||{}).value||'';stdState.page=0;paintStd();};
-    ['#fAg','#fNat','#fCond'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('change',upd);});
+      stdState.cond=(m.querySelector('#fCond')||{}).value||'';stdState.q=(m.querySelector('#fq')||{}).value||'';
+      stdState.from=(m.querySelector('#depFrom')||{}).value||'';stdState.to=(m.querySelector('#depTo')||{}).value||'';stdState.page=0;paintStd();};
+    ['#fAg','#fNat','#fCond','#depFrom','#depTo'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('change',upd);});
     const q=m.querySelector('#fq');if(q)q.addEventListener('input',()=>{clearTimeout(window._sq);window._sq=setTimeout(upd,250);});
     const sb=m.querySelector('#fSearch');if(sb)sb.addEventListener('click',upd);
     m.querySelectorAll('[data-stdexcel]').forEach(b=>b.addEventListener('click',exportStd));
