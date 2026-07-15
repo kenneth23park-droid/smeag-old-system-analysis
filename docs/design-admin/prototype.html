@@ -369,9 +369,9 @@ const MENU={
     {k:'roomstat',t:'기숙사현황 (배치도)',u:'room_stat3.php'},
     {k:'pickup',t:'주간 픽업 리스트',u:'room_search2.php/pickup',tag:'주간'},
     {k:'spec',t:'DORM STATUS',u:'room_stat2.php',note:'배치도 영문판 (MALE/FEMALE/FAMILY)'},
-    {k:'spec',t:'기숙사이동관리',u:'room_move_list.php',cols:['유학원','국적','이름','나이','성별','출발일','픽업','기간','변경전객실','처리일','변경될객실','상태','상황','상태변경']},
+    {k:'roommove',t:'기숙사이동관리',u:'room_move_list.php',cols:['유학원','국적','이름','나이','성별','출발일','픽업','기간','변경전객실','처리일','변경될객실','상태','상황','상태변경']},
     {k:'roommove',t:'ROOM M-LIST',u:'room_move_list2.php',cols:['CAMPUS','AGENCY','NAT','NAME','AGE','SEX','A-DAY','DEPA','PICKUP','PERI','BEFORE','D-DAY','S-DAY','AFTER','COND','ORDER','CHANGE']},
-    {k:'spec',t:'일별 입실&퇴실',u:'room_use_count_list.php',cols:['처리일자','신규입실','연장입실','홀딩사용입실','일반퇴실','환불퇴실','퇴교퇴실','홀딩퇴실']},
+    {k:'dailyio',t:'일별 입실&퇴실',u:'room_use_count_list.php',cols:['처리일자','신규입실','연장입실','홀딩사용입실','일반퇴실','환불퇴실','퇴교퇴실','홀딩퇴실']},
     {k:'spec',t:'DAY IN&OUT',u:'room_use_count_list2.php',note:'일별 입퇴실 영문 매트릭스'},
     {k:'spec',t:'ELEC & WATER',u:'room_elec.php',note:'전기·수도 요금 계산 (search_condition S/C/E)'},
     {k:'spec',t:'VISIT (detail)',u:'uhak_agency_visit.php',cols:['No','AGENCY NAME','VISIT DATE','VISIT TIME','VISITER','PHONE','REQUIREMENT','RESULT'],note:'d_state W=WAIT/Y=COMPLETE/C=CANCEL'},
@@ -575,7 +575,7 @@ R.roommove=(m)=>{
   const rt=(REAL&&REAL.tables&&REAL.tables[m.u])||{cols:[],rows:[]};
   const [thu,wed]=pickupWeek();
   return `
-  <div class="ph"><h1>ROOM M-LIST</h1><span class="sub">기숙사 이동 관리 · 방변경(ROOM MOVE LIST)</span><span class="url">${m.u}</span>
+  <div class="ph"><h1>${m.t}</h1><span class="sub">기숙사 이동 관리 · 방변경(ROOM MOVE LIST)</span><span class="url">${m.u}</span>
     <span class="actions" style="margin-left:auto"><button class="btn primary" data-tblexcel="${m.u}">📊 EXCEL</button></span></div>
   <div class="filters">
     <div class="field"><label>기간 FROM (목)</label><input id="rmFrom" type="date" value="${thu}"></div>
@@ -592,6 +592,32 @@ R.roommove=(m)=>{
     <thead><tr>${(rt.cols.length?rt.cols:['CAMPUS','AGENCY','NAT','NAME','AGE','SEX','A-DAY','PERI','BEFORE','D-DAY','AFTER','COND','ORDER']).map(c=>`<th>${esc(c)}</th>`).join('')}<th>CHANGE</th></tr></thead>
     <tbody>${rt.rows.length?rt.rows.map(r=>`<tr>${rt.cols.map((_,i)=>`<td>${esc(r[i])}</td>`).join('')}<td><button class="btn" style="padding:3px 9px;font-size:11px">MDF</button></td></tr>`).join(''):`<tr><td colspan="14" style="text-align:center;color:var(--faint);padding:20px">데이터 없음 (실데이터본에서 표시)</td></tr>`}</tbody></table></div>
   <div class="banner">기간 기본값: <b>이번주 목요일 → 다음주 수요일</b> 자동 설정 · MySQL 비교검증용 실데이터</div>`;};
+
+R.dailyio=(m)=>{
+  const rt=(REAL&&REAL.tables&&REAL.tables[m.u])||{cols:[],rows:[]};
+  const [thu,wed]=pickupWeek();
+  const win=rt.rows.filter(r=>r[0]>=thu&&r[0]<=wed);
+  const show=win.length?win:rt.rows.slice(-14);
+  const dow=x=>['일','월','화','수','목','금','토'][new Date(x).getDay()];
+  const sumIn=show.reduce((a,r)=>a+(+r[1]||0),0),sumOut=show.reduce((a,r)=>a+(+r[2]||0),0);
+  return `
+  <div class="ph"><h1>${m.t}</h1><span class="sub">일별 입실·퇴실 집계 (reserve_info)</span><span class="url">${m.u}</span>
+    <span class="actions" style="margin-left:auto"><button class="btn primary" data-tblexcel="${m.u}">📊 EXCEL</button></span></div>
+  <div class="filters">
+    <div class="field"><label>기간 FROM (목)</label><input id="ioFrom" type="date" value="${thu}"></div>
+    <div class="field"><label>기간 TO (수)</label><input id="ioTo" type="date" value="${wed}"></div>
+    <div class="field"><label>CAMPUS</label><select>${ddOpts(DICT.campus,'ALL')}</select></div>
+    <div class="field"><label>&nbsp;</label><button class="btn primary">SEARCH</button></div>
+  </div>
+  <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi"><div class="k">기간 신규입실</div><div class="v mono" style="color:var(--good)">${sumIn}</div><div class="d">${thu} ~ ${wed}</div></div>
+    <div class="kpi"><div class="k">기간 퇴실</div><div class="v mono" style="color:var(--female)">${sumOut}</div><div class="d">체크아웃</div></div>
+    <div class="kpi"><div class="k">순증</div><div class="v mono">${sumIn-sumOut>=0?'+':''}${sumIn-sumOut}</div><div class="d">재실 변동</div></div>
+  </div>
+  <div class="chips" style="margin-bottom:10px"><span class="chip on">${show.length}일 표시${win.length?' (선택 기간)':' (최근)'}</span>${REAL&&REAL.tables?REALBADGE:''}</div>
+  <div class="twrap"><table class="grid"><thead><tr><th>처리일자</th><th>요일</th>${rt.cols.slice(1).map(c=>`<th class="num">${esc(c)}</th>`).join('')}</tr></thead>
+  <tbody>${show.map(r=>`<tr><td class="mono">${esc(r[0])}</td><td class="mono">${dow(r[0])}</td>${rt.cols.slice(1).map((_,i)=>`<td class="num mono">${esc(r[i+1])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+  <div class="banner">기간 기본값: 이번주 목→다음주 수 (해당 기간 데이터 자동 표시) · reserve_info 실 입퇴실 집계</div>`;};
 
 R.roomstat=()=>{
   const CELLW=22, INFOW=72+58+230; // 방번호+인실+이름 = 좌측 고정폭
