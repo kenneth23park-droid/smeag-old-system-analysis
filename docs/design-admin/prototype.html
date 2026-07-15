@@ -201,6 +201,7 @@
   .month-jump{margin-left:auto;display:flex;gap:5px;overflow-x:auto;max-width:60%;padding-bottom:2px}
   .month-jump .btn{padding:5px 9px;font-size:11px;flex:none}
   .month-jump .btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .rs-ctrl{border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:8px;padding:6px 10px;font:inherit;font-size:12px;font-weight:650;cursor:pointer}
   .gantt thead th.mon-cur{background:var(--accent-weak);color:var(--accent-ink)}
 
   table.gantt{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px;background:var(--surface)}
@@ -416,6 +417,7 @@ const campusChip=(id)=>({'1':'<span class="cch enc">ENCANTO</span>','4':'<span c
 // ─── 렌더러 ───
 const R={};
 let roomCenter={y:2026,m:7}; // 배치도 캘린더 중심월(선택월)
+let roomFilter={building:'',sortPer:''}; // 배치도 빌딩 필터·인실 정렬
 let roomstatCtx=null; // 배치도 렌더 컨텍스트(엑셀 export용)
 // 배치도 → 엑셀(CSV·UTF-8 BOM, Excel 호환) 내보내기. n=1(중심월)/2(중심+다음달)
 function exportRoomstat(n){
@@ -786,6 +788,9 @@ R.roomstat=()=>{
     groups.push({name:'S hotel(H) / FAMILY',rooms});}
   }
 
+  const rsAllNames=groups.map(g=>g.name); // 빌딩 필터 옵션(전체)
+  if(roomFilter.building)groups=groups.filter(g=>g.name===roomFilter.building);
+  if(roomFilter.sortPer){const pn=p=>parseInt(p)||0;groups=groups.map(g=>({name:g.name,rooms:[...g.rooms].sort((a,b)=>roomFilter.sortPer==='asc'?pn(a.per)-pn(b.per):pn(b.per)-pn(a.per))}));}
   const CLS={x:'cx',in:'cin',out:'cout',hold:'chold',e:'cempty'};
   const dcells=(p)=>p.map((st,i)=>`<td class="dcell ${CLS[st]}" data-date="${dateLabels[i]}">${st==='e'?'':'X'}</td>`).join('');
   const colg=`<colgroup><col style="width:72px"><col style="width:58px"><col style="width:230px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
@@ -824,6 +829,10 @@ R.roomstat=()=>{
       <span><i style="background:var(--male)"></i> 남자 (MALE)</span>
       <span><i style="background:var(--female)"></i> 여자 (FEMALE)</span>
       <span><i style="background:#ca8a04"></i> 공용 (FAMILY)</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="rsBuilding" class="rs-ctrl" title="빌딩 구분"><option value="">🏢 전체 빌딩</option>${rsAllNames.map(n=>`<option ${roomFilter.building===n?'selected':''}>${n}</option>`).join('')}</select>
+      <select id="rsSort" class="rs-ctrl" title="인실 정렬"><option value="">인실 정렬</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>인실 ↑ 적은순</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>인실 ↓ 많은순</option></select>
     </div>
     <div class="month-jump" title="선택월이 중앙으로 정렬됩니다 (±6개월)">${sel}</div>
   </div>
@@ -980,6 +989,8 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     toast('엑셀 내보내기 완료',`${rows.length.toLocaleString()}행${d.rows.length>cap?` (상위 ${cap.toLocaleString()}/${d.rows.length.toLocaleString()})`:''} · 노란헤더·필터`,true);}));
   m.querySelectorAll('[data-my]').forEach(b=>b.addEventListener('click',()=>{
     roomCenter={y:+b.dataset.my,m:+b.dataset.mm};renderMain();}));
+  const rb=m.querySelector('#rsBuilding');if(rb)rb.addEventListener('change',()=>{roomFilter.building=rb.value;renderMain();});
+  const rsr=m.querySelector('#rsSort');if(rsr)rsr.addEventListener('change',()=>{roomFilter.sortPer=rsr.value;renderMain();});
   const tw=m.querySelector('.twrap[data-mstart]');
   if(tw){const ms=+tw.dataset.mstart,mw=+tw.dataset.mwidth,iw=+tw.dataset.infow;
     tw.scrollLeft=Math.max(0,ms-((tw.clientWidth-iw-mw)/2));} // 선택월을 가시영역 중앙으로
