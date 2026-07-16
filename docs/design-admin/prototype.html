@@ -621,16 +621,17 @@ function paintPaged(box,cols,rows,name){const st=pgState[name]||(pgState[name]={
   box.querySelector('#ppNext').onclick=()=>go(st.page+1);box.querySelector('#ppLast').onclick=()=>go(pages-1);
   box.querySelector('#ppJump').onchange=e=>go(Math.min(pages,Math.max(1,+e.target.value||1))-1);
   box.querySelector('#ppPer').onchange=e=>{st.per=+e.target.value;st.page=0;paintPaged(box,cols,rows,name);};}
-R.stdlist=()=>{
-  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:'2025-01-01',to:'2027-12-31'};
+function stdView(cfg){
+  const wk=cfg.dateWeek?pickupWeek():[cfg.from||'2025-01-01',cfg.to||'2027-12-31'];
+  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:wk[0],to:wk[1],sex:'',ageFrom:'',ageTo:'',campus:'',course:'',room:''};
   const src=REAL&&REAL.studentsFull;const total=src?src.rows.length:0;
   return `
-  <div class="ph"><h1>STUDENT LIST</h1><span class="sub">전체 학생 명단</span><span class="url">student.php</span>
-    <span class="actions" style="margin-left:auto"><button class="btn" data-stdexcel="1">📊 EXCEL</button></span></div>
+  <div class="ph"><h1>${cfg.title}</h1><span class="sub">${cfg.sub}</span><span class="url">${cfg.url}</span>
+    <span class="actions" style="margin-left:auto">${cfg.extraBtn||''}<button class="btn" data-stdexcel="1">📊 EXCEL</button></span></div>
   <div class="filters">
     <div class="field"><label>리스트 프리셋</label><select id="preset"><option value="">기본(직접선택)</option><option value="pickup">🛬 픽업 주간 (목→다음주 수)</option></select></div>
-    <div class="field"><label>기간 시작(등록/출발)</label><input id="depFrom" type="date" value="2025-01-01"></div>
-    <div class="field"><label>기간 종료</label><input id="depTo" type="date" value="2027-12-31"></div>
+    <div class="field"><label>기간 시작${cfg.dateWeek?'(목)':'(등록/출발)'}</label><input id="depFrom" type="date" value="${stdState.from}"${cfg.dateWeek?' data-weekauto="1"':''}></div>
+    <div class="field"><label>기간 종료${cfg.dateWeek?'(다음주 수)':''}</label><input id="depTo" type="date" value="${stdState.to}"></div>
     <div class="field"><label>AGENCY</label><select id="fAg">${ddOpts(DICT.uhak,'ALL')}</select></div>
     <div class="field"><label>국적</label><select id="fNat">${ddOpts(DICT.nation,'ALL')}</select></div>
     <div class="field"><label>상태(condition)</label><select id="fCond">${ddOpts(DICT.now_status,'ALL')}</select></div>
@@ -643,10 +644,15 @@ R.stdlist=()=>{
     <div class="field grow"><label>이름 검색</label><input id="fq" placeholder="영문/한글 이름"></div>
     <div class="field"><label>&nbsp;</label><button class="btn primary" id="fSearch">검색</button></div>
   </div>
-  <div class="chips"><span class="chip on">캠퍼스: <span id="cf1">ALL</span></span>${src?REALBADGE:''}<span class="chip">2025~2027 · 최근순</span><span class="chip"><b>${total.toLocaleString()}</b>명</span></div>
+  <div class="chips"><span class="chip on">캠퍼스: <span id="cf1">ALL</span></span>${src?REALBADGE:''}<span class="chip">${cfg.chip||'2025~2027 · 최근순'}</span><span class="chip"><b>${total.toLocaleString()}</b>명</span></div>
   <div style="height:10px"></div>
   <div id="stdBody"></div>
-  <div class="banner">${src?`전체 <b>${total.toLocaleString()}명</b> 임베드 · 클라이언트 페이지네이션·필터·검색 (legacy.student_info 전량 · MySQL 비교검증)`:'가상 샘플'}</div>`;};
+  <div class="banner">${cfg.banner||(src?`전체 <b>${total.toLocaleString()}명</b> 임베드 · 클라이언트 페이지네이션·필터·검색 (legacy.student_info 전량 · MySQL 비교검증)`:'가상 샘플')}</div>`;}
+R.stdlist=()=>stdView({title:'STUDENT LIST',sub:'전체 학생 명단',url:'student.php'});
+R.enroll=()=>stdView({title:'수강등록관리',sub:'수강 등록 관리 · STUDENT MANAGEMENT',url:'student_list.php',dateWeek:true,
+  extraBtn:'<button class="btn primary" data-guard="save" style="margin-right:8px">🧾 신규 등록 신청</button>',
+  chip:'등록/수강 · 목→다음주 수 · 최근순',
+  banner:'수강등록관리 — 학생별 <b>수정/변경/연장/상담/약식</b> · 기간 기본 <b>이번주 목→다음주 수</b>(FROM 변경 시 TO 자동) · legacy <span class="mono">student_list.php</span> 재현(임베드 실데이터)'});
 
 R.deposit=()=>{const st=[['미납','warn','N'],['완납','good','Y'],['분납','install','X'],['반환','return','R']];let rows='';
   if(REAL&&REAL.deposits&&REAL.deposits.length){rows=REAL.deposits.map(d=>{const ds=depStatus(d.status);
@@ -1059,7 +1065,7 @@ function logRead(menu,cat){
 }
 function renderMain(){const m=document.getElementById('main');seed=(curKey.length*13+7);
   const fn=R[curKey]||R.spec;m.innerHTML=fn(curMenu);
-  m.classList.toggle('freeze', curKey==='roommove'||curKey==='stdlist');  // 상단 전체 고정 + 행만 스크롤
+  m.classList.toggle('freeze', ['roommove','stdlist','enroll'].includes(curKey));  // 상단 전체 고정 + 행만 스크롤
   logRead(curKey,curCat);  // 조회 로그(비차단)
   const cf=document.getElementById('cf1');if(cf)cf.textContent=document.getElementById('campus').selectedOptions[0].text;
   m.querySelectorAll('[data-guard]').forEach(b=>b.addEventListener('click',()=>guard(b)));
@@ -1087,6 +1093,9 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
       stdState.sex=v('#fSex');stdState.ageFrom=v('#fAgeF');stdState.ageTo=v('#fAgeT');
       stdState.campus=v('#fCampus');stdState.course=v('#fCourse');stdState.room=v('#fRoom');
       stdState.page=0;paintStd();};
+    // 수강등록관리: FROM(목) 변경 시 TO=FROM+6(다음주 수) 자동
+    const df=m.querySelector('#depFrom');
+    if(df&&df.dataset.weekauto)df.addEventListener('change',()=>{if(df.value){const d=new Date(df.value);d.setDate(d.getDate()+6);const to=m.querySelector('#depTo');if(to)to.value=d.toISOString().slice(0,10);}});
     ['#fAg','#fNat','#fCond','#depFrom','#depTo','#fSex','#fCampus'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('change',upd);});
     ['#fq','#fCourse','#fRoom','#fAgeF','#fAgeT'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('input',()=>{clearTimeout(window._sq);window._sq=setTimeout(upd,250);});});
     const sb=m.querySelector('#fSearch');if(sb)sb.addEventListener('click',upd);
