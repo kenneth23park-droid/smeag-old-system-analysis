@@ -211,6 +211,8 @@
   .cbx-h{display:flex;align-items:center;gap:9px;padding:14px 16px;border-bottom:1px solid var(--border);font-weight:800;font-size:15px}
   .cbx-h .op{margin-left:auto;font-size:11px;font-weight:750;color:var(--dim);text-transform:uppercase}
   .cbx-body{padding:16px}
+  .cbx-ask{font-size:14px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed var(--border)}
+  .cbx-ask b{font-weight:800}
   .cbx-gauge{display:flex;align-items:center;gap:14px;margin-bottom:14px}
   .cbx-num{font-size:34px;font-weight:850;line-height:1;font-variant-numeric:tabular-nums}
   .cbx-bar{flex:1}
@@ -1144,26 +1146,39 @@ async function dbCall(op,params){
     return {ok:false,need_confirm:true,op,confidence:pf.confidence,level:pf.level,checks:pf.checks};
   return {ok:true,op,id:params._ctx.id,confidence:pf.confidence,level:pf.level,checks:pf.checks,audit_id:Math.floor(Math.random()*1e6),_sim:true};
 }
+// 프리플라이트(쓰기 없이 신뢰도만) — 실 RPC app.reservation_preflight 또는 로컬 시뮬
+async function dbPreflight(op,ctx){
+  if(DBCFG.url&&window.supabase){
+    const sb=window._sb||(window._sb=window.supabase.createClient(DBCFG.url,DBCFG.anonKey));
+    const rpc=ctx.rpc||{};
+    const {data,error}=await sb.rpc('reservation_preflight',{p_op:op,p_room_id:rpc.p_room_id??rpc.p_new_room_id??null,
+      p_student_id:rpc.p_student_id??null,p_check_in:ctx.date||null,p_check_out:ctx.date||null,p_ri_type:'L',p_exclude_id:rpc.p_id??null});
+    if(error||!data)return {confidence:0,level:'block',blocked:true,checks:[{key:'rpc',label:'프리플라이트',severity:'block',detail:(error&&error.message)||'응답 없음'}]};
+    return {confidence:data.confidence,level:data.level,blocked:!!data.blocked,checks:data.checks||[]};
+  }
+  return simPreflight(op,ctx);
+}
 
 const LV_COLOR={ok:'var(--good)',warn:'#ca8a04',block:'var(--female)'};
 const CHK_IC={pass:'✓',warn:'⚠',block:'⛔'};
-// 확인 메세지박스 → Promise<boolean>(저장:true / 취소:false)
-function showConfirmBox(resp,opLabel,danger){
+// 확인 메세지박스 → Promise<boolean>(확정:true / 취소:false)
+function showConfirmBox(resp,opLabel,danger,verb){
   return new Promise(res=>{
     const ov=el('div','cbx-ov');ov.id='cbx';
     const c=resp.confidence, lv=resp.level;
     const rows=(resp.checks||[]).map(k=>`<div class="cbx-chk ${k.severity}"><span class="ic">${CHK_IC[k.severity]||'•'}</span><span class="lb">${k.label}</span><span class="dt">${k.detail}</span></div>`).join('');
-    const actLabel=danger?'삭제':'저장';
+    const actLabel=verb||(danger?'삭제':'저장');
     ov.innerHTML=`<div class="cbx">
       <div class="cbx-h">🛡 ${opLabel} 확인<span class="op">${resp.op}</span></div>
       <div class="cbx-body">
+        <div class="cbx-ask">${opLabel} — <b>${actLabel}하시겠습니까?</b></div>
         <div class="cbx-gauge">
           <div class="cbx-num" style="color:${LV_COLOR[lv]}">${c}<span style="font-size:15px">%</span></div>
           <div class="cbx-bar"><div class="track"><div class="fill" style="width:${c}%;background:${LV_COLOR[lv]}"></div></div>
             <div class="cbx-lv" style="color:${LV_COLOR[lv]}">DB 체크 신뢰도 · ${lv.toUpperCase()}</div></div>
         </div>
         <div class="cbx-checks">${rows}</div>
-        ${lv==='block'?'<div class="cbx-warnmsg">⛔ 차단 항목이 있습니다. 그래도 저장하면 강제 반영됩니다.</div>':''}
+        ${lv==='block'?`<div class="cbx-warnmsg">⛔ 차단 항목이 있습니다. 그래도 ${actLabel}하면 강제 반영됩니다.</div>`:''}
       </div>
       <div class="cbx-foot">
         <button class="btn" id="cbxCancel">취소</button>
@@ -1193,19 +1208,24 @@ function showErrorBox(resp){
   ov.onclick=e=>{if(e.target===ov)close();};
 }
 
-// 오케스트레이터: 프리플라이트→(need_confirm)메세지박스→(강제)재호출→적용/에러
-async function runWrite(op,opLabel,ctx,onOk){
+// 오케스트레이터: 프리플라이트→확인박스(변경하시겠습니까?)→쓰기(블록이면 강제)→적용/에러
+async function runWrite(op,opLabel,ctx,onOk,opts){
+  opts=opts||{};
   const guard=`${op}:${ctx.room}:${ctx.date}:${ctx.bed}`;
   if(_inflight.has(guard))return; _inflight.add(guard);
   const key=newKey(op,ctx.room,ctx.date,ctx.bed);
   const mk=confirm=>({p_confirm:confirm,_ctx:ctx,rpc:Object.assign({p_key:key,p_confirm:confirm},ctx.rpc||{})});
   try{
-    let resp=await dbCall(op,mk(false));
-    if(resp&&resp.need_confirm){
-      const ok=await showConfirmBox(resp,opLabel,op==='delete');
-      if(!ok)return;
-      resp=await dbCall(op,mk(true));
+    // 1) 프리플라이트(쓰기 전 신뢰도 계산)
+    const pf=await dbPreflight(op,ctx);
+    // 2) 확인 메세지박스 — 변경/삭제는 항상, 그 외엔 블록 시
+    if(opts.alwaysConfirm||pf.blocked){
+      const ok=await showConfirmBox({op,confidence:pf.confidence,level:pf.level,checks:pf.checks},opLabel,op==='delete',opts.verb);
+      if(!ok)return; // 취소
     }
+    // 3) 실제 쓰기 (블록이었으면 강제)
+    let resp=await dbCall(op,mk(pf.blocked));
+    if(resp&&resp.need_confirm){resp=await dbCall(op,mk(true));} // 실 RPC 안전망
     if(resp&&resp.error){showErrorBox(resp);return;}
     if(resp&&resp.ok){
       onOk&&onOk();
@@ -1252,7 +1272,8 @@ function openCellPop(cell,ev){
       const word=label.split(' ')[0];
       const op=OPMAP[word]||'update';
       const ctx=cellCtx(cell,room,name,date,op);
-      runWrite(op,word,ctx,()=>{cell.className='dcell '+cls;cell.textContent=(cls==='cempty')?'':'X';});};
+      const verb=({'입실':'입실','퇴실':'퇴실','방배정':'배정','홀딩':'홀딩','빈방':'취소'})[word]||'변경';
+      runWrite(op,word,ctx,()=>{cell.className='dcell '+cls;cell.textContent=(cls==='cempty')?'':'X';},{alwaysConfirm:true,verb});};
     pop.appendChild(b);
   });
   document.body.appendChild(pop);
@@ -1313,7 +1334,7 @@ function openRoomReplace(srcCell,room,name,date){
       id:Math.floor(Math.random()*1e6),rpc:{p_new_room_id:0}};
     await runWrite('move','방변경',ctx,()=>{
       if(srcCell){srcCell.className='dcell chold';srcCell.textContent='X';}
-      ov.remove();});});
+      ov.remove();},{alwaysConfirm:true,verb:'변경'});});
 }
 document.addEventListener('click',(e)=>{
   if(!e.target.closest('.catwrap'))closeDropdowns();
