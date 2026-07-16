@@ -793,12 +793,20 @@ R.roomstat=()=>{
 
   // 실데이터 예약 세그먼트 → 날짜별 상태(입실/재실/퇴실/빈방)
   const realPat=(segs)=>dateLabels.map(d=>{for(const sg of (segs||[])){if(d===sg.s)return 'in';if(d===sg.e)return 'out';if(d>sg.s&&d<sg.e)return 'x';}return 'e';});
-  // 이름칸 = "선택한 달(중앙월)"의 점유자만 표시(레거시 배치도와 동일 — 월 클릭 시 갱신)
+  // 이름칸(레거시 room_stat3 규칙): 선택월(중앙월)부터 앞으로 이어지는 "확정 재실(type=S)"만,
+  // 첫 "예약(type=R, 미입실)"에서 중단. 선택월 이전 종료분은 제외. 월 클릭 시 갱신.
   const cFrom=`${roomCenter.y}-${pad(roomCenter.m)}-01`;
-  const cTo=`${roomCenter.y}-${pad(roomCenter.m)}-${pad(daysIn(roomCenter.y,roomCenter.m))}`;
-  const bedName=(segs)=>{const seen=new Set(),ns=[];
-    (segs||[]).filter(sg=>sg.nm&&sg.e>=cFrom&&sg.s<=cTo).sort((a,b)=>a.s.localeCompare(b.s))
-      .forEach(sg=>{if(!seen.has(sg.nm)){seen.add(sg.nm);ns.push(sg.nm);}});
+  const cHorizon=dateLabels[dateLabels.length-1]; // 가시범위 끝(과도한 미래 차단)
+  const bedName=(segs)=>{
+    const ss=(segs||[]).slice().sort((a,b)=>a.s.localeCompare(b.s));
+    const seen=new Set(),ns=[];
+    for(const sg of ss){
+      if(sg.e<cFrom)continue;      // 선택월 이전에 이미 종료 → 제외
+      if(sg.s>cHorizon)break;      // 가시범위 밖 미래 → 중단
+      if(sg.t==='R'||sg.h)break;   // 미입실 예약(R) 또는 홀딩(h) 만나면 중단(레거시는 확정 재실만 표기)
+      if(sg.nm&&!seen.has(sg.nm)){seen.add(sg.nm);ns.push(sg.nm);}
+      if(ns.length>=6)break;
+    }
     return ns.join(' / ');};
   let groups;
   if(REAL&&REAL.roomstat&&REAL.roomstat.groups){
