@@ -226,6 +226,10 @@
   input.rs-ctrl{cursor:text}
   .rs-search{display:inline-flex;align-items:center;gap:7px}
   .rs-cnt{font-size:11px;font-weight:700;color:var(--accent-ink);min-width:26px}
+  .rs-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;min-height:320px;color:var(--dim);text-align:center;border:2px dashed var(--border);border-radius:14px;background:var(--surface);margin-top:4px}
+  .rs-placeholder b{font-size:18px;color:var(--text)}
+  .rs-ph-ico{font-size:42px;opacity:.85}
+  .rs-ph-sub{font-size:12.5px;color:var(--dim);line-height:1.7;max-width:540px}
   /* ─ DB 쓰기 확인/에러 메세지박스 ─ */
   .cbx-ov{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);display:grid;place-items:center;z-index:1000}
   .cbx{width:min(440px,92vw);background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
@@ -926,6 +930,7 @@ R.roomstat=()=>{
   const campusOf=n=>{const u=(n||'').toUpperCase();return u.startsWith('CAPITAL')?'CAPITAL':u.startsWith('ENCANTO')?'ENCANTO':u.startsWith('CLASSIC')?'CLASSIC':'ETC';};
   const genderOf=n=>{const u=(n||'').toUpperCase();return /\/MALE|\/ MALE/.test(u)?'MALE':/\/FEMALE/.test(u)?'FEMALE':/\/FAMILY/.test(u)?'FAMILY':'';};
   if(roomFilter.center)groups=groups.filter(g=>campusOf(g.name)===roomFilter.center);
+  else groups=[]; // 초기: 센터 미선택 → 렌더 안 함(선택 안내)
   if(roomFilter.gender)groups=groups.filter(g=>genderOf(g.name)===roomFilter.gender);
   if(roomFilter.per)groups=groups.map(g=>({name:g.name,rooms:g.rooms.filter(r=>(''+(r.per||'')).replace(/[^0-9]/g,'')===roomFilter.per)})).filter(g=>g.rooms.length);
   if(roomFilter.sortPer){const pn=p=>parseInt(p)||0;groups=groups.map(g=>({name:g.name,rooms:[...g.rooms].sort((a,b)=>roomFilter.sortPer==='asc'?pn(a.per)-pn(b.per):pn(b.per)-pn(a.per))}));}
@@ -970,7 +975,7 @@ R.roomstat=()=>{
       <span><i style="background:#ca8a04"></i> 공용 (FAMILY)</span>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <select id="rsCenter" class="rs-ctrl" title="센터">${['','ENCANTO','CLASSIC','CAPITAL'].map(v=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${v?v+' CENTER':'🏢 전체 센터'}</option>`).join('')}</select>
+      <select id="rsCenter" class="rs-ctrl" title="센터">${['','ENCANTO','CLASSIC','CAPITAL'].map(v=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${v?v+' CENTER':'::센터를 선택하세요::'}</option>`).join('')}</select>
       <select id="rsGender" class="rs-ctrl" title="성별">${[['','전체 성별'],['MALE','남 (MALE)'],['FEMALE','여 (FEMALE)'],['FAMILY','공용 (FAMILY)']].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsPer" class="rs-ctrl" title="방구분(인실)">${[['','방구분 전체'],['1','1인실'],['2','2인실'],['3','3인실'],['4','4인실'],['5','5인실']].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="인실 정렬"><option value="">인실 정렬</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>인실 ↑ 적은순</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>인실 ↓ 많은순</option></select>
@@ -979,14 +984,15 @@ R.roomstat=()=>{
     </div>
     <div class="month-jump" title="선택월이 중앙으로 정렬됩니다 (±6개월)">${sel}</div>
   </div>
-  <div class="state-legend" style="margin-bottom:12px">
+  ${roomFilter.center?`<div class="state-legend" style="margin-bottom:12px">
     <span><i style="background:var(--female)">X</i> 입실 (CHECK-IN)</span>
     <span><i style="background:var(--return)">X</i> 퇴실 (CHECK-OUT)</span>
     <span><i style="background:var(--good)">X</i> 예약 (RESERVE)</span>
     <span><i style="background:var(--surface-2);color:var(--faint);border:1px solid var(--border)">X</i> 재실 (STAY)</span>
     <span><i style="background:var(--surface);border:1px solid var(--border)"></i> 빈방 (VACANT)</span>
   </div>
-  <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}"><table class="gantt" style="width:${INFOW+TOTAL*CELLW}px">${colg}${head}${body}</table></div>
+  <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}"><table class="gantt" style="width:${INFOW+TOTAL*CELLW}px">${colg}${head}${body}</table></div>`
+  :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>센터를 선택하세요</b><div class="rs-ph-sub">상단 <b>::센터를 선택하세요::</b> 에서 <b>ENCANTO · CLASSIC · CAPITAL</b> 중 하나를 고르면 배치도가 표시됩니다.<br>초기엔 전체를 불러오지 않아 빠릅니다 · 성별/방구분/연월도 함께 선택 가능.</div></div>`}
   <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬되며 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b> · content-visibility. ${REAL&&REAL.roomstat?`<b>실 MySQL 예약데이터</b> (reserve_info+room_list+student_info 조인 · ${REAL.roomstat.from}~${REAL.roomstat.to})`:'표시 데이터는 가상 샘플(실제 개인정보 아님)'}.</div>`;};
 
 R.changelog=()=>{let rows='';const mg=['kenneth','katie','anna','joon','doris'];
