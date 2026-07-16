@@ -103,6 +103,47 @@ psql "$CONN" -f migration/schema/cleanup_recommended.sql   # 주석 해제 후
 
 ---
 
+## 부록 · 예상 소요시간 표 (2026-07-14 실측 기반, 4워커)
+
+**테이블별 (상위/대표)**
+
+| 테이블 | 행수 | 시간 | Phase |
+|---|---|---:|:--:|
+| room_elec | 1,670,841 | 154.9s | 1 |
+| room_change_log | 552,118 | 107.8s | 1 |
+| student_info_history | 183,991 | ~70s* | 1 |
+| student_info_invoice | 128,580 | 64.7s | 1 |
+| room_reserve | 627,174 | 63.1s | 1 |
+| student_payment | 89,477 | 34.5s | 1 |
+| student_info | 90,524 | ~35s* | 1 |
+| room_move | 148,854 | 18.6s | 1 |
+| student_change | 26,857 | 17.2s | 1 |
+| g4_point | 146,387 | 15.1s | 3 |
+| reserve_info_history | 54,698 | 9.2s | 1 |
+| reserve_info | 69,350 | 8.8s | 1 |
+| g4_visit | 58,816 | 7.8s | 3 |
+| zipcode | 52,032 | 7.1s | 1 |
+| uhak_agency_com / room_list / g4_member | 4,004 / 2,797 / 2,053 | ~1.7~2.2s | 2·3 |
+| 소형 40여개 (<2,000행) | — | 각 1~2s | 2·3 |
+
+*`student_info`·`student_info_history`는 1차 실패(enum) 후 재적재 — throughput(~2,600행/s) 기준 추정.
+
+**Phase 합계 & 벽시계**
+
+| Phase | 방식 | CPU 합 | 벽시계(4워커) |
+|---|---|---:|---|
+| 0 스키마 | 순차 | — | 수 초 |
+| 1 대용량 | 병렬 | ~591s | **~2.5~3.5분** (room_elec 지배) |
+| 2 소형 | 병렬 | ~40s | ~10초 |
+| 3 CMS(g4_*) | 병렬 | ~50s | ~20초 (g4_point 지배) |
+| 4 후처리 | 순차 | — | **~2~4분** (호환뷰 생성) |
+| **합계** | — | — | **≈ 5~10분** |
+
+> **단축 요인**: `room_reserve_old`(2,800,593행)는 "구버전 대체"로 **제외** → 포함 시 **+4~5분**.
+> **변동 요인**: 네트워크 리전(서울/도쿄) 왕복, 풀러 부하, `--workers` 수, 덤프 최신 크기.
+
+---
+
 ## 롤백 절차
 
 1. 재적재 실패 시 → `orchestrator.py`는 멱등(create/replace, on conflict). **재실행**으로 복구.
