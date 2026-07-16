@@ -501,7 +501,7 @@ const campusChip=(id)=>({'1':'<span class="cch enc">ENCANTO</span>','4':'<span c
 // ─── 렌더러 ───
 const R={};
 let roomCenter={y:2026,m:7}; // 배치도 캘린더 중심월(선택월)
-let roomFilter={building:'',sortPer:'',q:''}; // 배치도 빌딩 필터·인실 정렬·방/회원 검색
+let roomFilter={center:'',gender:'',per:'',sortPer:'',q:''}; // 배치도 센터·성별·방구분(인실)·정렬·검색
 let roomstatCtx=null; // 배치도 렌더 컨텍스트(엑셀 export용)
 // 배치도 → 엑셀(CSV·UTF-8 BOM, Excel 호환) 내보내기. n=1(중심월)/2(중심+다음달)
 function exportRoomstat(n){
@@ -922,8 +922,12 @@ R.roomstat=()=>{
     groups.push({name:'S hotel(H) / FAMILY',rooms});}
   }
 
-  const rsAllNames=groups.map(g=>g.name); // 빌딩 필터 옵션(전체)
-  if(roomFilter.building)groups=groups.filter(g=>g.name===roomFilter.building);
+  // 레거시 필터: 센터(campus)·성별·방구분(인실)
+  const campusOf=n=>{const u=(n||'').toUpperCase();return u.startsWith('CAPITAL')?'CAPITAL':u.startsWith('ENCANTO')?'ENCANTO':u.startsWith('CLASSIC')?'CLASSIC':'ETC';};
+  const genderOf=n=>{const u=(n||'').toUpperCase();return /\/MALE|\/ MALE/.test(u)?'MALE':/\/FEMALE/.test(u)?'FEMALE':/\/FAMILY/.test(u)?'FAMILY':'';};
+  if(roomFilter.center)groups=groups.filter(g=>campusOf(g.name)===roomFilter.center);
+  if(roomFilter.gender)groups=groups.filter(g=>genderOf(g.name)===roomFilter.gender);
+  if(roomFilter.per)groups=groups.map(g=>({name:g.name,rooms:g.rooms.filter(r=>(''+(r.per||'')).replace(/[^0-9]/g,'')===roomFilter.per)})).filter(g=>g.rooms.length);
   if(roomFilter.sortPer){const pn=p=>parseInt(p)||0;groups=groups.map(g=>({name:g.name,rooms:[...g.rooms].sort((a,b)=>roomFilter.sortPer==='asc'?pn(a.per)-pn(b.per):pn(b.per)-pn(a.per))}));}
   const CLS={x:'cx',in:'cin',out:'cout',rsv:'crsv',hold:'chold',e:'cempty'};
   const dcells=(p)=>p.map((st,i)=>`<td class="dcell ${CLS[st]}" data-date="${dateLabels[i]}">${st==='e'?'':'X'}</td>`).join('');
@@ -966,7 +970,9 @@ R.roomstat=()=>{
       <span><i style="background:#ca8a04"></i> 공용 (FAMILY)</span>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <select id="rsBuilding" class="rs-ctrl" title="빌딩 구분"><option value="">🏢 전체 빌딩</option>${rsAllNames.map(n=>`<option ${roomFilter.building===n?'selected':''}>${n}</option>`).join('')}</select>
+      <select id="rsCenter" class="rs-ctrl" title="센터">${['','ENCANTO','CLASSIC','CAPITAL'].map(v=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${v?v+' CENTER':'🏢 전체 센터'}</option>`).join('')}</select>
+      <select id="rsGender" class="rs-ctrl" title="성별">${[['','전체 성별'],['MALE','남 (MALE)'],['FEMALE','여 (FEMALE)'],['FAMILY','공용 (FAMILY)']].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
+      <select id="rsPer" class="rs-ctrl" title="방구분(인실)">${[['','방구분 전체'],['1','1인실'],['2','2인실'],['3','3인실'],['4','4인실'],['5','5인실']].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="인실 정렬"><option value="">인실 정렬</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>인실 ↑ 적은순</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>인실 ↓ 많은순</option></select>
       <span class="rs-search"><input id="rsSearch" class="rs-ctrl" type="search" placeholder="🔍 방번호 · 회원 검색" value="${esc(roomFilter.q||'')}" autocomplete="off" style="min-width:210px"><span id="rsSearchCnt" class="rs-cnt"></span></span>
     </div>
@@ -1158,7 +1164,9 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     toast('엑셀 내보내기 완료',`${rows.length.toLocaleString()}행${d.rows.length>cap?` (상위 ${cap.toLocaleString()}/${d.rows.length.toLocaleString()})`:''} · 노란헤더·필터`,true);}));
   m.querySelectorAll('[data-my]').forEach(b=>b.addEventListener('click',()=>{
     roomCenter={y:+b.dataset.my,m:+b.dataset.mm};renderMain();}));
-  const rb=m.querySelector('#rsBuilding');if(rb)rb.addEventListener('change',()=>{roomFilter.building=rb.value;renderMain();});
+  const rc=m.querySelector('#rsCenter');if(rc)rc.addEventListener('change',()=>{roomFilter.center=rc.value;renderMain();});
+  const rg=m.querySelector('#rsGender');if(rg)rg.addEventListener('change',()=>{roomFilter.gender=rg.value;renderMain();});
+  const rp=m.querySelector('#rsPer');if(rp)rp.addEventListener('change',()=>{roomFilter.per=rp.value;renderMain();});
   const rsr=m.querySelector('#rsSort');if(rsr)rsr.addEventListener('change',()=>{roomFilter.sortPer=rsr.value;renderMain();});
   const rss=m.querySelector('#rsSearch');
   if(rss){const cnt=m.querySelector('#rsSearchCnt'),tbl=m.querySelector('table.gantt');
