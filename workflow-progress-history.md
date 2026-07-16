@@ -155,6 +155,14 @@
   - UI 소비 계약: `smeag system plan/docs/db-write-layer.md`.
 - 배포: smeag-bay.vercel.app 갱신(CAPITAL 반영, 인증 게이트 정상).
 
+### 2026-07-16(2) — 배치도 회원 표시 레거시 일치 (전체 방)
+- **증상**: 배치도 이름칸이 레거시와 불일치(예: CAPITAL3/FEMALE 519 가 Sofia 대신 2024년 입주자 표시).
+- **원인(읽기전용 진단)**: 방/조인/예약 데이터는 정상(reserve_info 에 Sofia Ryzhmanova·Kiseleva 실재, 레거시 일치). 문제는 **이름칸 생성 방식** — `build_roomstat.py` 가 침대별 2025~2027 전체 점유자를 시작일순 concat 후 앞8명만 표시 → **가장 오래된(2024) 입주자**가 이름칸을 차지. 창 필터가 `종료일≥2025-01-01` 이라 2024-10 예약도 유입.
+- **수정(전체 방)**: seg 마다 학생명 동봉(`{s,e,t,nm}`) + prototype `R.roomstat` 가 **표시 중 13개월 창과 겹치는 seg 의 학생명만** 이름칸에 렌더(월 이동 시 갱신) — 레거시 배치도와 동일 원리. 30그룹/416방/1016베드 전부 적용.
+- **검증**: Playwright — 519 4침대 7월 점유 Margarita/EUNSONG/**Sofia Ryzhmanova**/**Sofia Kiseleva** 표시, 2024 입주자(HARU FUJINE) 선두 아님, JS오류 0.
+- **원칙 준수**: 레거시 MySQL `sql/*.sql` **무변경(read-only)**, build 스크립트는 읽기만+scratchpad 기록. Supabase 정본(dorm_reservations)은 예약 단위로 이미 정확 → 본 건은 **표시(렌더) 계층 수정**이라 Supabase 데이터 변경 불필요.
+- 배포: smeag-bay.vercel.app 갱신.
+
 ## 남은 작업 / TODO
 - [ ] 핵심 6화면 고해상도 목업 확정 + 나머지 화면 실렌더 확장
 - [ ] `sa=러시아` 등 라벨오류 신규 마스터에서 교정(SA=사우디), 캠퍼스 4중코드→campus_id 매핑표 확정
