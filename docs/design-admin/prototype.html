@@ -149,6 +149,14 @@
   #specBody table.grid th:first-child, #stdBody table.grid th:first-child{left:0;z-index:5}
   #specBody table.grid td:first-child, #stdBody table.grid td:first-child{position:sticky;left:0;z-index:2;background:var(--surface)}
   #specBody table.grid tbody tr:hover td:first-child, #stdBody table.grid tbody tr:hover td:first-child{background:var(--surface-2)}
+  /* STUDENT LIST 행 액션(수정/변경/연장/상담/약식) — 레거시 재현 */
+  td.std-act{white-space:nowrap}
+  .btn.xs{padding:2px 7px;font-size:10.5px;font-weight:700;border-radius:6px;margin-right:2px;line-height:1.5}
+  .btn.xs[data-sact="edit"]{color:var(--accent-ink);border-color:var(--accent)}
+  .btn.xs[data-sact="move"]{color:var(--return);border-color:var(--return)}
+  .btn.xs[data-sact="extend"]{color:var(--good);border-color:var(--good)}
+  .btn.xs[data-sact="counsel"]{color:#0369a1;border-color:#0ea5e9}
+  .btn.xs[data-sact="brief"]{color:var(--dim)}
   .pill.in{color:var(--female);background:color-mix(in srgb,var(--female) 15%,transparent)}
 
   .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
@@ -281,6 +289,7 @@
     box-shadow:var(--shadow);pointer-events:none}
   .gantt td.info{padding:5px 9px;text-align:left;background:var(--surface);white-space:nowrap;text-overflow:ellipsis}
   .gantt td.rno{font-weight:800;text-align:center}
+  .gantt .rno .bldg{display:block;font-size:8.5px;font-weight:700;color:var(--dim);letter-spacing:.2px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .gantt .per{display:inline-block;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:750}
   .gantt .per.m{background:var(--male)} .gantt .per.f{background:var(--female)} .gantt .per.fam{background:#ca8a04}
   .gantt td.name{color:#c15b1e;font-size:12.5px;text-overflow:ellipsis}
@@ -292,8 +301,8 @@
   .gantt td.cempty{background:var(--surface)}
   /* 틀고정: 좌측 3열 (방번호/인실/이름) */
   .gantt .c1{position:sticky;left:0;z-index:1}
-  .gantt .c2{position:sticky;left:72px;z-index:1}
-  .gantt .c3{position:sticky;left:130px;z-index:1}
+  .gantt .c2{position:sticky;left:86px;z-index:1}
+  .gantt .c3{position:sticky;left:144px;z-index:1}
   .gantt thead .c1,.gantt thead .c2,.gantt thead .c3{z-index:3}
   .gantt td.c1,.gantt td.c2,.gantt td.c3{background:var(--surface)}
   /* 구분 그룹 구분행 (rowspan 제거 대체) */
@@ -539,7 +548,7 @@ function rowsStudents(n){
   <td class="mono">2026-0${1+seed%9}-1${seed%9}</td><td class="mono">2026-1${seed%2}-0${1+seed%8}</td>
   <td>${campusChip(cid)}</td><td><span class="pill ${['good','warn','neutral'][seed%3]}">${['NORMAL','HOLDING','EXTEND'][seed%3]}</span></td></tr>`;seed++;}
   return s;}
-let stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:'2025-01-01',to:'2027-12-31'};
+let stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:'2025-01-01',to:'2027-12-31',sex:'',ageFrom:'',ageTo:'',campus:'',course:'',room:''};
 function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let f=src.rows;const s=stdState;
   // 날짜(등록/출발/시작/종료 중 하나) 범위 — 기본 2025년~현재
   const dts=r=>[r[6],r[7],r[8],r[9]].filter(d=>d&&d.length>=7);
@@ -548,18 +557,25 @@ function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let
   if(s.ag)f=f.filter(r=>r[0]===s.ag);
   if(s.nat)f=f.filter(r=>(r[1]||'').toLowerCase()===s.nat.toLowerCase());
   if(s.cond)f=f.filter(r=>(r[11]||'')===s.cond);
+  if(s.sex)f=f.filter(r=>(r[5]||'').toUpperCase()===s.sex);
+  if(s.ageFrom)f=f.filter(r=>(+r[4]||0)>=+s.ageFrom);
+  if(s.ageTo)f=f.filter(r=>(+r[4]||0)<=+s.ageTo);
+  if(s.campus)f=f.filter(r=>(r[14]||'').toUpperCase().includes(s.campus.toUpperCase()));
+  if(s.course){const cq=s.course.toLowerCase();f=f.filter(r=>(r[12]||'').toLowerCase().includes(cq));}
+  if(s.room){const rq=s.room.toLowerCase();f=f.filter(r=>(''+(r[13]||'')).toLowerCase().includes(rq));}
   if(s.q){const q=s.q.toLowerCase();f=f.filter(r=>(r[2]||'').toLowerCase().includes(q)||(''+(r[3]||'')).includes(s.q));}
   // 최근순(내림차순): 출발일(도착) 우선, 없으면 등록/시작/종료 최신
   const key=r=>(r[7]&&r[7].length>=7)?r[7]:dts(r).reduce((mm,d)=>d>mm?d:mm,'');
   f=f.slice().sort((a,b)=>key(b).localeCompare(key(a)));
   return f;}
 function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
-  const cols='<thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>SEX</th><th>APPLY</th><th>DEPA</th><th>CAMPUS</th><th>COND</th></tr></thead>';
+  const cols='<thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>SEX</th><th>APPLY</th><th>DEPA</th><th>BEGIN</th><th>END</th><th>PERI</th><th>COURSE</th><th>ROOM</th><th>CAMPUS</th><th>COND</th><th>ACTION</th></tr></thead>';
   const f=stdFiltered();
   if(!f){box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${rowsStudents(12)}</tbody></table></div>`;makeSortable(box);return;}
   const s=stdState;const pages=Math.max(1,Math.ceil(f.length/s.per));if(s.page>=pages)s.page=pages-1;if(s.page<0)s.page=0;
   const pg=f.slice(s.page*s.per,s.page*s.per+s.per);
-  const tb=pg.map(r=>`<tr><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td>${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${esc(r[4])}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td></tr>`).join('');
+  const ACT='<td class="std-act" data-nm="{NM}" data-room="{RM}" data-dep="{DP}"><button class="btn xs" data-sact="edit">수정</button><button class="btn xs" data-sact="move">변경</button><button class="btn xs" data-sact="extend">연장</button><button class="btn xs" data-sact="counsel">상담</button><button class="btn xs" data-sact="brief">약식</button></td>';
+  const tb=pg.map(r=>`<tr><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td>${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${esc(r[4])}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td><td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${ACT.replace('{NM}',esc(r[2]||r[3]||'')).replace('{RM}',esc(r[13]||'')).replace('{DP}',esc(r[7]||''))}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -618,6 +634,12 @@ R.stdlist=()=>{
     <div class="field"><label>AGENCY</label><select id="fAg">${ddOpts(DICT.uhak,'ALL')}</select></div>
     <div class="field"><label>국적</label><select id="fNat">${ddOpts(DICT.nation,'ALL')}</select></div>
     <div class="field"><label>상태(condition)</label><select id="fCond">${ddOpts(DICT.now_status,'ALL')}</select></div>
+    <div class="field"><label>GENDER</label><select id="fSex"><option value="">ALL</option><option value="M">남 (M)</option><option value="F">여 (F)</option></select></div>
+    <div class="field" style="max-width:110px"><label>AGE FROM</label><input id="fAgeF" type="number" min="0" max="99" placeholder="예 18"></div>
+    <div class="field" style="max-width:110px"><label>AGE TO</label><input id="fAgeT" type="number" min="0" max="99" placeholder="예 40"></div>
+    <div class="field"><label>CAMPUS</label><select id="fCampus"><option value="">전체</option><option>ENCANTO</option><option>CLASSIC</option><option>CAPITAL</option></select></div>
+    <div class="field"><label>COURSE(연수코스)</label><input id="fCourse" placeholder="예 ESL / IELTS"></div>
+    <div class="field" style="max-width:130px"><label>방번호(ROOM)</label><input id="fRoom" placeholder="예 519 / E218"></div>
     <div class="field grow"><label>이름 검색</label><input id="fq" placeholder="영문/한글 이름"></div>
     <div class="field"><label>&nbsp;</label><button class="btn primary" id="fSearch">검색</button></div>
   </div>
@@ -780,7 +802,7 @@ R.dailyio=(m)=>{
   <div class="banner">기간 기본값: 이번주 목→다음주 수 (해당 기간 데이터 자동 표시) · reserve_info 실 입퇴실 집계</div>`;};
 
 R.roomstat=()=>{
-  const CELLW=22, INFOW=72+58+230; // 방번호+인실+이름 = 좌측 고정폭
+  const CELLW=22, INFOW=86+58+230; // 방번호+인실+이름 = 좌측 고정폭
   const pad=n=>String(n).padStart(2,'0');
   const daysIn=(y,m)=>new Date(y,m,0).getDate();
   // 선택월(roomCenter) 기준 ±6개월 = 13개월
@@ -863,19 +885,20 @@ R.roomstat=()=>{
   if(roomFilter.sortPer){const pn=p=>parseInt(p)||0;groups=groups.map(g=>({name:g.name,rooms:[...g.rooms].sort((a,b)=>roomFilter.sortPer==='asc'?pn(a.per)-pn(b.per):pn(b.per)-pn(a.per))}));}
   const CLS={x:'cx',in:'cin',out:'cout',rsv:'crsv',hold:'chold',e:'cempty'};
   const dcells=(p)=>p.map((st,i)=>`<td class="dcell ${CLS[st]}" data-date="${dateLabels[i]}">${st==='e'?'':'X'}</td>`).join('');
-  const colg=`<colgroup><col style="width:72px"><col style="width:58px"><col style="width:230px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
+  const colg=`<colgroup><col style="width:86px"><col style="width:58px"><col style="width:230px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
   const monRow=months.map(mo=>`<th class="mon${mo.off===0?' mon-cur':''}" colspan="${mo.days}">${mo.y} 년 ${pad(mo.m)} 월</th>`).join('');
   const dayRow=months.map(mo=>Array.from({length:mo.days},(_,i)=>`<th class="dh">${i+1}</th>`).join('')).join('');
   const head=`<thead><tr><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
 
   let body='';
   groups.forEach(g=>{
+    const bldg=(g.name||'').split('/')[0].trim(); // 그룹명 '건물/성별' 중 건물 부분(예 CAPITAL3)
     body+=`<tbody class="grp-head"><tr><td colspan="${3+TOTAL}"><span class="grp-label">${g.name}</span></td></tr></tbody>`;
     g.rooms.forEach(r=>{
       const h=r.beds.length*27;
       body+=`<tbody class="room-block" style="contain-intrinsic-size:auto ${h}px">`;
       r.beds.forEach((bed,bi)=>{
-        body+=`<tr><td class="info rno c1">${bi===0?r.no:''}</td>`
+        body+=`<tr><td class="info rno c1">${bi===0?`<span class="bldg">${esc(bldg)}</span>${r.no}`:''}</td>`
             +`<td class="info c2"><span class="per ${r.gender}">${r.per}</span></td>`
             +`<td class="info name c3">${bed.name||''}</td>`
             +dcells(bed.pat)+`</tr>`;
@@ -1026,9 +1049,18 @@ function renderCats(){const c=document.getElementById('cats');c.innerHTML='';
     b.onclick=(e)=>{e.stopPropagation();const wasOpen=dd.classList.contains('open');closeDropdowns();if(!wasOpen)dd.classList.add('open');};
     wrap.appendChild(b);wrap.appendChild(dd);c.appendChild(wrap);
   });}
+// 조회(read) 로그 — 화면 열람 단위·디바운스·비차단(부하 방지). 동일화면 연속조회 억제.
+let _rdT=null,_rdLast='';
+function logRead(menu,cat){
+  if(!window.adminAuthLog)return;
+  clearTimeout(_rdT);
+  _rdT=setTimeout(()=>{if(menu===_rdLast)return;_rdLast=menu;
+    try{window.adminAuthLog('menu_view',{menu:menu,cat:cat},'read');}catch(e){}},800);
+}
 function renderMain(){const m=document.getElementById('main');seed=(curKey.length*13+7);
   const fn=R[curKey]||R.spec;m.innerHTML=fn(curMenu);
-  m.classList.toggle('freeze', curKey==='roommove');  // 상단 전체 고정 + 행만 스크롤
+  m.classList.toggle('freeze', curKey==='roommove'||curKey==='stdlist');  // 상단 전체 고정 + 행만 스크롤
+  logRead(curKey,curCat);  // 조회 로그(비차단)
   const cf=document.getElementById('cf1');if(cf)cf.textContent=document.getElementById('campus').selectedOptions[0].text;
   m.querySelectorAll('[data-guard]').forEach(b=>b.addEventListener('click',()=>guard(b)));
   m.querySelectorAll('[data-excel]').forEach(b=>b.addEventListener('click',()=>exportRoomstat(+b.dataset.excel)));
@@ -1049,13 +1081,27 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
       toast('픽업 주간 자동설정',`${a} (목) → ${b} (수) · Room & List 픽업 대상 기간이 설정되었습니다.`,true);}});
   // STUDENT LIST 전체 학생 페이지네이션·필터·검색
   if(m.querySelector('#stdBody')){
-    const upd=()=>{stdState.ag=(m.querySelector('#fAg')||{}).value||'';stdState.nat=(m.querySelector('#fNat')||{}).value||'';
-      stdState.cond=(m.querySelector('#fCond')||{}).value||'';stdState.q=(m.querySelector('#fq')||{}).value||'';
-      stdState.from=(m.querySelector('#depFrom')||{}).value||'';stdState.to=(m.querySelector('#depTo')||{}).value||'';stdState.page=0;paintStd();};
-    ['#fAg','#fNat','#fCond','#depFrom','#depTo'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('change',upd);});
-    const q=m.querySelector('#fq');if(q)q.addEventListener('input',()=>{clearTimeout(window._sq);window._sq=setTimeout(upd,250);});
+    const v=sel=>(m.querySelector(sel)||{}).value||'';
+    const upd=()=>{stdState.ag=v('#fAg');stdState.nat=v('#fNat');stdState.cond=v('#fCond');stdState.q=v('#fq');
+      stdState.from=v('#depFrom');stdState.to=v('#depTo');
+      stdState.sex=v('#fSex');stdState.ageFrom=v('#fAgeF');stdState.ageTo=v('#fAgeT');
+      stdState.campus=v('#fCampus');stdState.course=v('#fCourse');stdState.room=v('#fRoom');
+      stdState.page=0;paintStd();};
+    ['#fAg','#fNat','#fCond','#depFrom','#depTo','#fSex','#fCampus'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('change',upd);});
+    ['#fq','#fCourse','#fRoom','#fAgeF','#fAgeT'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('input',()=>{clearTimeout(window._sq);window._sq=setTimeout(upd,250);});});
     const sb=m.querySelector('#fSearch');if(sb)sb.addEventListener('click',upd);
     m.querySelectorAll('[data-stdexcel]').forEach(b=>b.addEventListener('click',exportStd));
+    // ACTION 버튼(수정/변경/연장/상담/약식) — 이벤트 위임
+    const body=m.querySelector('#stdBody');
+    body.addEventListener('click',e=>{const b=e.target.closest('button[data-sact]');if(!b)return;
+      const cell=b.closest('.std-act');const nm=cell.dataset.nm||'',rm=cell.dataset.room||'',dp=cell.dataset.dep||'';
+      const act=b.dataset.sact;
+      const LBL={edit:'수정',move:'변경',extend:'연장',counsel:'상담',brief:'약식'};
+      const KIND={edit:'update',move:'update',extend:'update',counsel:'read',brief:'read'};
+      if(act==='move'){openRoomReplace(null,rm,nm,dp);}                       // 방변경 = ROOM REPLACEMENT 재사용
+      else{toast(`${LBL[act]} — ${nm||'학생'}`,`${rm?'객실 '+rm+' · ':''}${dp||''} (${LBL[act]} 화면/처리)`,true);}
+      if(window.adminAuthLog)try{window.adminAuthLog('student_'+act,{name:nm,room:rm},KIND[act]);}catch(_){}
+    });
     paintStd();
   }
   // 일반 메뉴 실데이터 페이지네이션(#specBody) + EXCEL
@@ -1268,6 +1314,9 @@ async function runWrite(op,opLabel,ctx,onOk,opts){
     if(resp&&resp.error){showErrorBox(resp);return;}
     if(resp&&resp.ok){
       onOk&&onOk();
+      // CRUD 로그(즉시): insert→create, update/move→update, delete→delete
+      if(window.adminAuthLog){const KIND={insert:'create',update:'update',delete:'delete',move:'update'};
+        try{window.adminAuthLog(opLabel,{room:ctx.room,date:ctx.date,confidence:resp.confidence},KIND[op]||'update');}catch(e){}}
       const tags=[`신뢰도 ${resp.confidence}%`];
       if(resp._sim)tags.push('시뮬');else tags.push('RPC');
       if(resp.replayed)tags.push('멱등재생');
@@ -1414,3 +1463,331 @@ document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();cl
 applyHash();renderAll();
 window.addEventListener('hashchange',()=>{applyHash();renderAll();});
 </script>
+
+<!-- __ADMIN_GATE__ -->
+<!-- ═══════════════════════════════════════════════════════════════════════
+     관리자 로그인 게이트 (자기완결 · 인라인 · 외부리소스 없음)
+     - 프로토타입 정적 HTML 의 <body> 아무 곳에나 통째로 붙여넣기.
+     - 페이지 로드시 풀스크린 오버레이 로그인. 4계정(admin1/admin2/master/manager).
+       초기 비밀번호 = 아이디. 최초 로그인 후 비밀번호 변경 강제(새 비번 ≠ 아이디).
+     - 세션은 sessionStorage. 진입 후 우상단 "내 로그 다운로드" 버튼.
+     - 검증 우선순위:
+         (1) window.SUPA_URL + window.SUPA_ANON 이 있으면
+             POST {SUPA_URL}/rest/v1/rpc/admin_login  (app.admin_login RPC)
+         (2) 없거나 실패하면 클라이언트 폴백(초기 PW=ID, 변경분은 localStorage 해시 저장).
+       ※ 현재 프로토타입은 Supabase 미연동(anon 키 없음) 상태 → 기본적으로 (2) 폴백으로 동작.
+          실제 연동 시 상단 <script> 에서 window.SUPA_URL / window.SUPA_ANON 만 세팅하면 (1) 사용.
+     - 기존 스크립트와 충돌 방지: IIFE, 모든 id/class 접두사 'adminAuth'.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<style>
+  #adminAuthOverlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;
+    justify-content:center;background:#0f172a;background:linear-gradient(135deg,#0f172a,#1e293b);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;}
+  #adminAuthOverlay.adminAuth-hidden{display:none;}
+  .adminAuth-card{width:340px;max-width:90vw;background:#fff;border-radius:14px;padding:28px 26px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);box-sizing:border-box;}
+  .adminAuth-title{margin:0 0 4px;font-size:20px;font-weight:700;color:#0f172a;text-align:center;}
+  .adminAuth-sub{margin:0 0 20px;font-size:12px;color:#64748b;text-align:center;}
+  .adminAuth-field{margin-bottom:12px;}
+  .adminAuth-field label{display:block;font-size:12px;color:#475569;margin-bottom:4px;}
+  .adminAuth-field input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;
+    border-radius:8px;font-size:14px;outline:none;transition:border .15s;}
+  .adminAuth-field input:focus{border-color:#2563eb;}
+  .adminAuth-btn{width:100%;padding:11px;border:0;border-radius:8px;background:#2563eb;color:#fff;
+    font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;}
+  .adminAuth-btn:hover{background:#1d4ed8;}
+  .adminAuth-msg{min-height:16px;margin-top:10px;font-size:12px;text-align:center;color:#dc2626;}
+  .adminAuth-msg.adminAuth-ok{color:#16a34a;}
+  .adminAuth-hint{margin-top:14px;font-size:11px;color:#94a3b8;text-align:center;line-height:1.5;}
+  #adminAuthBar{position:fixed;top:0;right:0;z-index:2147482000;display:none;align-items:center;gap:10px;
+    padding:6px 12px;background:rgba(15,23,42,.92);border-bottom-left-radius:10px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;}
+  #adminAuthBar.adminAuth-show{display:flex;}
+  #adminAuthBar .adminAuth-who{color:#e2e8f0;font-size:12px;}
+  #adminAuthBar .adminAuth-who b{color:#fff;}
+  #adminAuthBar button{border:0;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;}
+  #adminAuthDownload{background:#0ea5e9;color:#fff;}
+  #adminAuthLogout{background:#334155;color:#e2e8f0;}
+</style>
+
+<div id="adminAuthOverlay">
+  <div class="adminAuth-card">
+    <h1 class="adminAuth-title">관리자 로그인</h1>
+    <p class="adminAuth-sub" id="adminAuthCardSub">SMEAG 기숙사 예약 관리</p>
+
+    <!-- 로그인 폼 -->
+    <form id="adminAuthLoginForm" autocomplete="off">
+      <div class="adminAuth-field">
+        <label for="adminAuthUser">아이디</label>
+        <input id="adminAuthUser" type="text" autocomplete="username" />
+      </div>
+      <div class="adminAuth-field">
+        <label for="adminAuthPass">비밀번호</label>
+        <input id="adminAuthPass" type="password" autocomplete="current-password" />
+      </div>
+      <button class="adminAuth-btn" type="submit">로그인</button>
+      <div class="adminAuth-msg" id="adminAuthLoginMsg"></div>
+      <div class="adminAuth-hint">계정: admin1 · admin2 · master · manager<br>초기 비밀번호는 아이디와 동일합니다.</div>
+    </form>
+
+    <!-- 비밀번호 변경 폼(최초 로그인/must_change 시) -->
+    <form id="adminAuthChangeForm" autocomplete="off" style="display:none;">
+      <div class="adminAuth-field">
+        <label for="adminAuthNew">새 비밀번호 (아이디와 다르게)</label>
+        <input id="adminAuthNew" type="password" autocomplete="new-password" />
+      </div>
+      <div class="adminAuth-field">
+        <label for="adminAuthNew2">새 비밀번호 확인</label>
+        <input id="adminAuthNew2" type="password" autocomplete="new-password" />
+      </div>
+      <button class="adminAuth-btn" type="submit">비밀번호 변경 후 진입</button>
+      <div class="adminAuth-msg" id="adminAuthChangeMsg"></div>
+    </form>
+  </div>
+</div>
+
+<div id="adminAuthBar">
+  <span class="adminAuth-who">관리자 <b id="adminAuthBarWho"></b></span>
+  <button id="adminAuthDownload" type="button">내 로그 다운로드</button>
+  <button id="adminAuthLogout" type="button">로그아웃</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ── 설정 ────────────────────────────────────────────────────────────
+  var USERS = ["admin1","admin2","master","manager"];
+  var SS_KEY = "adminAuthSession";      // sessionStorage: 현재 세션
+  var LS_PW  = "adminAuthPwStore";      // localStorage: {user: {hash, must_change}} (폴백)
+  var LS_LOG = "adminAuthLog";          // localStorage: [{username,action,detail,at}]
+
+  // Supabase 연동 여부. 프로토타입은 미연동(anon 키 없음)이라 폴백으로 동작.
+  // 실제 연동 시 상단에서 window.SUPA_URL / window.SUPA_ANON 만 세팅하면 서버(app.admin_login) 사용.
+  function supaReady(){ return !!(window.SUPA_URL && window.SUPA_ANON); }
+
+  // ── 간이 해시(폴백 전용) ────────────────────────────────────────────
+  // ※ 주의: 아래는 데모용 비암호학적 해시(djb2 변형 + 솔트)입니다.
+  //   실제 인증 강도는 Supabase app.admin_login(bcrypt) 연동 시 확보됩니다.
+  function weakHash(str){
+    var h = 5381, s = "adminAuth$salt$";
+    var v = s + String(str);
+    for (var i=0;i<v.length;i++){ h = ((h<<5)+h) ^ v.charCodeAt(i); h = h>>>0; }
+    return ("00000000"+h.toString(16)).slice(-8);
+  }
+
+  // ── 저장소 헬퍼 ─────────────────────────────────────────────────────
+  function readJSON(store, key, def){
+    try { var v = store.getItem(key); return v ? JSON.parse(v) : def; }
+    catch(e){ return def; }
+  }
+  function writeJSON(store, key, obj){
+    try { store.setItem(key, JSON.stringify(obj)); } catch(e){}
+  }
+  function pwStore(){ return readJSON(localStorage, LS_PW, {}); }
+  function savePwStore(o){ writeJSON(localStorage, LS_PW, o); }
+
+  // 폴백 계정 상태 초기화: 최초엔 비번=아이디, must_change=true
+  function fallbackRecord(user){
+    var st = pwStore();
+    if (!st[user]){
+      st[user] = { hash: weakHash(user), must_change: true };
+      savePwStore(st);
+    }
+    return st[user];
+  }
+
+  // ── Supabase RPC 호출 ───────────────────────────────────────────────
+  function rpc(fn, body){
+    return fetch(window.SUPA_URL.replace(/\/+$/,"") + "/rest/v1/rpc/" + fn, {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "apikey": window.SUPA_ANON,
+        "Authorization": "Bearer " + window.SUPA_ANON
+      },
+      body: JSON.stringify(body || {})
+    }).then(function(r){
+      if(!r.ok) throw new Error("rpc http "+r.status);
+      return r.json();
+    });
+  }
+
+  // ── 로그 기록 ───────────────────────────────────────────────────────
+  function logLocal(user, action, detail, kind){
+    var arr = readJSON(localStorage, LS_LOG, []);
+    arr.push({ username:user, kind:kind||null, action:action, detail:detail||{}, at:new Date().toISOString() });
+    // 과다 방지: 최근 5000건 유지
+    if (arr.length > 5000) arr = arr.slice(arr.length-5000);
+    writeJSON(localStorage, LS_LOG, arr);
+  }
+  // 진입 후 동작 기록. kind=create/read/update/delete/auth.
+  //   CRUD(쓰기)는 즉시, 조회(read)는 호출측에서 화면 열람 단위·비차단으로.
+  //   Supabase app.admin_log 가능하면 시도(실패해도 무시), 항상 로컬 append.
+  function adminLog(action, detail, kind){
+    var s = session();
+    if(!s) return;
+    logLocal(s.username, action, detail, kind);
+    if (supaReady()){
+      rpc("admin_log", { p_user:s.username, p_action:action, p_detail:detail||{}, p_kind:kind||null })["catch"](function(){});
+    }
+  }
+  // 외부 스크립트에서 메뉴 이동 등을 기록할 수 있게 전역 훅 노출(선택).
+  window.adminAuthLog = adminLog;
+
+  // ── 세션 ────────────────────────────────────────────────────────────
+  function session(){ return readJSON(sessionStorage, SS_KEY, null); }
+  function setSession(user){ writeJSON(sessionStorage, SS_KEY, { username:user, since:new Date().toISOString() }); }
+  function clearSession(){ try{ sessionStorage.removeItem(SS_KEY); }catch(e){} }
+
+  // ── DOM ─────────────────────────────────────────────────────────────
+  var overlay   = document.getElementById("adminAuthOverlay");
+  var loginForm = document.getElementById("adminAuthLoginForm");
+  var changeForm= document.getElementById("adminAuthChangeForm");
+  var elUser    = document.getElementById("adminAuthUser");
+  var elPass    = document.getElementById("adminAuthPass");
+  var elNew     = document.getElementById("adminAuthNew");
+  var elNew2    = document.getElementById("adminAuthNew2");
+  var loginMsg  = document.getElementById("adminAuthLoginMsg");
+  var changeMsg = document.getElementById("adminAuthChangeMsg");
+  var bar       = document.getElementById("adminAuthBar");
+  var barWho    = document.getElementById("adminAuthBarWho");
+
+  var pending = null; // 변경 폼 진행 중인 사용자/비번 컨텍스트
+
+  function showMsg(el, text, ok){
+    el.textContent = text || "";
+    el.className = "adminAuth-msg" + (ok ? " adminAuth-ok" : "");
+  }
+  function showLogin(){
+    loginForm.style.display = "";
+    changeForm.style.display = "none";
+    overlay.classList.remove("adminAuth-hidden");
+    bar.classList.remove("adminAuth-show");
+    showMsg(loginMsg,""); showMsg(changeMsg,"");
+    setTimeout(function(){ elUser.focus(); }, 30);
+  }
+  function showChange(user, oldPw){
+    pending = { user:user, oldPw:oldPw };
+    loginForm.style.display = "none";
+    changeForm.style.display = "";
+    overlay.classList.remove("adminAuth-hidden");
+    showMsg(changeMsg, "최초 로그인입니다. 비밀번호를 변경하세요.", false);
+    setTimeout(function(){ elNew.focus(); }, 30);
+  }
+  function enter(user){
+    setSession(user);
+    overlay.classList.add("adminAuth-hidden");
+    barWho.textContent = user;
+    bar.classList.add("adminAuth-show");
+    adminLog("enter", { page: location.pathname });
+  }
+
+  // ── 로그인 처리 ─────────────────────────────────────────────────────
+  function doLoginFallback(user, pw){
+    var rec = fallbackRecord(user);
+    var ok  = weakHash(pw) === rec.hash;
+    logLocal(user, ok ? "login" : "login_fail", ok ? {must_change:rec.must_change} : {reason:"bad_credentials"});
+    if(!ok){ showMsg(loginMsg,"아이디 또는 비밀번호가 올바르지 않습니다."); return; }
+    if(rec.must_change){ showChange(user, pw); return; }
+    enter(user);
+  }
+
+  loginForm.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var user = (elUser.value||"").trim();
+    var pw   = elPass.value||"";
+    if(USERS.indexOf(user) < 0){ showMsg(loginMsg,"등록되지 않은 아이디입니다."); return; }
+    if(!pw){ showMsg(loginMsg,"비밀번호를 입력하세요."); return; }
+
+    if(supaReady()){
+      rpc("admin_login", { p_user:user, p_pw:pw }).then(function(res){
+        if(!res || res.ok !== true){ showMsg(loginMsg, (res&&res.message)||"로그인 실패"); return; }
+        if(res.must_change){ showChange(user, pw); return; }
+        enter(user);
+      })["catch"](function(){
+        // Supabase 오류 → 폴백으로 재시도
+        doLoginFallback(user, pw);
+      });
+    } else {
+      doLoginFallback(user, pw);
+    }
+  });
+
+  // ── 비밀번호 변경 처리 ──────────────────────────────────────────────
+  changeForm.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    if(!pending){ showLogin(); return; }
+    var user = pending.user;
+    var n1 = elNew.value||"", n2 = elNew2.value||"";
+    if(n1.length < 4){ showMsg(changeMsg,"새 비밀번호는 4자 이상이어야 합니다."); return; }
+    if(n1 === user){ showMsg(changeMsg,"새 비밀번호는 아이디와 달라야 합니다."); return; }
+    if(n1 === pending.oldPw){ showMsg(changeMsg,"새 비밀번호는 기존 비밀번호와 달라야 합니다."); return; }
+    if(n1 !== n2){ showMsg(changeMsg,"두 비밀번호가 일치하지 않습니다."); return; }
+
+    if(supaReady()){
+      rpc("admin_change_password", { p_user:user, p_old:pending.oldPw, p_new:n1 }).then(function(res){
+        if(!res || res.ok !== true){ showMsg(changeMsg,(res&&res.message)||"변경 실패"); return; }
+        finishChange(user);
+      })["catch"](function(){
+        // 폴백 저장
+        changeFallback(user, n1); finishChange(user);
+      });
+    } else {
+      changeFallback(user, n1); finishChange(user);
+    }
+  });
+
+  function changeFallback(user, newPw){
+    var st = pwStore();
+    st[user] = { hash: weakHash(newPw), must_change:false };
+    savePwStore(st);
+    logLocal(user, "change_password", {});
+  }
+  function finishChange(user){
+    elNew.value = ""; elNew2.value = ""; elPass.value = "";
+    pending = null;
+    enter(user);
+  }
+
+  // ── 로그 다운로드 / 로그아웃 ────────────────────────────────────────
+  document.getElementById("adminAuthDownload").addEventListener("click", function(){
+    var s = session(); if(!s) return;
+    var all = readJSON(localStorage, LS_LOG, []);
+    var mine = all.filter(function(r){ return r.username === s.username; });
+    var lines = ["# usage log for " + s.username + " — exported " + new Date().toISOString()];
+    mine.forEach(function(r){
+      lines.push(r.at + "\t" + r.action + "\t" + JSON.stringify(r.detail||{}));
+    });
+    var blob = new Blob([lines.join("\n")+"\n"], { type:"text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = s.username + ".log";
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    adminLog("download_log", { count: mine.length });
+  });
+
+  document.getElementById("adminAuthLogout").addEventListener("click", function(){
+    adminLog("logout", {});
+    clearSession();
+    elUser.value = ""; elPass.value = "";
+    showLogin();
+  });
+
+  // ── 초기화: 세션 있으면 통과, 없으면 로그인 오버레이 ─────────────────
+  (function init(){
+    var s = session();
+    if(s && USERS.indexOf(s.username) >= 0){
+      overlay.classList.add("adminAuth-hidden");
+      barWho.textContent = s.username;
+      bar.classList.add("adminAuth-show");
+    } else {
+      showLogin();
+    }
+  })();
+
+})();
+</script>
+<!-- ═══════════════ 관리자 로그인 게이트 끝 ═══════════════ -->
