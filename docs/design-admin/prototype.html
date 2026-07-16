@@ -202,6 +202,10 @@
   .month-jump .btn{padding:5px 9px;font-size:11px;flex:none}
   .month-jump .btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
   .rs-ctrl{border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:8px;padding:6px 10px;font:inherit;font-size:12px;font-weight:650;cursor:pointer}
+  input.rs-ctrl{cursor:text}
+  .rs-search{display:inline-flex;align-items:center;gap:7px}
+  .rs-cnt{font-size:11px;font-weight:700;color:var(--accent-ink);min-width:26px}
+  .gantt td.name.hl{background:var(--accent-weak);color:var(--accent-ink);font-weight:750}
   .gantt thead th.mon-cur{background:var(--accent-weak);color:var(--accent-ink)}
 
   table.gantt{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px;background:var(--surface)}
@@ -237,7 +241,7 @@
   .gantt td.rno{font-weight:800;text-align:center}
   .gantt .per{display:inline-block;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:750}
   .gantt .per.m{background:var(--male)} .gantt .per.f{background:var(--female)} .gantt .per.fam{background:#ca8a04}
-  .gantt td.name{color:var(--return);text-overflow:ellipsis}
+  .gantt td.name{color:#c15b1e;font-size:12.5px;text-overflow:ellipsis}
   .gantt td.cx{color:var(--faint)}
   .gantt td.cin{background:var(--good);color:#fff}
   .gantt td.cout{background:var(--female);color:#fff}
@@ -417,7 +421,7 @@ const campusChip=(id)=>({'1':'<span class="cch enc">ENCANTO</span>','4':'<span c
 // ─── 렌더러 ───
 const R={};
 let roomCenter={y:2026,m:7}; // 배치도 캘린더 중심월(선택월)
-let roomFilter={building:'',sortPer:''}; // 배치도 빌딩 필터·인실 정렬
+let roomFilter={building:'',sortPer:'',q:''}; // 배치도 빌딩 필터·인실 정렬·방/회원 검색
 let roomstatCtx=null; // 배치도 렌더 컨텍스트(엑셀 export용)
 // 배치도 → 엑셀(CSV·UTF-8 BOM, Excel 호환) 내보내기. n=1(중심월)/2(중심+다음달)
 function exportRoomstat(n){
@@ -833,6 +837,7 @@ R.roomstat=()=>{
     <div style="display:flex;gap:8px;align-items:center">
       <select id="rsBuilding" class="rs-ctrl" title="빌딩 구분"><option value="">🏢 전체 빌딩</option>${rsAllNames.map(n=>`<option ${roomFilter.building===n?'selected':''}>${n}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="인실 정렬"><option value="">인실 정렬</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>인실 ↑ 적은순</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>인실 ↓ 많은순</option></select>
+      <span class="rs-search"><input id="rsSearch" class="rs-ctrl" type="search" placeholder="🔍 방번호 · 회원 검색" value="${esc(roomFilter.q||'')}" autocomplete="off" style="min-width:210px"><span id="rsSearchCnt" class="rs-cnt"></span></span>
     </div>
     <div class="month-jump" title="선택월이 중앙으로 정렬됩니다 (±6개월)">${sel}</div>
   </div>
@@ -991,6 +996,25 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     roomCenter={y:+b.dataset.my,m:+b.dataset.mm};renderMain();}));
   const rb=m.querySelector('#rsBuilding');if(rb)rb.addEventListener('change',()=>{roomFilter.building=rb.value;renderMain();});
   const rsr=m.querySelector('#rsSort');if(rsr)rsr.addEventListener('change',()=>{roomFilter.sortPer=rsr.value;renderMain();});
+  const rss=m.querySelector('#rsSearch');
+  if(rss){const cnt=m.querySelector('#rsSearchCnt'),tbl=m.querySelector('table.gantt');
+    const runFilter=()=>{const q=rss.value.trim().toLowerCase();roomFilter.q=rss.value;
+      if(!tbl)return;const tbodies=[...tbl.tBodies];let curHead=null,headShown=0,shown=0;
+      tbodies.forEach(tb=>{
+        if(tb.classList.contains('grp-head')){curHead=tb;headShown=0;tb.style.display=q?'none':'';return;}
+        if(!tb.classList.contains('room-block'))return;
+        let match=!q;
+        if(q){const no=(tb.querySelector('.rno')?.textContent||'').toLowerCase();
+          if(no.includes(q))match=true;
+          else match=[...tb.querySelectorAll('.name')].some(n=>(n.textContent||'').toLowerCase().includes(q));}
+        tb.style.display=match?'':'none';
+        if(match){shown++;if(curHead){headShown++;curHead.style.display='';}}
+        // 이름 셀 하이라이트
+        tb.querySelectorAll('.name').forEach(n=>{n.classList.toggle('hl',!!q&&(n.textContent||'').toLowerCase().includes(q));});
+      });
+      if(cnt)cnt.textContent=q?`${shown}건`:'';};
+    rss.addEventListener('input',runFilter);
+    if(roomFilter.q)runFilter();} // 재렌더 후 검색어 복원
   const tw=m.querySelector('.twrap[data-mstart]');
   if(tw){const ms=+tw.dataset.mstart,mw=+tw.dataset.mwidth,iw=+tw.dataset.infow;
     tw.scrollLeft=Math.max(0,ms-((tw.clientWidth-iw-mw)/2));} // 선택월을 가시영역 중앙으로
