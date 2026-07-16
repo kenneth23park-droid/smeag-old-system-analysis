@@ -1463,6 +1463,9 @@ function openRoomReplace(srcCell,room,name,date){
       ov.remove();},{alwaysConfirm:true,verb:'변경'});});
 }
 
+// 항공편 실시간 조회 — 서버리스 프록시(/api/flight, 키는 서버 env). 배포환경에서만 동작.
+window.FLIGHT_API=(code,date)=>fetch(`/api/flight?code=${encodeURIComponent(code)}${date?`&date=${encodeURIComponent(date)}`:''}`)
+  .then(r=>r.json()).then(d=>{if(!d||d.error&&!d.summary)throw new Error((d&&d.error)||'no');return d.summary||'정보 없음';});
 // 여권번호 검사 — 국제 표준(영문+숫자 6~9자, 숫자 포함). 미입력/0 은 무효.
 function validatePassport(v){
   v=(v||'').trim().toUpperCase();
@@ -1614,9 +1617,10 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
   .adminAuth-msg{min-height:16px;margin-top:10px;font-size:12px;text-align:center;color:#dc2626;}
   .adminAuth-msg.adminAuth-ok{color:#16a34a;}
   .adminAuth-hint{margin-top:14px;font-size:11px;color:#94a3b8;text-align:center;line-height:1.5;}
-  #adminAuthBar{position:fixed;top:0;right:0;z-index:2147482000;display:none;align-items:center;gap:10px;
-    padding:6px 12px;background:rgba(15,23,42,.92);border-bottom-left-radius:10px;
+  #adminAuthBar{position:fixed;bottom:14px;right:14px;z-index:2147482000;display:none;align-items:center;gap:10px;
+    padding:7px 13px;background:rgba(15,23,42,.92);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:.92;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;}
+  #adminAuthBar:hover{opacity:1}
   #adminAuthBar.adminAuth-show{display:flex;}
   #adminAuthBar .adminAuth-who{color:#e2e8f0;font-size:12px;}
   #adminAuthBar .adminAuth-who b{color:#fff;}
