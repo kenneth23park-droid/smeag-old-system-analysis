@@ -21,3 +21,6 @@ exploration/*.txt
 # 실데이터(PII) 로컬 전용 — 커밋 금지
 docs/design-admin/prototype.realdata.html
 deploy/.vercel/
+
+# 민감: 관리자/사용자/클라이언트 계정+해시 (커밋 금지)
+계정목록_*.csv

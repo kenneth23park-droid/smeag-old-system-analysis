@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(python3 /private/tmp/claude-501/-Users-kwangseobpark-smeag-old-system-analysis/d7e7cd59-1e6f-4901-9519-154a36f600f9/scratchpad/process.py)",
+      "Bash([ -f \"$F\" ])",
+      "Bash(python3 -c 'import json;d=json.load\\(open\\('\\\\''/private/tmp/claude-501/-Users-kwangseobpark-smeag-old-system-analysis/d7e7cd59-1e6f-4901-9519-154a36f600f9/scratchpad/pickup.json'\\\\''\\)\\);print\\('\\\\''pickup.json OK — keys:'\\\\'',list\\(d.keys\\(\\)\\) if isinstance\\(d,dict\\) else '\\\\''list'\\\\'', '\\\\''| rows:'\\\\'', len\\(d.get\\('\\\\''rows'\\\\'',d\\) if isinstance\\(d,dict\\) else d\\)\\)')",
+      "Bash(python3 /private/tmp/claude-501/-Users-kwangseobpark-smeag-old-system-analysis/d7e7cd59-1e6f-4901-9519-154a36f600f9/scratchpad/build.py)",
+      "Bash(python3 -c \"import json,sys;d=json.load\\(sys.stdin\\);print\\(json.dumps\\([t for t in d['tables'] if t['url']=='student_population.php'],ensure_ascii=False,indent=1\\)\\)\")",
+      "Bash(curl -s -u \"admin:SME-UzaGKhFX15vr\" https://smeag-bay.vercel.app)",
+      "Bash(python3 _extract_roommove.py)"
+    ]
+  }
+}
