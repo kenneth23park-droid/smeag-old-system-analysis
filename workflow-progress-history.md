@@ -180,6 +180,13 @@
 - 결과 519 4침대 전부 레거시 일치(XU WEI / RINKA·LIN CHUN CHIEN·TASHIRO KAON / Sofia Ryzhmanova·HSU JIA JIE / Sofia Kiseleva), 520도 일치. build_roomstat_rr.py 에 seg.h(홀딩) 플래그.
 - 잔여(경미): 이름 언어 — 레거시는 한국인 k_name(안미진), 내 추출은 e_name 우선(AN mijin). 배치는 100% 일치, 표기 언어만 상이(선택 시 k_name 우선으로 전환 가능).
 
+### 2026-07-16(5) — 이관 검증 대조 + write_layer 적용 + 리포트
+- **레거시(sql/) ↔ Supabase 대조(읽기전용)**: exact COUNT 51개 테이블 전부 일치(불일치 0), 값 스팟체크 reserve_info 5건 전건 동일. 스키마 타입변환 정상(varchar 날짜 원형 보존, datetime→timestamptz).
+- 파생 정본 dorm_reservations 69,326 = reserve_info 69,350 − 격리32 − uq중복. 미이관 ≈3.53M행(room_reserve_old 2.8M 등 테스트/백업/대체분, 의도적 제외).
+- **write_layer.sql 운영 Supabase 적용**(additive): app 7함수/3테이블 + dorm_rooms.capacity 4,846. 운영 preflight 검증(신규100/ok, 중복48/block). ※ MCP 계정에 이관 프로젝트 없어 .env pooler 직결로 대조/적용.
+- 산출: 검증 리포트 아티팩트 게시. 정리 권고 스크립트 `migration/schema/cleanup_recommended.sql`(미실행: 백업 drop·smeag 스키마 분리 — 승인 후).
+- 부수: ROOM M-LIST 등 데이터그리드 헤더/좌측컬럼 freeze, Manage Cash 실데이터 전체컬럼 반영.
+
 ## 남은 작업 / TODO
 - [ ] (이관 반영) Supabase 배치도용 정본을 room_reserve 기반으로 재구성(현 dorm_reservations=reserve_info 파생은 예약원장 용도로 유지, 배치도는 room_reserve 뷰 별도) — 방변경 반영 필요
 - [ ] 핵심 6화면 고해상도 목업 확정 + 나머지 화면 실렌더 확장
