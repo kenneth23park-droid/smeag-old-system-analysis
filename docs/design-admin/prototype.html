@@ -378,6 +378,9 @@
   .smi-flmsg.ok{color:var(--good)} .smi-flmsg.bad{color:var(--female)}
   .smi-chk{margin-left:8px;font-size:11.5px;font-weight:750}
   .smi-chk.ok{color:var(--good)} .smi-chk.bad{color:var(--female)}
+  .smi-r{display:inline-flex;align-items:center;gap:3px;font-size:12px;white-space:nowrap}
+  .smi-rg{display:flex;flex-wrap:wrap;gap:4px 10px}
+  .smi-t tr.smi-dc td .pill.good{font-size:10px;padding:1px 7px}
   .smi-ta{width:100%;box-sizing:border-box;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:6px;padding:5px 8px;font:inherit;font-size:12.5px}
   .modal-foot{display:flex;gap:9px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--border);background:var(--surface-2)}
 
@@ -1488,34 +1491,46 @@ function openStudentEdit(row,act){
   const ipt=(v,ty)=>`<input class="smi-i" ${ty?('type='+ty):''} value="${v||''}">`;
   const rw=(l1,v1,l2,v2)=>`<tr><th>${l1}</th><td>${v1}</td>${l2!=null?`<th>${l2}</th><td>${v2}</td>`:'<td colspan="2"></td>'}</tr>`;
   const sec=t=>`<tr class="smi-sec"><td colspan="4">${t}</td></tr>`;
-  const dormFee=295, tuiWk=285;
+  const dormFee=295, tuiWk=285, total=100+(tuiWk+dormFee)*wk;
+  const nat=(row[1]||'').toLowerCase();
+  const radio=(nm,label,on)=>`<label class="smi-r"><input type=radio name="${nm}"${on?' checked':''}> ${label}</label>`;
+  const NATS=[['jap','JAP'],['chi','CHI'],['kor','KOR'],['twa','TWA'],['rus','RUS'],['vtn','VTN'],['sa','SA'],['mgl','MGL'],['etc','ETC']];
+  const natR=NATS.map(([v,l])=>radio('smiNat',l, nat===v||(v==='etc'&&!NATS.slice(0,8).some(x=>x[0]===nat)))).join(' ');
+  const sel=(opts,cur)=>`<select class="smi-i">${opts.map(o=>`<option${o===cur?' selected':''}>${o}</option>`).join('')}</select>`;
+  const mc=['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN'].map((o,i)=>radio('smiMc',o,i===0)).join(' ');
   const ov=el('div','modal-ov');ov.id='smiModal';
   ov.innerHTML=`<div class="modal smi">
     <div class="modal-h"><b>STUDENT MANAGEMENT INFORMATION</b><span class="smi-badge">${actLbl}</span>
       <span class="smi-first">First Applier : ${g(0)}</span><button class="modal-x" id="smiClose">✕</button></div>
     <div class="smi-body"><table class="smi-t">
       ${sec('AGENCY INFORMATION')}
-      ${rw('AGENCY ID',ipt(g(0)),'ACCOUNT',ipt(g(0)+' USD ACCOUNT'))}
+      ${rw('AGENCY ID',ipt(g(0))+' <button class="btn xs">계좌변경</button>','ACCOUNT',ipt(g(0)+' USD ACCOUNT'))}
+      ${rw('BANK NAME',ipt('CHINABANK USD ACCOUNT'),'NATIONALITY',`<div class="smi-rg">${natR}</div>`)}
       ${rw('CONSULTANT<br><i>(수속담당자)</i>',ipt(''),'OFFICE PHONE<br><i>(담당자연락처)</i>',ipt(''))}
-      ${rw('NATIONALITY',ipt((row[1]||'').toUpperCase()),'CAMPUS',ipt(g(14)))}
       ${sec('STUDENT INFORMATION')}
       ${rw('NAME',ipt(g(3,row[2])),'NAME(eng)',ipt(g(2)))}
-      ${rw('Apply Date',ipt(g(6),'date'),'Group/University',ipt(''))}
-      ${rw('AGE',ipt(g(4)),'SEX',`<label><input type=radio name=smiSex ${!sexF?'checked':''}> MALE</label> &nbsp;<label><input type=radio name=smiSex ${sexF?'checked':''}> FEMALE</label>`)}
-      ${rw('DEPARTURE DATE',ipt(g(7),'date')+' <button class="btn xs">PERIOD CALC</button>','PICKUP SCHEDULE<br><i>(AIRLINE INFO)</i>',`<div class="smi-fl"><input id="smiFlight" class="smi-i smi-pick" placeholder="예 PR489 01:15am(8day) — 등록 가능" value="${esc(flight)}"><button class="btn xs" id="smiFlightLive" title="편명 실시간 조회(무료 API 키 필요)">🔄 실시간</button></div>${flightPrev?`<div class="smi-prev">변경전: <b>${esc(flightPrev)}</b></div>`:''}<div id="smiFlightMsg" class="smi-flmsg"></div>`)}
-      ${rw('PERIOD',`${ipt(g(8),'date')} ~ ${ipt(g(9),'date')} &nbsp;(<b>${wk}</b> weeks)`,'PICKUP DATE(픽업일)',`<input class="smi-i smi-pick" type=date value="${esc(pick)}">`)}
-      ${rw('BIRTHDAY<br><i>(citizen no.)</i>',ipt('','date'),'PASSPORT NUMBER',`<input id="smiPass" class="smi-i" value="0" autocomplete="off"><span id="smiPassChk" class="smi-chk"></span>`)}
+      ${rw('Apply Date<br><i>주의! 꼭 필요시만 수정</i>',ipt(g(6),'date'),'Group/University',sel(['Select a Group','Manage Group'],'')+' <button class="btn xs">Manage</button>')}
+      ${rw('AGE<br><i>Need For Group Class!</i>',ipt(g(4))+' age','SEX',`${radio('smiSex','MALE',!sexF)} &nbsp;${radio('smiSex','FEMALE',sexF)}`)}
+      ${rw('BIRTHDAY<br><i>(citizen no.) ※필수</i>',ipt('','date'),'PASSPORT NUMBER',`<input id="smiPass" class="smi-i" value="0" autocomplete="off"><span id="smiPassChk" class="smi-chk"></span>`)}
+      ${rw('DEPARTURE DATE',ipt(g(7),'date')+' <button class="btn xs">PERIOD CALC</button>','PICKUP SCHEDULE<br><i>(AIRLINE INFO)</i>',`<div class="smi-fl"><input id="smiFlight" class="smi-i smi-pick" placeholder="예 PR489 01:15am(8day) — 등록 가능" value="${esc(flight)}"><button class="btn xs" id="smiFlightLive" title="편명 실시간 조회">🔄 실시간</button></div>${flightPrev?`<div class="smi-prev">변경전: <b>${esc(flightPrev)}</b></div>`:''}<div id="smiFlightMsg" class="smi-flmsg"></div>`)}
+      ${rw('PERIOD<br><i>입/퇴실 변경시 기숙사 재설정 필수</i>',`${ipt(g(8),'date')} ~ ${ipt(g(9),'date')} &nbsp;(<b>${wk}</b> weeks)`,'PICKUP DATE<br><i>(픽업일)</i>',`<input class="smi-i smi-pick" type=date value="${esc(pick)}">`)}
+      ${rw('Medical History<br><i>(건강상태)</i>',`${radio('smiMed','없음',true)} ${radio('smiMed','있음',false)} <span style="color:var(--dim);font-size:11px">Medical Condition: not specified</span>`,'Parents Agreement<br><i>(부모님 동의서)</i>','<span style="color:var(--dim)">not specified</span>')}
       ${rw('AGENCY COMMENT',`<textarea class="smi-ta" rows=2></textarea>`,null)}
       ${sec('COURSE / DORMITORY')}
-      ${rw('ROOM',ipt(g(13)),'DORMITORY',`<span class="mono">${g(13)}</span>`)}
-      ${rw('COURSE CHOICE',ipt(g(12))+` &nbsp;<b>${wk}</b>주`,'COURSE TUITION FEE',`${tuiWk} $ / week`)}
-      ${rw('CAMPUS CHOICE',ipt(g(14)),'DORMITORY FEE',`${dormFee} $ / week`)}
-      ${sec('DORMITORY CONDITION')}
-      <tr class="smi-dc"><th>ROOM NUMBER</th><th>PERSONNEL</th><th>ROOM NAME</th><th>PERIOD</th></tr>
-      <tr class="smi-dc"><td class="mono">${esc(num)}</td><td>1 bed, ${sexF?'F':'M'}</td><td>${g(14)}</td><td class="mono">${g(8)} ~ ${g(9)}</td></tr>
+      ${rw('ROOM',sel(['1room','2room','3room','4room'],'1room'),'PRE PAY<br><i>(선불금)</i>',sel(['::PRE PAY(입교전 납부내역)::'],''))}
+      ${rw('DORMITORY',`<span class="mono">${g(13)}</span>`,'DORMITORY FEE',`${dormFee} $ / weeks`)}
+      ${rw('CAMPUS CHOICE',sel(['CAPITAL','ENCANTO','CLASSIC'],g(14)),'INVOICE FORMAT',`${radio('smiInv','GENERAL',true)} ${radio('smiInv','GAC1',false)} ${radio('smiInv','GAC2',false)}`)}
+      ${rw('MULTI COURSE CHOICE',`<div class="smi-rg">${mc}</div>`,null)}
+      ${rw('COURSE CHOICE',ipt(g(12))+' '+sel([wk+'주'],wk+'주'),'COURSE TUITION FEE',`${tuiWk} $ / weeks`)}
+      ${rw('COURSE MODULE<br><i>(Only for IELTS)</i>',`${radio('smiMod','GENERAL',false)} ${radio('smiMod','ACADEMIC',false)}`,null)}
+      ${sec('DORMITORY CONDITION — Nationality can not change')}
+      <tr class="smi-dc"><th>ROOM NUMBER</th><th>PERSONNEL</th><th>ROOM NAME</th><th>DORMITORY FEE</th><th>PERIOD</th><th>CHECK</th></tr>
+      <tr class="smi-dc"><td class="mono">${esc(num)}</td><td>1 bed, ${sexF?'F':'M'}</td><td>${g(14)}</td><td class="mono">${dormFee}$ × ${wk}wk = ${(dormFee*wk).toLocaleString()}$</td><td class="mono">${g(8)} ~ ${g(9)}</td><td><span class="pill good">OK</span></td></tr>
+      <tr class="smi-dc"><td colspan="3" style="text-align:right;font-weight:800">TOTAL</td><td class="mono"><b>${(dormFee*wk).toLocaleString()} $</b></td><td colspan="2"><button class="btn xs">DORMITORY DELETE</button></td></tr>
       ${sec('DETAIL COST')}
       ${rw('REGIST FEE','<b>100 $</b> &nbsp;Admission Fee','TUITION FEE',`<b>${(tuiWk*wk).toLocaleString()} $</b> &nbsp;${wk} weeks-${g(12)}`)}
-      ${rw('DORMITORY FEE',`<b>${(dormFee*wk).toLocaleString()} $</b> &nbsp;${wk} weeks`,'TOTAL',`<b style="color:var(--accent-ink)">${(100+ (tuiWk+dormFee)*wk).toLocaleString()} $</b>`)}
+      ${rw('DORMITORY FEE',`<b>${(dormFee*wk).toLocaleString()} $</b> &nbsp;${wk} weeks`,'PICKUP FEE','<b>0 $</b>')}
+      ${rw('TOTAL',`<b style="color:var(--accent-ink);font-size:15px">${total.toLocaleString()} $</b>`,null)}
     </table></div>
     <div class="modal-foot"><button class="btn" id="smiCancel">닫기</button><button class="btn primary" id="smiSave">💾 ${actLbl} 저장</button></div>
   </div>`;
