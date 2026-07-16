@@ -143,6 +143,18 @@
 - **계획/실제 퇴실 이원화**(`schema/actual_checkout.sql`, Phase4 배선): dorm_reservations에 `actual_check_in/out`(room_reserve 실적 min/max 주입) + 생성컬럼 `actual_days`·`early_checkout_days`(계획퇴실−실제퇴실). check_in/out(계획)은 정본 유지. 재실행 안전.
   - 결과: 실적매칭 17,149 / 계획만 52,177 / 조기퇴실 74·연장 0·일치 17,075. `dorm_early_checkouts` 뷰 + `idx_res_actual_co` 생성. 최대 조기 147일(ri_idx 174466: 계획167→실적20).
 
+### 2026-07-16 — 배치도 보강 + DB 쓰기 안전 계층
+- **배치도(room_stat3) 방/회원 검색**: dorm-bar `#rsSearch` 라이브 필터(재렌더 없이 행 표시/숨김+이름 하이라이트+건수). NAME 폰트 레거시 동일화(`#c15b1e`·12.5px).
+- **roomstat 실데이터 전 빌딩 재추출**: 기존 real.json이 4그룹(32방)만 샘플 → `room_category.g_display='Y'` 기준 **30그룹/416방/1016베드**(CAPITAL1~4 남·여, ENCANTO2~4·VIP·O, S hotel(H), Amethyst, Canberry, Casablu, Citadines 등), 2025~2027 예약 11,514건. 조인 검증: g68 room 301-1 "준블락_single use" = 레거시 일치. `build_roomstat.py`.
+- **DB 쓰기 안전 계층 `migration/schema/write_layer.sql`** (결정 F): insert/update/delete/move(방변경=rewrite) 멱등 RPC.
+  - `app.reservation_preflight()` **신뢰도 4종**(중복/멱등30·정원/충돌30·참조25·날짜15) → confidence 0–100 + level(ok/warn/block) + checks[].
+  - **더블서밋 가드**: `app.write_audit.idempotency_key UNIQUE` 재요청 replay + DB `uq_res_no_dup` 유니크 3중 방어.
+  - **에러 폴백**: 예외 throw 안 함 → `app.db_error_log` 적재 후 `{error_id,sqlstate,message}` 반환. `need_confirm`+checks[]로 저장/삭제 메세지박스 구동.
+  - `dorm_rooms.capacity` 보강(legacy.room_list.r_limit, 폴백 4).
+  - **Postgres 16 실검증 전 시나리오 통과**: 정상100 / 멱등 replay / 중복 block / 정원초과 conf70 / 참조·날짜 block / move / 삭제 멱등 / 내부오류 error_id 적재.
+  - UI 소비 계약: `smeag system plan/docs/db-write-layer.md`.
+- 배포: smeag-bay.vercel.app 갱신(CAPITAL 반영, 인증 게이트 정상).
+
 ## 남은 작업 / TODO
 - [ ] 핵심 6화면 고해상도 목업 확정 + 나머지 화면 실렌더 확장
 - [ ] `sa=러시아` 등 라벨오류 신규 마스터에서 교정(SA=사우디), 캠퍼스 4중코드→campus_id 매핑표 확정
