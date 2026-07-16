@@ -136,7 +136,14 @@
   table.grid th .sarr{color:var(--accent);font-weight:800}
   table.grid tr.grp td{background:var(--surface-2);font-weight:800;font-size:11.5px;letter-spacing:.3px;color:var(--dim)}
   table.grid tr.in td{background:color-mix(in srgb,var(--female) 9%,transparent)}
-  /* ── FREEZE: 데이터그리드(ROOM M-LIST 등) 헤더·좌측컬럼 고정, 행만 내부 스크롤 ── */
+  /* ── FREEZE: 상단 전체(제목·필터·칩·테이블헤더) 고정, 표의 행만 스크롤 ── */
+  .main.freeze{box-sizing:border-box;height:calc(100dvh - 56px);overflow:hidden;
+    display:flex;flex-direction:column;padding-bottom:14px}
+  .main.freeze > .ph, .main.freeze > .filters, .main.freeze > .chips, .main.freeze > .banner{flex:none}
+  .main.freeze > #specBody, .main.freeze > #stdBody{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  .main.freeze #specBody .twrap, .main.freeze #stdBody .twrap{flex:1 1 auto;min-height:0;max-height:none;overflow:auto}
+  .main.freeze #specBody .pager, .main.freeze #stdBody .pager{flex:none;margin-top:10px}
+  /* (비-freeze 폴백) 데이터그리드 헤더·좌측컬럼 고정 */
   #specBody .twrap, #stdBody .twrap{max-height:calc(100vh - 232px);overflow:auto}
   #specBody table.grid th, #stdBody table.grid th{top:0;z-index:3}
   #specBody table.grid th:first-child, #stdBody table.grid th:first-child{left:0;z-index:5}
@@ -1012,6 +1019,7 @@ function renderCats(){const c=document.getElementById('cats');c.innerHTML='';
   });}
 function renderMain(){const m=document.getElementById('main');seed=(curKey.length*13+7);
   const fn=R[curKey]||R.spec;m.innerHTML=fn(curMenu);
+  m.classList.toggle('freeze', curKey==='roommove');  // 상단 전체 고정 + 행만 스크롤
   const cf=document.getElementById('cf1');if(cf)cf.textContent=document.getElementById('campus').selectedOptions[0].text;
   m.querySelectorAll('[data-guard]').forEach(b=>b.addEventListener('click',()=>guard(b)));
   m.querySelectorAll('[data-excel]').forEach(b=>b.addEventListener('click',()=>exportRoomstat(+b.dataset.excel)));
