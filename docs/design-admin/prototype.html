@@ -205,6 +205,33 @@
   input.rs-ctrl{cursor:text}
   .rs-search{display:inline-flex;align-items:center;gap:7px}
   .rs-cnt{font-size:11px;font-weight:700;color:var(--accent-ink);min-width:26px}
+  /* ─ DB 쓰기 확인/에러 메세지박스 ─ */
+  .cbx-ov{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);display:grid;place-items:center;z-index:1000}
+  .cbx{width:min(440px,92vw);background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+  .cbx-h{display:flex;align-items:center;gap:9px;padding:14px 16px;border-bottom:1px solid var(--border);font-weight:800;font-size:15px}
+  .cbx-h .op{margin-left:auto;font-size:11px;font-weight:750;color:var(--dim);text-transform:uppercase}
+  .cbx-body{padding:16px}
+  .cbx-gauge{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+  .cbx-num{font-size:34px;font-weight:850;line-height:1;font-variant-numeric:tabular-nums}
+  .cbx-bar{flex:1}
+  .cbx-bar .track{height:9px;border-radius:6px;background:var(--surface-2);overflow:hidden;border:1px solid var(--border)}
+  .cbx-bar .fill{height:100%;border-radius:6px;transition:width .3s}
+  .cbx-lv{font-size:11px;font-weight:800;margin-top:5px;letter-spacing:.4px}
+  .cbx-checks{display:flex;flex-direction:column;gap:6px}
+  .cbx-chk{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;padding:7px 9px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border)}
+  .cbx-chk .ic{font-weight:900;flex:none;width:16px;text-align:center}
+  .cbx-chk .lb{font-weight:750;flex:none;min-width:72px}
+  .cbx-chk .dt{color:var(--dim)}
+  .cbx-chk.pass .ic{color:var(--good)} .cbx-chk.warn .ic{color:#ca8a04} .cbx-chk.block .ic{color:var(--female)}
+  .cbx-chk.block{border-color:color-mix(in srgb,var(--female) 45%,var(--border));background:color-mix(in srgb,var(--female) 8%,var(--surface-2))}
+  .cbx-warnmsg{margin-top:12px;font-size:12px;font-weight:700;color:var(--female);display:flex;gap:7px;align-items:center}
+  .cbx-foot{display:flex;gap:9px;justify-content:flex-end;padding:13px 16px;border-top:1px solid var(--border);background:var(--surface-2)}
+  .cbx-foot .btn{padding:8px 16px;font-size:13px;font-weight:750}
+  .cbx-foot .btn.go{background:var(--accent);border-color:var(--accent);color:#fff}
+  .cbx-foot .btn.danger{background:var(--female);border-color:var(--female);color:#fff}
+  .cbx.err .cbx-h{color:var(--female)}
+  .cbx-errmeta{font-family:var(--mono,monospace);font-size:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:10px;white-space:pre-wrap;word-break:break-word}
+  .cbx-errid{margin-top:9px;font-size:11.5px;color:var(--dim)}
   .gantt td.name.hl{background:var(--accent-weak);color:var(--accent-ink);font-weight:750}
   .gantt thead th.mon-cur{background:var(--accent-weak);color:var(--accent-ink)}
 
@@ -1059,6 +1086,147 @@ const CELL_ACTIONS=[
   ['홀딩 (HOLD)','chold','var(--return)'],
   ['빈방 (취소/CLEAR)','cempty','var(--empty)'],
 ];
+
+// ═══ DB 쓰기 안전 계약 클라이언트 (Supabase RPC ↔ 로컬 시뮬) ═══
+//  · DBCFG.url+anonKey 설정 & supabase-js 로드 시 → 실 app.reserve_* RPC 호출
+//  · 미설정 시 → 임베드 실데이터로 동일 4종 프리플라이트 로컬 시뮬(응답 계약 동일)
+//  · 서버 계층: migration/schema/write_layer.sql
+const DBCFG={url:'',anonKey:''}; // 이관 완료 후 채우면 실 RPC 전환
+const OPMAP={'입실':'insert','방배정':'insert','퇴실':'update','홀딩':'update','빈방':'delete'};
+const _inflight=new Set(); // 더블서밋 가드(논리 타깃 기준)
+const newKey=(op,room,date,bed)=>`${op}:${room||'-'}:${date||'-'}:${bed||0}:${Date.now().toString(36)}${Math.random().toString(36).slice(2,7)}`;
+
+// 로컬 4종 신뢰도 — 서버 app.reservation_preflight 와 동일 의미/가중치(30·30·25·15)
+function simPreflight(op,c){
+  const checks=[]; let conf=100, blocked=false;
+  const add=(k,l,s,d)=>{checks.push({key:k,label:l,severity:s,detail:d}); if(s==='block')blocked=true;};
+  if(op==='insert'||op==='move'){
+    if(c.isDup){add('dup','중복/멱등','block','동일 (방·학생·기간) 예약 존재 — 이중 저장');conf-=30;}
+    else add('dup','중복/멱등','pass','중복 예약 없음');
+  } else add('dup','중복/멱등','pass','해당없음');
+  if(op==='insert'||op==='move'){
+    if((c.occupied+1)>c.cap){add('capacity','정원/충돌','block',`정원 초과: 사용 ${c.occupied} + 1 > 정원 ${c.cap}`);conf-=30;}
+    else if(c.selfOverlap){add('capacity','정원/충돌','warn','동일 학생 기간겹침(재실 충돌 가능)');conf-=15;}
+    else add('capacity','정원/충돌','pass',`정원 ${c.cap} / 사용 ${c.occupied} — 여유`);
+  } else add('capacity','정원/충돌','pass','해당없음');
+  if(op==='delete'){
+    if(!c.exists){add('fk','참조 무결성','block','삭제 대상 예약 없음');conf-=25;}
+    else add('fk','참조 무결성','pass','삭제 대상 존재 확인');
+  } else if(!c.hasRoom){add('fk','참조 무결성','block','방 참조 없음');conf-=25;}
+  else if(!c.hasStudent){add('fk','참조 무결성','warn','학생 미지정(빈 침대) — 배정 필요');conf-=12;}
+  else add('fk','참조 무결성','pass','방·학생 참조 유효');
+  if(op==='delete')add('date','날짜 규칙','pass','해당없음');
+  else if(!c.date){add('date','날짜 규칙','block','날짜 누락');conf-=15;}
+  else add('date','날짜 규칙','pass','날짜 정상');
+  if(conf<0)conf=0;
+  return {confidence:conf,blocked,level:blocked?'block':(conf<90?'warn':'ok'),checks};
+}
+
+async function dbCall(op,params){
+  // 실 RPC 경로
+  if(DBCFG.url&&window.supabase){
+    const sb=window._sb||(window._sb=window.supabase.createClient(DBCFG.url,DBCFG.anonKey));
+    const fn={insert:'reserve_insert',update:'reserve_update',delete:'reserve_delete',move:'reserve_move'}[op];
+    const {data,error}=await sb.rpc(fn,params.rpc);
+    if(error)return {ok:false,error:true,op,sqlstate:error.code||'',message:error.message,error_id:'—'};
+    return data;
+  }
+  // 로컬 시뮬(응답 계약 동일)
+  const pf=simPreflight(op,params._ctx||{});
+  if(pf.blocked&&!params.p_confirm)
+    return {ok:false,need_confirm:true,op,confidence:pf.confidence,level:pf.level,checks:pf.checks};
+  return {ok:true,op,id:params._ctx.id,confidence:pf.confidence,level:pf.level,checks:pf.checks,audit_id:Math.floor(Math.random()*1e6),_sim:true};
+}
+
+const LV_COLOR={ok:'var(--good)',warn:'#ca8a04',block:'var(--female)'};
+const CHK_IC={pass:'✓',warn:'⚠',block:'⛔'};
+// 확인 메세지박스 → Promise<boolean>(저장:true / 취소:false)
+function showConfirmBox(resp,opLabel,danger){
+  return new Promise(res=>{
+    const ov=el('div','cbx-ov');ov.id='cbx';
+    const c=resp.confidence, lv=resp.level;
+    const rows=(resp.checks||[]).map(k=>`<div class="cbx-chk ${k.severity}"><span class="ic">${CHK_IC[k.severity]||'•'}</span><span class="lb">${k.label}</span><span class="dt">${k.detail}</span></div>`).join('');
+    const actLabel=danger?'삭제':'저장';
+    ov.innerHTML=`<div class="cbx">
+      <div class="cbx-h">🛡 ${opLabel} 확인<span class="op">${resp.op}</span></div>
+      <div class="cbx-body">
+        <div class="cbx-gauge">
+          <div class="cbx-num" style="color:${LV_COLOR[lv]}">${c}<span style="font-size:15px">%</span></div>
+          <div class="cbx-bar"><div class="track"><div class="fill" style="width:${c}%;background:${LV_COLOR[lv]}"></div></div>
+            <div class="cbx-lv" style="color:${LV_COLOR[lv]}">DB 체크 신뢰도 · ${lv.toUpperCase()}</div></div>
+        </div>
+        <div class="cbx-checks">${rows}</div>
+        ${lv==='block'?'<div class="cbx-warnmsg">⛔ 차단 항목이 있습니다. 그래도 저장하면 강제 반영됩니다.</div>':''}
+      </div>
+      <div class="cbx-foot">
+        <button class="btn" id="cbxCancel">취소</button>
+        <button class="btn ${lv==='block'||danger?'danger':'go'}" id="cbxGo">${actLabel}${lv==='block'?' (강제)':''}</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    const done=v=>{ov.remove();res(v);};
+    ov.querySelector('#cbxCancel').onclick=()=>done(false);
+    ov.querySelector('#cbxGo').onclick=()=>done(true);
+    ov.onclick=e=>{if(e.target===ov)done(false);};
+    document.addEventListener('keydown',function esc(e){if(e.key==='Escape'){done(false);document.removeEventListener('keydown',esc);}});
+  });
+}
+function showErrorBox(resp){
+  const ov=el('div','cbx-ov');ov.id='cbxErr';
+  ov.innerHTML=`<div class="cbx err">
+    <div class="cbx-h">⛔ ${resp.op} 저장 실패<span class="op">ERROR</span></div>
+    <div class="cbx-body">
+      <div style="font-size:13px;font-weight:700">DB 오류로 저장되지 않았습니다. 에러로그가 저장되었습니다.</div>
+      <div class="cbx-errmeta">sqlstate: ${resp.sqlstate||'—'}\n${resp.message||''}</div>
+      <div class="cbx-errid">🗄 에러로그 #${resp.error_id} · <span class="mono">select * from app.db_error_log where error_id=${resp.error_id}</span></div>
+    </div>
+    <div class="cbx-foot"><button class="btn go" id="cbxErrClose">닫기</button></div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelector('#cbxErrClose').onclick=close;
+  ov.onclick=e=>{if(e.target===ov)close();};
+}
+
+// 오케스트레이터: 프리플라이트→(need_confirm)메세지박스→(강제)재호출→적용/에러
+async function runWrite(op,opLabel,ctx,onOk){
+  const guard=`${op}:${ctx.room}:${ctx.date}:${ctx.bed}`;
+  if(_inflight.has(guard))return; _inflight.add(guard);
+  const key=newKey(op,ctx.room,ctx.date,ctx.bed);
+  const mk=confirm=>({p_confirm:confirm,_ctx:ctx,rpc:Object.assign({p_key:key,p_confirm:confirm},ctx.rpc||{})});
+  try{
+    let resp=await dbCall(op,mk(false));
+    if(resp&&resp.need_confirm){
+      const ok=await showConfirmBox(resp,opLabel,op==='delete');
+      if(!ok)return;
+      resp=await dbCall(op,mk(true));
+    }
+    if(resp&&resp.error){showErrorBox(resp);return;}
+    if(resp&&resp.ok){
+      onOk&&onOk();
+      const tags=[`신뢰도 ${resp.confidence}%`];
+      if(resp._sim)tags.push('시뮬');else tags.push('RPC');
+      if(resp.replayed)tags.push('멱등재생');
+      if(resp.level==='warn')tags.push('경고반영');
+      if(resp.level==='block')tags.push('강제저장');
+      tags.push(`멱등키 가드`);
+      toast(`${opLabel} 처리 완료`,tags.join(' · '),true);
+    }
+  }catch(err){showErrorBox({op,sqlstate:'CLIENT',message:String(err&&err.message||err),error_id:'—'});}
+  finally{_inflight.delete(guard);}
+}
+// 셀에서 4종 신뢰도 컨텍스트 추출(임베드 실데이터 기준)
+function cellCtx(cell,room,name,date,op){
+  const blk=cell.closest('tbody.room-block');
+  const perTxt=blk?((blk.querySelector('.per')||{}).textContent||''):'';
+  const cap=parseInt(perTxt)||4;
+  const idx=[...cell.parentNode.children].indexOf(cell); // 절대 열 인덱스(정보3+일자)
+  let occupied=0, bed=0;
+  if(blk){const trs=[...blk.querySelectorAll('tr')];bed=trs.indexOf(cell.closest('tr'));
+    trs.forEach(tr=>{const c=tr.children[idx];if(c&&(c.classList.contains('cin')||c.classList.contains('cx')||c.classList.contains('chold')))occupied++;});}
+  const cur=cell.classList.contains('cin')||cell.classList.contains('cx');
+  const hasStudent=!!(name&&name!=='(빈 침대)'&&name.trim());
+  if(cur&&(op==='insert'))occupied=Math.max(0,occupied-1); // 자기 자신 제외
+  return {room,date,bed,cap,occupied,isDup:op==='insert'&&cur,exists:cur,hasRoom:!!room,hasStudent,selfOverlap:false,id:Math.floor(Math.random()*1e6)};
+}
 function closeCellPop(){const p=document.getElementById('cellpop');if(p)p.remove();}
 function openCellPop(cell,ev){
   closeCellPop();
@@ -1073,9 +1241,11 @@ function openCellPop(cell,ev){
     const b=el('button',null,`<i style="background:${color}"></i>${label}`);
     b.onclick=(e)=>{e.stopPropagation();
       if(label.startsWith('방변경')){closeCellPop();openRoomReplace(cell,room,name,date);return;}
-      cell.className='dcell '+cls;cell.textContent=(cls==='cempty')?'':'X';
       closeCellPop();
-      toast(label.split(' ')[0]+' 처리 완료',`${room||'-'} · ${name} · ${date} (멱등 처리 · 중복 반영 없음)`,true);};
+      const word=label.split(' ')[0];
+      const op=OPMAP[word]||'update';
+      const ctx=cellCtx(cell,room,name,date,op);
+      runWrite(op,word,ctx,()=>{cell.className='dcell '+cls;cell.textContent=(cls==='cempty')?'':'X';});};
     pop.appendChild(b);
   });
   document.body.appendChild(pop);
@@ -1127,10 +1297,16 @@ function openRoomReplace(srcCell,room,name,date){
   document.body.appendChild(ov);
   ov.querySelector('#rpClose').onclick=()=>ov.remove();
   ov.onclick=(e)=>{if(e.target===ov)ov.remove();};
-  ov.querySelectorAll('.rp-move').forEach(b=>b.onclick=()=>{
-    if(srcCell){srcCell.className='dcell chold';srcCell.textContent='X';}
-    ov.remove();
-    toast('방변경 완료',`${room||'-'} → ${b.dataset.to} · ${name} (${date}) · 멱등 처리`,true);});
+  ov.querySelectorAll('.rp-move').forEach(b=>b.onclick=async()=>{
+    // 대상 방 정원/사용 추정(후보행 CAPA 파싱), 이동은 신규 방 기준 프리플라이트
+    const capTxt=b.closest('tr').querySelector('td:nth-child(3)')?.textContent||'';
+    const cap=parseInt(capTxt)||3;
+    const ctx={room:b.dataset.to,date,bed:0,cap,occupied:1,isDup:false,exists:true,
+      hasRoom:true,hasStudent:!!(name&&name.trim()),selfOverlap:false,
+      id:Math.floor(Math.random()*1e6),rpc:{p_new_room_id:0}};
+    await runWrite('move','방변경',ctx,()=>{
+      if(srcCell){srcCell.className='dcell chold';srcCell.textContent='X';}
+      ov.remove();});});
 }
 document.addEventListener('click',(e)=>{
   if(!e.target.closest('.catwrap'))closeDropdowns();
