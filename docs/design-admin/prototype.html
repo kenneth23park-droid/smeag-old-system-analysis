@@ -791,10 +791,11 @@ R.roomstat=()=>{
 
   // 실데이터 예약 세그먼트 → 날짜별 상태(입실/재실/퇴실/빈방)
   const realPat=(segs)=>dateLabels.map(d=>{for(const sg of (segs||[])){if(d===sg.s)return 'in';if(d===sg.e)return 'out';if(d>sg.s&&d<sg.e)return 'x';}return 'e';});
-  // 표시 중인 13개월 범위와 겹치는 seg 의 학생명만 이름칸에 표시(레거시 배치도와 동일 — 월 이동 시 갱신)
-  const visFrom=dateLabels[0], visTo=dateLabels[dateLabels.length-1];
+  // 이름칸 = "선택한 달(중앙월)"의 점유자만 표시(레거시 배치도와 동일 — 월 클릭 시 갱신)
+  const cFrom=`${roomCenter.y}-${pad(roomCenter.m)}-01`;
+  const cTo=`${roomCenter.y}-${pad(roomCenter.m)}-${pad(daysIn(roomCenter.y,roomCenter.m))}`;
   const bedName=(segs)=>{const seen=new Set(),ns=[];
-    (segs||[]).filter(sg=>sg.nm&&sg.e>=visFrom&&sg.s<=visTo).sort((a,b)=>a.s.localeCompare(b.s))
+    (segs||[]).filter(sg=>sg.nm&&sg.e>=cFrom&&sg.s<=cTo).sort((a,b)=>a.s.localeCompare(b.s))
       .forEach(sg=>{if(!seen.has(sg.nm)){seen.add(sg.nm);ns.push(sg.nm);}});
     return ns.join(' / ');};
   let groups;
