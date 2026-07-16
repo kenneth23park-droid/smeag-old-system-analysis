@@ -940,13 +940,20 @@ R.cashmng=()=>{
   const rt=REAL&&REAL.tables&&REAL.tables['student_cash_payment.php'];
   let head,rows;
   if(rt&&rt.rows&&rt.rows.length){
-    const ci=rt.cols.map(c=>c.toUpperCase());const iType=ci.indexOf('TYPE'),iAmt=ci.indexOf('AMOUNT');
-    head=rt.cols.map(c=>`<th>${esc(c)}</th>`).join('')+'<th>ACTION</th>';
+    const ci=rt.cols.map(c=>c.toUpperCase());
+    const iType=ci.indexOf('TYPE'),iAmt=ci.indexOf('AMOUNT');
+    const iIn=ci.findIndex(x=>/CASH.?IN|입금/.test(x)),iOut=ci.findIndex(x=>/CASH.?OUT|출금/.test(x)),iBal=ci.findIndex(x=>/BAL|잔액/.test(x));
+    const isNumCol=i=>i===iAmt||i===iIn||i===iOut||i===iBal;
+    head=rt.cols.map((c,i)=>`<th${isNumCol(i)?' class="num"':''}>${esc(c)}</th>`).join('')+'<th>ACTION</th>';
     rows=rt.rows.map(r=>{const isOut=/OUT/i.test(r[iType]||'');
       return `<tr>${rt.cols.map((_,i)=>{
-        if(i===iAmt)return `<td class="num mono" style="color:${isOut?'var(--female)':'var(--good)'};font-weight:700">${isOut?'-':'+'}${esc(r[i])}</td>`;
-        if(i===iType)return `<td><span class="pill ${isOut?'female':'good'}">${esc(r[i])}</span></td>`;
-        return `<td class="mono">${esc(r[i])}</td>`;}).join('')}<td><button class="btn" style="padding:4px 9px;font-size:11px">상세</button></td></tr>`;}).join('');
+        const v=r[i];
+        if(i===iAmt)return `<td class="num mono" style="color:${isOut?'var(--female)':'var(--good)'};font-weight:700">${isOut?'-':'+'}${esc(v)}</td>`;
+        if(i===iType)return `<td><span class="pill ${isOut?'female':'good'}">${esc(v)}</span></td>`;
+        if(i===iIn) return `<td class="num mono" style="color:var(--good);font-weight:700">${(+v)?'+'+esc(v):'—'}</td>`;
+        if(i===iOut)return `<td class="num mono" style="color:var(--female);font-weight:700">${(+v)?'-'+esc(v):'—'}</td>`;
+        if(i===iBal)return `<td class="num mono" style="font-weight:700">${esc(v)}</td>`;
+        return `<td class="mono">${esc(v)}</td>`;}).join('')}<td><button class="btn" style="padding:4px 9px;font-size:11px">상세</button></td></tr>`;}).join('');
   }else{let s='';for(let i=0;i<6;i++){const nt=rnd(NAT);
     s+=`<tr><td class="mono">${i+1}</td><td>${fakeName()}</td><td class="mono">${nt[0]}</td>
     <td class="num mono">${seed*13%900+100}</td><td class="num mono" style="color:var(--good)">+${seed*7%300}</td>
