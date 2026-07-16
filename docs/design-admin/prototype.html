@@ -569,13 +569,13 @@ function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let
   f=f.slice().sort((a,b)=>key(b).localeCompare(key(a)));
   return f;}
 function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
-  const cols='<thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>SEX</th><th>APPLY</th><th>DEPA</th><th>BEGIN</th><th>END</th><th>PERI</th><th>COURSE</th><th>ROOM</th><th>CAMPUS</th><th>COND</th><th>ACTION</th></tr></thead>';
+  const cols=`<thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>SEX</th><th>APPLY</th><th>DEPA</th><th>BEGIN</th><th>END</th><th>PERI</th><th>COURSE</th><th>ROOM</th><th>CAMPUS</th><th>COND</th>${stdState.actions?'<th>ACTION</th>':''}</tr></thead>`;
   const f=stdFiltered();
   if(!f){box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${rowsStudents(12)}</tbody></table></div>`;makeSortable(box);return;}
   const s=stdState;const pages=Math.max(1,Math.ceil(f.length/s.per));if(s.page>=pages)s.page=pages-1;if(s.page<0)s.page=0;
   const pg=f.slice(s.page*s.per,s.page*s.per+s.per);
   const ACT='<td class="std-act" data-nm="{NM}" data-room="{RM}" data-dep="{DP}"><button class="btn xs" data-sact="edit">수정</button><button class="btn xs" data-sact="move">변경</button><button class="btn xs" data-sact="extend">연장</button><button class="btn xs" data-sact="counsel">상담</button><button class="btn xs" data-sact="brief">약식</button></td>';
-  const tb=pg.map(r=>`<tr><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td>${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${esc(r[4])}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td><td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${ACT.replace('{NM}',esc(r[2]||r[3]||'')).replace('{RM}',esc(r[13]||'')).replace('{DP}',esc(r[7]||''))}</tr>`).join('');
+  const tb=pg.map(r=>`<tr><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td>${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${esc(r[4])}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td><td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?ACT.replace('{NM}',esc(r[2]||r[3]||'')).replace('{RM}',esc(r[13]||'')).replace('{DP}',esc(r[7]||'')):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -623,7 +623,7 @@ function paintPaged(box,cols,rows,name){const st=pgState[name]||(pgState[name]={
   box.querySelector('#ppPer').onchange=e=>{st.per=+e.target.value;st.page=0;paintPaged(box,cols,rows,name);};}
 function stdView(cfg){
   const wk=cfg.dateWeek?pickupWeek():[cfg.from||'2025-01-01',cfg.to||'2027-12-31'];
-  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:wk[0],to:wk[1],sex:'',ageFrom:'',ageTo:'',campus:'',course:'',room:''};
+  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:wk[0],to:wk[1],sex:'',ageFrom:'',ageTo:'',campus:'',course:'',room:'',actions:!!cfg.actions};
   const src=REAL&&REAL.studentsFull;const total=src?src.rows.length:0;
   return `
   <div class="ph"><h1>${cfg.title}</h1><span class="sub">${cfg.sub}</span><span class="url">${cfg.url}</span>
@@ -649,7 +649,7 @@ function stdView(cfg){
   <div id="stdBody"></div>
   <div class="banner">${cfg.banner||(src?`전체 <b>${total.toLocaleString()}명</b> 임베드 · 클라이언트 페이지네이션·필터·검색 (legacy.student_info 전량 · MySQL 비교검증)`:'가상 샘플')}</div>`;}
 R.stdlist=()=>stdView({title:'STUDENT LIST',sub:'전체 학생 명단',url:'student.php'});
-R.enroll=()=>stdView({title:'수강등록관리',sub:'수강 등록 관리 · STUDENT MANAGEMENT',url:'student_list.php',dateWeek:true,
+R.enroll=()=>stdView({title:'수강등록관리',sub:'수강 등록 관리 · STUDENT MANAGEMENT',url:'student_list.php',dateWeek:true,actions:true,
   extraBtn:'<button class="btn primary" data-guard="save" style="margin-right:8px">🧾 신규 등록 신청</button>',
   chip:'등록/수강 · 목→다음주 수 · 최근순',
   banner:'수강등록관리 — 학생별 <b>수정/변경/연장/상담/약식</b> · 기간 기본 <b>이번주 목→다음주 수</b>(FROM 변경 시 TO 자동) · legacy <span class="mono">student_list.php</span> 재현(임베드 실데이터)'});
