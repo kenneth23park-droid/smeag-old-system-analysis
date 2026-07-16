@@ -355,6 +355,23 @@
   .rp-cand-wrap{max-height:62vh;overflow:auto;border:1px solid var(--border);border-radius:8px}
   .rp-cand thead th{position:sticky;top:0;z-index:1}
   @media(max-width:760px){.modal-body{grid-template-columns:1fr}}
+  /* STUDENT MANAGEMENT INFORMATION 상세폼(레거시 재현) */
+  .modal.smi{width:min(1020px,96vw);max-height:92vh;display:flex;flex-direction:column;padding:0}
+  .modal.smi .modal-h{border-bottom:1px solid var(--border)}
+  .smi-badge{margin-left:10px;font-size:11px;font-weight:750;padding:2px 9px;border-radius:20px;background:var(--accent-weak);color:var(--accent-ink)}
+  .smi-first{margin-left:auto;margin-right:12px;font-size:12px;color:var(--dim);font-weight:600}
+  .smi-body{overflow:auto;padding:14px 16px}
+  .smi-t{width:100%;border-collapse:collapse;font-size:12.5px}
+  .smi-t th{background:var(--surface-2);text-align:left;padding:7px 11px;font-weight:700;color:var(--dim);width:15%;border:1px solid var(--border);white-space:nowrap;vertical-align:middle}
+  .smi-t td{padding:5px 11px;border:1px solid var(--border);vertical-align:middle}
+  .smi-t th i{font-weight:600;font-size:10px;color:var(--faint);font-style:normal}
+  .smi-t tr.smi-sec td{background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--accent-ink);font-weight:800;letter-spacing:.6px;text-align:center;padding:7px;font-size:11.5px}
+  .smi-t tr.smi-dc th{text-align:center;background:var(--surface-2)}
+  .smi-t tr.smi-dc td{text-align:center}
+  .smi-i{width:100%;box-sizing:border-box;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:6px;padding:5px 8px;font:inherit;font-size:12.5px}
+  .smi-i.smi-pick{border-color:var(--female);color:var(--female);font-weight:700}
+  .smi-ta{width:100%;box-sizing:border-box;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:6px;padding:5px 8px;font:inherit;font-size:12.5px}
+  .modal-foot{display:flex;gap:9px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--border);background:var(--surface-2)}
 
   /* toast */
   .toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:50}
@@ -569,13 +586,14 @@ function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let
   f=f.slice().sort((a,b)=>key(b).localeCompare(key(a)));
   return f;}
 function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
-  const cols=`<thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>SEX</th><th>APPLY</th><th>DEPA</th><th>BEGIN</th><th>END</th><th>PERI</th><th>COURSE</th><th>ROOM</th><th>CAMPUS</th><th>COND</th>${stdState.actions?'<th>ACTION</th>':''}</tr></thead>`;
+  const cols=`<thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>SEX</th><th>APPLY</th><th>DEPA</th>${stdState.pickup?'<th>PICKUP</th>':''}<th>BEGIN</th><th>END</th><th>PERI</th><th>COURSE</th><th>ROOM</th><th>CAMPUS</th><th>COND</th>${stdState.actions?'<th>ACTION</th>':''}</tr></thead>`;
   const f=stdFiltered();
   if(!f){box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${rowsStudents(12)}</tbody></table></div>`;makeSortable(box);return;}
   const s=stdState;const pages=Math.max(1,Math.ceil(f.length/s.per));if(s.page>=pages)s.page=pages-1;if(s.page<0)s.page=0;
   const pg=f.slice(s.page*s.per,s.page*s.per+s.per);
-  const ACT='<td class="std-act" data-nm="{NM}" data-room="{RM}" data-dep="{DP}"><button class="btn xs" data-sact="edit">수정</button><button class="btn xs" data-sact="move">변경</button><button class="btn xs" data-sact="extend">연장</button><button class="btn xs" data-sact="counsel">상담</button><button class="btn xs" data-sact="brief">약식</button></td>';
-  const tb=pg.map(r=>`<tr><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td>${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${esc(r[4])}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td><td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?ACT.replace('{NM}',esc(r[2]||r[3]||'')).replace('{RM}',esc(r[13]||'')).replace('{DP}',esc(r[7]||'')):''}</tr>`).join('');
+  window._stdPage=pg;  // 액션 상세폼에서 전체 행 참조
+  const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">수정</button><button class="btn xs" data-sact="move">변경</button><button class="btn xs" data-sact="extend">연장</button><button class="btn xs" data-sact="counsel">상담</button><button class="btn xs" data-sact="brief">약식</button></td>`;
+  const tb=pg.map((r,i)=>`<tr><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td>${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${esc(r[4])}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700">${esc(r[7])||'—'}</td>`:''}<td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -588,10 +606,14 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   box.querySelector('#pgNext').onclick=()=>go(s.page+1);box.querySelector('#pgLast').onclick=()=>go(pages-1);
   box.querySelector('#pgJump').onchange=e=>go(Math.min(pages,Math.max(1,+e.target.value||1))-1);
   box.querySelector('#pgPer').onchange=e=>{s.per=+e.target.value;s.page=0;paintStd();};}
-function exportStd(){const f=stdFiltered();const src=REAL&&REAL.studentsFull;if(!f||!src){toast('내보낼 데이터 없음','',false);return;}
-  const cap=20000,rows=f.length>cap?f.slice(0,cap):f;
-  toXls(src.cols,rows,'SMEAG_학생명단.xls',[]);
-  toast('엑셀 내보내기 완료',`${rows.length.toLocaleString()}행${f.length>cap?` (상위 ${cap.toLocaleString()}, 전체 ${f.length.toLocaleString()})`:' (필터 반영)'} · 노란헤더·필터`,true);}
+function exportStd(){const f=stdFiltered();if(!f){toast('내보낼 데이터 없음','',false);return;}
+  const P=stdState.pickup;                       // 수강등록관리: PICKUP 열 포함
+  const H=['AGENCY','NAT','NAME(EN)','KOR','AGE','SEX','APPLY','DEPA',...(P?['PICKUP']:[]),'BEGIN','END','PERI','COURSE','ROOM','CAMPUS','COND'];
+  const cap=20000,fs=f.length>cap?f.slice(0,cap):f;
+  const rows=fs.map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],...(P?[r[7]]:[]),r[8],r[9],r[10],r[12],r[13],r[14],r[11]]);
+  const redCols=P?[8]:[];                         // PICKUP 열(인덱스8) 빨강
+  toXls(H,rows,'SMEAG_'+(P?'수강등록관리':'학생명단')+'.xls',redCols);
+  toast('엑셀 내보내기 완료',`${rows.length.toLocaleString()}행${f.length>cap?` (상위 ${cap.toLocaleString()}/${f.length.toLocaleString()})`:' (필터 반영)'} · 노란헤더·필터${P?'·픽업 빨강':''}`,true);}
 // 학생 메뉴 컬럼 투영(studentsFull cols: 0AG 1NAT 2EN 3KOR 4AGE 5SEX 6등록 7출발 8시작 9종료 10기간 11상태 12코스 13객실 14CAMPUS)
 const STUPROJ={
  'student_list3.php':{h:['유학원명','국적','이름(영문)','나이','성별','등록일','출발일','시작일','종료일','기간','상태','연수코스','객실'],i:[0,1,2,4,5,6,7,8,9,10,11,12,13]},
@@ -623,7 +645,7 @@ function paintPaged(box,cols,rows,name){const st=pgState[name]||(pgState[name]={
   box.querySelector('#ppPer').onchange=e=>{st.per=+e.target.value;st.page=0;paintPaged(box,cols,rows,name);};}
 function stdView(cfg){
   const wk=cfg.dateWeek?pickupWeek():[cfg.from||'2025-01-01',cfg.to||'2027-12-31'];
-  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:wk[0],to:wk[1],sex:'',ageFrom:'',ageTo:'',campus:'',course:'',room:'',actions:!!cfg.actions};
+  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:wk[0],to:wk[1],sex:'',ageFrom:'',ageTo:'',campus:'',course:'',room:'',actions:!!cfg.actions,pickup:!!cfg.pickup};
   const src=REAL&&REAL.studentsFull;const total=src?src.rows.length:0;
   return `
   <div class="ph"><h1>${cfg.title}</h1><span class="sub">${cfg.sub}</span><span class="url">${cfg.url}</span>
@@ -649,7 +671,7 @@ function stdView(cfg){
   <div id="stdBody"></div>
   <div class="banner">${cfg.banner||(src?`전체 <b>${total.toLocaleString()}명</b> 임베드 · 클라이언트 페이지네이션·필터·검색 (legacy.student_info 전량 · MySQL 비교검증)`:'가상 샘플')}</div>`;}
 R.stdlist=()=>stdView({title:'STUDENT LIST',sub:'전체 학생 명단',url:'student.php'});
-R.enroll=()=>stdView({title:'수강등록관리',sub:'수강 등록 관리 · STUDENT MANAGEMENT',url:'student_list.php',dateWeek:true,actions:true,
+R.enroll=()=>stdView({title:'수강등록관리',sub:'수강 등록 관리 · STUDENT MANAGEMENT',url:'student_list.php',dateWeek:true,actions:true,pickup:true,
   extraBtn:'<button class="btn primary" data-guard="save" style="margin-right:8px">🧾 신규 등록 신청</button>',
   chip:'등록/수강 · 목→다음주 수 · 최근순',
   banner:'수강등록관리 — 학생별 <b>수정/변경/연장/상담/약식</b> · 기간 기본 <b>이번주 목→다음주 수</b>(FROM 변경 시 TO 자동) · legacy <span class="mono">student_list.php</span> 재현(임베드 실데이터)'});
@@ -1103,12 +1125,11 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     // ACTION 버튼(수정/변경/연장/상담/약식) — 이벤트 위임
     const body=m.querySelector('#stdBody');
     body.addEventListener('click',e=>{const b=e.target.closest('button[data-sact]');if(!b)return;
-      const cell=b.closest('.std-act');const nm=cell.dataset.nm||'',rm=cell.dataset.room||'',dp=cell.dataset.dep||'';
-      const act=b.dataset.sact;
-      const LBL={edit:'수정',move:'변경',extend:'연장',counsel:'상담',brief:'약식'};
+      const cell=b.closest('.std-act');const row=(window._stdPage||[])[+cell.dataset.i]||[];
+      const nm=row[2]||row[3]||'',rm=row[13]||'',dp=row[7]||'';const act=b.dataset.sact;
       const KIND={edit:'update',move:'update',extend:'update',counsel:'read',brief:'read'};
-      if(act==='move'){openRoomReplace(null,rm,nm,dp);}                       // 방변경 = ROOM REPLACEMENT 재사용
-      else{toast(`${LBL[act]} — ${nm||'학생'}`,`${rm?'객실 '+rm+' · ':''}${dp||''} (${LBL[act]} 화면/처리)`,true);}
+      if(act==='move'){openRoomReplace(null,rm,nm,dp);}          // 방변경 = ROOM REPLACEMENT
+      else{openStudentEdit(row,act);}                            // 수정/연장/상담/약식 = 레거시 상세폼
       if(window.adminAuthLog)try{window.adminAuthLog('student_'+act,{name:nm,room:rm},KIND[act]);}catch(_){}
     });
     paintStd();
@@ -1432,6 +1453,58 @@ function openRoomReplace(srcCell,room,name,date){
     await runWrite('move','방변경',ctx,()=>{
       if(srcCell){srcCell.className='dcell chold';srcCell.textContent='X';}
       ov.remove();},{alwaysConfirm:true,verb:'변경'});});
+}
+
+// ─── STUDENT MANAGEMENT INFORMATION (수정/연장/상담/약식) — 레거시 상세폼 재현 ───
+function openStudentEdit(row,act){
+  row=row||[];
+  const g=(i,d)=>{const v=row[i];return esc(v!=null&&v!==''?v:(d||''));};
+  const sexF=(row[5]||'').toUpperCase()==='F';
+  const wk=parseInt((''+(row[10]||'')).replace(/[^0-9]/g,''))||4;
+  const num=(''+(row[13]||'')).split('/').pop().trim()||g(13);
+  const pick=row[7]||row[8]||'';                     // 픽업일 ≈ 출발/도착일
+  const actLbl={edit:'수정',extend:'연장',counsel:'상담',brief:'약식'}[act]||'수정';
+  const ipt=(v,ty)=>`<input class="smi-i" ${ty?('type='+ty):''} value="${v||''}">`;
+  const rw=(l1,v1,l2,v2)=>`<tr><th>${l1}</th><td>${v1}</td>${l2!=null?`<th>${l2}</th><td>${v2}</td>`:'<td colspan="2"></td>'}</tr>`;
+  const sec=t=>`<tr class="smi-sec"><td colspan="4">${t}</td></tr>`;
+  const dormFee=295, tuiWk=285;
+  const ov=el('div','modal-ov');ov.id='smiModal';
+  ov.innerHTML=`<div class="modal smi">
+    <div class="modal-h"><b>STUDENT MANAGEMENT INFORMATION</b><span class="smi-badge">${actLbl}</span>
+      <span class="smi-first">First Applier : ${g(0)}</span><button class="modal-x" id="smiClose">✕</button></div>
+    <div class="smi-body"><table class="smi-t">
+      ${sec('AGENCY INFORMATION')}
+      ${rw('AGENCY ID',ipt(g(0)),'ACCOUNT',ipt(g(0)+' USD ACCOUNT'))}
+      ${rw('CONSULTANT<br><i>(수속담당자)</i>',ipt(''),'OFFICE PHONE<br><i>(담당자연락처)</i>',ipt(''))}
+      ${rw('NATIONALITY',ipt((row[1]||'').toUpperCase()),'CAMPUS',ipt(g(14)))}
+      ${sec('STUDENT INFORMATION')}
+      ${rw('NAME',ipt(g(3,row[2])),'NAME(eng)',ipt(g(2)))}
+      ${rw('Apply Date',ipt(g(6),'date'),'Group/University',ipt(''))}
+      ${rw('AGE',ipt(g(4)),'SEX',`<label><input type=radio name=smiSex ${!sexF?'checked':''}> MALE</label> &nbsp;<label><input type=radio name=smiSex ${sexF?'checked':''}> FEMALE</label>`)}
+      ${rw('BIRTHDAY<br><i>(citizen no.)</i>',ipt('','date'),'PASSPORT NUMBER',ipt('0'))}
+      ${rw('DEPARTURE DATE',ipt(g(7),'date')+' <button class="btn xs">PERIOD CALC</button>','PICKUP SCHEDULE<br><i>(AIRLINE INFO)</i>',`<input class="smi-i smi-pick" placeholder="예 PR489 01:10am" value="${pick?('도착 '+esc(pick)):''}">`)}
+      ${rw('PERIOD',`${ipt(g(8),'date')} ~ ${ipt(g(9),'date')} &nbsp;(<b>${wk}</b> weeks)`,'PICKUP DATE(픽업일)',`<input class="smi-i smi-pick" type=date value="${esc(pick)}">`)}
+      ${rw('AGENCY COMMENT',`<textarea class="smi-ta" rows=2></textarea>`,null)}
+      ${sec('COURSE / DORMITORY')}
+      ${rw('ROOM',ipt(g(13)),'DORMITORY',`<span class="mono">${g(13)}</span>`)}
+      ${rw('COURSE CHOICE',ipt(g(12))+` &nbsp;<b>${wk}</b>주`,'COURSE TUITION FEE',`${tuiWk} $ / week`)}
+      ${rw('CAMPUS CHOICE',ipt(g(14)),'DORMITORY FEE',`${dormFee} $ / week`)}
+      ${sec('DORMITORY CONDITION')}
+      <tr class="smi-dc"><th>ROOM NUMBER</th><th>PERSONNEL</th><th>ROOM NAME</th><th>PERIOD</th></tr>
+      <tr class="smi-dc"><td class="mono">${esc(num)}</td><td>1 bed, ${sexF?'F':'M'}</td><td>${g(14)}</td><td class="mono">${g(8)} ~ ${g(9)}</td></tr>
+      ${sec('DETAIL COST')}
+      ${rw('REGIST FEE','<b>100 $</b> &nbsp;Admission Fee','TUITION FEE',`<b>${(tuiWk*wk).toLocaleString()} $</b> &nbsp;${wk} weeks-${g(12)}`)}
+      ${rw('DORMITORY FEE',`<b>${(dormFee*wk).toLocaleString()} $</b> &nbsp;${wk} weeks`,'TOTAL',`<b style="color:var(--accent-ink)">${(100+ (tuiWk+dormFee)*wk).toLocaleString()} $</b>`)}
+    </table></div>
+    <div class="modal-foot"><button class="btn" id="smiCancel">닫기</button><button class="btn primary" id="smiSave">💾 ${actLbl} 저장</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelector('#smiClose').onclick=close;ov.querySelector('#smiCancel').onclick=close;
+  ov.onclick=e=>{if(e.target===ov)close();};
+  ov.querySelector('#smiSave').onclick=()=>{
+    if(window.adminAuthLog)try{window.adminAuthLog('student_'+act+'_save',{name:row[2]||row[3],room:row[13]},'update');}catch(_){}
+    toast(`${actLbl} 저장 완료`,`${row[2]||row[3]||'학생'} · ${row[13]||''} (멱등 처리)`,true);close();};
 }
 document.addEventListener('click',(e)=>{
   if(!e.target.closest('.catwrap'))closeDropdowns();
