@@ -975,7 +975,7 @@ R.roomstat=()=>{
       <span><i style="background:#ca8a04"></i> 공용 (FAMILY)</span>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <select id="rsCenter" class="rs-ctrl" title="센터">${['','ENCANTO','CLASSIC','CAPITAL'].map(v=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${v?v+' CENTER':'::센터를 선택하세요::'}</option>`).join('')}</select>
+      <select id="rsCenter" class="rs-ctrl" title="센터">${['','ENCANTO','CAPITAL'].map(v=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${v?v+' CENTER':'::센터를 선택하세요::'}</option>`).join('')}</select>
       <select id="rsGender" class="rs-ctrl" title="성별">${[['','전체 성별'],['MALE','남 (MALE)'],['FEMALE','여 (FEMALE)'],['FAMILY','공용 (FAMILY)']].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsPer" class="rs-ctrl" title="방구분(인실)">${[['','방구분 전체'],['1','1인실'],['2','2인실'],['3','3인실'],['4','4인실'],['5','5인실']].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="인실 정렬"><option value="">인실 정렬</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>인실 ↑ 적은순</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>인실 ↓ 많은순</option></select>
@@ -992,7 +992,7 @@ R.roomstat=()=>{
     <span><i style="background:var(--surface);border:1px solid var(--border)"></i> 빈방 (VACANT)</span>
   </div>
   <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}"><table class="gantt" style="width:${INFOW+TOTAL*CELLW}px">${colg}${head}${body}</table></div>`
-  :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>센터를 선택하세요</b><div class="rs-ph-sub">상단 <b>::센터를 선택하세요::</b> 에서 <b>ENCANTO · CLASSIC · CAPITAL</b> 중 하나를 고르면 배치도가 표시됩니다.<br>초기엔 전체를 불러오지 않아 빠릅니다 · 성별/방구분/연월도 함께 선택 가능.</div></div>`}
+  :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>센터를 선택하세요</b><div class="rs-ph-sub">상단 <b>::센터를 선택하세요::</b> 에서 <b>ENCANTO · CAPITAL</b> 중 하나를 고르면 배치도가 표시됩니다.<br>초기엔 전체를 불러오지 않아 빠릅니다 · 성별/방구분/연월도 함께 선택 가능.</div></div>`}
   <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬되며 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b> · content-visibility. ${REAL&&REAL.roomstat?`<b>실 MySQL 예약데이터</b> (reserve_info+room_list+student_info 조인 · ${REAL.roomstat.from}~${REAL.roomstat.to})`:'표시 데이터는 가상 샘플(실제 개인정보 아님)'}.</div>`;};
 
 R.changelog=()=>{let rows='';const mg=['kenneth','katie','anna','joon','doris'];
