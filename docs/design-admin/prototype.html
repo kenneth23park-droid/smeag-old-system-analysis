@@ -285,8 +285,9 @@
   .gantt .per.m{background:var(--male)} .gantt .per.f{background:var(--female)} .gantt .per.fam{background:#ca8a04}
   .gantt td.name{color:#c15b1e;font-size:12.5px;text-overflow:ellipsis}
   .gantt td.cx{color:var(--faint)}
-  .gantt td.cin{background:var(--good);color:#fff}
-  .gantt td.cout{background:var(--female);color:#fff}
+  .gantt td.cin{background:var(--female);color:#fff}   /* 입실(S) = 빨강 (레거시) */
+  .gantt td.cout{background:var(--return);color:#fff}  /* 퇴실(E) = 보라 (레거시) */
+  .gantt td.crsv{background:var(--good);color:#fff}    /* 예약(R) = 초록 (레거시) */
   .gantt td.chold{background:color-mix(in srgb,var(--return) 60%,var(--surface));color:#fff}
   .gantt td.cempty{background:var(--surface)}
   /* 틀고정: 좌측 3열 (방번호/인실/이름) */
@@ -805,7 +806,15 @@ R.roomstat=()=>{
   const nextKind=()=>KINDS[ki++%KINDS.length];
 
   // 실데이터 예약 세그먼트 → 날짜별 상태(입실/재실/퇴실/빈방)
-  const realPat=(segs)=>dateLabels.map(d=>{for(const sg of (segs||[])){if(d===sg.s)return 'in';if(d===sg.e)return 'out';if(d>sg.s&&d<sg.e)return 'x';}return 'e';});
+  // 레거시 room_stat3 색: rr_type S(입실)=red, E(퇴실)=purple, R(예약)=green, I(재실)=흰X
+  const RRK={S:'in',E:'out',R:'rsv'};
+  const realPat=(segs)=>dateLabels.map(d=>{for(const sg of (segs||[])){
+    if(d<sg.s||d>sg.e)continue;
+    if(sg.s===sg.e)return RRK[sg.st]||'x';
+    if(d===sg.s)return RRK[sg.st]||'x';
+    if(d===sg.e)return RRK[sg.et]||'x';
+    return 'x';
+  }return 'e';});
   // 이름칸(레거시 room_stat3 규칙): 선택월(중앙월)부터 앞으로 이어지는 "확정 재실(type=S)"만,
   // 첫 "예약(type=R, 미입실)"에서 중단. 선택월 이전 종료분은 제외. 월 클릭 시 갱신.
   const cFrom=`${roomCenter.y}-${pad(roomCenter.m)}-01`;
@@ -816,7 +825,7 @@ R.roomstat=()=>{
     for(const sg of ss){
       if(sg.e<cFrom)continue;      // 선택월 이전에 이미 종료 → 제외
       if(sg.s>cHorizon)break;      // 가시범위 밖 미래 → 중단
-      if(sg.t==='R'||sg.h)break;   // 미입실 예약(R) 또는 홀딩(h) 만나면 중단(레거시는 확정 재실만 표기)
+      if(sg.st==='R'||sg.h)break;  // 미입실 예약(R) 또는 홀딩(h) 만나면 중단(레거시는 확정 재실만 표기)
       if(sg.nm&&!seen.has(sg.nm)){seen.add(sg.nm);ns.push(sg.nm);}
       if(ns.length>=6)break;
     }
@@ -852,7 +861,7 @@ R.roomstat=()=>{
   const rsAllNames=groups.map(g=>g.name); // 빌딩 필터 옵션(전체)
   if(roomFilter.building)groups=groups.filter(g=>g.name===roomFilter.building);
   if(roomFilter.sortPer){const pn=p=>parseInt(p)||0;groups=groups.map(g=>({name:g.name,rooms:[...g.rooms].sort((a,b)=>roomFilter.sortPer==='asc'?pn(a.per)-pn(b.per):pn(b.per)-pn(a.per))}));}
-  const CLS={x:'cx',in:'cin',out:'cout',hold:'chold',e:'cempty'};
+  const CLS={x:'cx',in:'cin',out:'cout',rsv:'crsv',hold:'chold',e:'cempty'};
   const dcells=(p)=>p.map((st,i)=>`<td class="dcell ${CLS[st]}" data-date="${dateLabels[i]}">${st==='e'?'':'X'}</td>`).join('');
   const colg=`<colgroup><col style="width:72px"><col style="width:58px"><col style="width:230px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
   const monRow=months.map(mo=>`<th class="mon${mo.off===0?' mon-cur':''}" colspan="${mo.days}">${mo.y} 년 ${pad(mo.m)} 월</th>`).join('');
@@ -899,9 +908,9 @@ R.roomstat=()=>{
     <div class="month-jump" title="선택월이 중앙으로 정렬됩니다 (±6개월)">${sel}</div>
   </div>
   <div class="state-legend" style="margin-bottom:12px">
-    <span><i style="background:var(--good)">X</i> 입실 (CHECK-IN)</span>
-    <span><i style="background:var(--female)">X</i> 퇴실 (CHECK-OUT)</span>
-    <span><i style="background:var(--return)">X</i> 홀딩/방변경 (HOLD/MOVE)</span>
+    <span><i style="background:var(--female)">X</i> 입실 (CHECK-IN)</span>
+    <span><i style="background:var(--return)">X</i> 퇴실 (CHECK-OUT)</span>
+    <span><i style="background:var(--good)">X</i> 예약 (RESERVE)</span>
     <span><i style="background:var(--surface-2);color:var(--faint);border:1px solid var(--border)">X</i> 재실 (STAY)</span>
     <span><i style="background:var(--surface);border:1px solid var(--border)"></i> 빈방 (VACANT)</span>
   </div>
@@ -1117,8 +1126,9 @@ document.addEventListener('fullscreenchange',()=>{
 
 // ─── 배치도 셀 액션 (입실/퇴실/방배정/방변경/홀딩/빈방) ───
 const CELL_ACTIONS=[
-  ['입실 (CHECK-IN)','cin','var(--good)'],
-  ['퇴실 (CHECK-OUT)','cout','var(--female)'],
+  ['입실 (CHECK-IN)','cin','var(--female)'],
+  ['퇴실 (CHECK-OUT)','cout','var(--return)'],
+  ['예약 (RESERVE)','crsv','var(--good)'],
   ['방배정 (ASSIGN)','cx','var(--male)'],
   ['방변경 (MOVE)','chold','var(--return)'],
   ['홀딩 (HOLD)','chold','var(--return)'],
