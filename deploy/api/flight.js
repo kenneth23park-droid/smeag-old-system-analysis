@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const j = await r.json();
     if (j && j.error) return res.status(200).json({ error: (j.error.message || j.error.info || 'api_error') });
     const f = (j.data || [])[0];
-    if (!f) return res.status(200).json({ error: 'not_found', summary: `${code} 실시간 정보 없음` });
+    if (!f) return res.status(200).json({ error: 'not_found', summary: `${code} 현재 미운항 — 무료 플랜은 '당일 활성 항공편'만 조회됩니다(픽업 당일 조회 시 표시). 미래 도착편은 유료/AeroDataBox 필요.` });
     const dep = f.departure || {}, arr = f.arrival || {};
     const hm = s => (s ? String(s).slice(11, 16) : '—');
     const delay = dep.delay ? `(+${dep.delay}m)` : '';
