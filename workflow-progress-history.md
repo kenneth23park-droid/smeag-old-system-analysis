@@ -163,7 +163,18 @@
 - **원칙 준수**: 레거시 MySQL `sql/*.sql` **무변경(read-only)**, build 스크립트는 읽기만+scratchpad 기록. Supabase 정본(dorm_reservations)은 예약 단위로 이미 정확 → 본 건은 **표시(렌더) 계층 수정**이라 Supabase 데이터 변경 불필요.
 - 배포: smeag-bay.vercel.app 갱신.
 
+### 2026-07-16(3) — 배치도 소스 교체: reserve_info → room_reserve (방변경 반영, 레거시 일치)
+- **불일치 근본원인(읽기전용 진단)**: 배치도 데이터 소스가 신·구 다름.
+  - 신전산(구): `reserve_info`(예약원장) = **최초 예약 방**. 방변경(room move) 미반영.
+  - 구전산(레거시 room_stat3): `room_reserve`(방×일자 일별 실적) = **방변경 반영 실제 배치**.
+  - 증거(519, 2026-07): XU WEI reserve_info=417→room_reserve=519bed1 / RINKA=100-temp→519bed2 / Margarita=519→417. `room_change_log`에 XU WEI(417→519 2026-06-24 katie), RINKA(100-temp→…→519 2026-06-23 katie) 이동 확정. 세 명 자리바뀜이 화면차와 정확히 일치.
+  - 이관 "결정 A(정본=reserve_info)"가 배치도엔 부적절. 배치도 정답 소스 = room_reserve.
+- **수정**: `build_roomstat_rr.py` — room_reserve(627,174행·2014~2036, 2025~2027 충분)에서 bed-slot(r_idx=room_list.r_idx, slot밖 0건)별 연속일 구간을 세그먼트화(방변경 자연 반영). 30그룹/416방/1016베드/12,887세그.
+- **검증**: 519 2026-07 = XU WEI / RINKA·LIN CHUN CHIEN / Sofia Ryzhmanova / Sofia Kiseleva → **레거시 스크린샷과 일치**. Playwright OK, JS오류 0.
+- 원본 MySQL read-only 유지. 배포: smeag-bay.vercel.app.
+
 ## 남은 작업 / TODO
+- [ ] (이관 반영) Supabase 배치도용 정본을 room_reserve 기반으로 재구성(현 dorm_reservations=reserve_info 파생은 예약원장 용도로 유지, 배치도는 room_reserve 뷰 별도) — 방변경 반영 필요
 - [ ] 핵심 6화면 고해상도 목업 확정 + 나머지 화면 실렌더 확장
 - [ ] `sa=러시아` 등 라벨오류 신규 마스터에서 교정(SA=사우디), 캠퍼스 4중코드→campus_id 매핑표 확정
 - [ ] course(71)/agency(111)/zone(31) 마스터를 신규 DB 시드로 이관
