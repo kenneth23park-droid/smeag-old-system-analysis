@@ -974,6 +974,7 @@ R.roomstat=()=>{
       <select id="rsGender" class="rs-ctrl" title="성별">${[['','전체 성별'],['MALE','남 (MALE)'],['FEMALE','여 (FEMALE)'],['FAMILY','공용 (FAMILY)']].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsPer" class="rs-ctrl" title="방구분(인실)">${[['','방구분 전체'],['1','1인실'],['2','2인실'],['3','3인실'],['4','4인실'],['5','5인실']].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="인실 정렬"><option value="">인실 정렬</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>인실 ↑ 적은순</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>인실 ↓ 많은순</option></select>
+      <input id="rsMonth" class="rs-ctrl" type="month" value="${roomCenter.y}-${pad(roomCenter.m)}" min="2020-01" max="2032-12" title="연/월 이동(캘린더) — 아무 년/월이나 선택" style="cursor:pointer">
       <span class="rs-search"><input id="rsSearch" class="rs-ctrl" type="search" placeholder="🔍 방번호 · 회원 검색" value="${esc(roomFilter.q||'')}" autocomplete="off" style="min-width:210px"><span id="rsSearchCnt" class="rs-cnt"></span></span>
     </div>
     <div class="month-jump" title="선택월이 중앙으로 정렬됩니다 (±6개월)">${sel}</div>
@@ -1168,6 +1169,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   const rg=m.querySelector('#rsGender');if(rg)rg.addEventListener('change',()=>{roomFilter.gender=rg.value;renderMain();});
   const rp=m.querySelector('#rsPer');if(rp)rp.addEventListener('change',()=>{roomFilter.per=rp.value;renderMain();});
   const rsr=m.querySelector('#rsSort');if(rsr)rsr.addEventListener('change',()=>{roomFilter.sortPer=rsr.value;renderMain();});
+  const rmn=m.querySelector('#rsMonth');if(rmn)rmn.addEventListener('change',()=>{const [y,mo]=(rmn.value||'').split('-');if(y&&mo){roomCenter={y:+y,m:+mo};renderMain();}}); // 연/월 캘린더 이동
   const rss=m.querySelector('#rsSearch');
   if(rss){const cnt=m.querySelector('#rsSearchCnt'),tbl=m.querySelector('table.gantt');
     const runFilter=()=>{const q=rss.value.trim().toLowerCase();roomFilter.q=rss.value;
