@@ -1974,3 +1974,31 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
 })();
 </script>
 <!-- ═══════════════ 관리자 로그인 게이트 끝 ═══════════════ -->
+<!-- ═══════════════ 모바일 버전 안내 배너 ═══════════════ -->
+<style>
+#mvSuggest{position:fixed;left:10px;right:10px;bottom:10px;z-index:9000;display:none;
+  background:var(--accent,#0f766e);color:#fff;border-radius:12px;padding:11px 12px;
+  box-shadow:0 6px 24px rgba(0,0,0,.25);align-items:center;gap:10px;font-size:13px}
+#mvSuggest.on{display:flex}
+#mvSuggest a{color:#fff;font-weight:800;text-decoration:underline}
+#mvSuggest button{margin-left:auto;background:rgba(255,255,255,.2);border:0;color:#fff;
+  width:30px;height:30px;border-radius:8px;font-size:15px;cursor:pointer}
+</style>
+<div id="mvSuggest">📱 모바일에 최적화된 화면이 있어요 — <a href="./m/">모바일 버전 열기</a>
+  <button id="mvSuggestX" title="닫기">✕</button></div>
+<script>
+(function(){
+  try{
+    var isNarrow = Math.min(window.innerWidth,window.screen&&window.screen.width||9999) <= 760;
+    var dismissed = sessionStorage.getItem('mvSuggestDismiss')==='1';
+    if(isNarrow && !dismissed){
+      var el=document.getElementById('mvSuggest'); if(el) el.classList.add('on');
+    }
+    var x=document.getElementById('mvSuggestX');
+    if(x) x.addEventListener('click',function(){
+      var el=document.getElementById('mvSuggest'); if(el) el.classList.remove('on');
+      try{sessionStorage.setItem('mvSuggestDismiss','1');}catch(e){}
+    });
+  }catch(e){}
+})();
+</script>

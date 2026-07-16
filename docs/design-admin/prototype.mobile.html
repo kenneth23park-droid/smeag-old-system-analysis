@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0f766e">
+<title>SMEAG 관리자 · 모바일</title>
+<style>
+/* ===== 디자인 토큰 (데스크톱과 동일) ===== */
+:root{
+  --bg:#eef1f2; --surface:#ffffff; --surface-2:#f4f6f7; --border:#dbe2e4;
+  --text:#17242b; --dim:#5c6d74; --faint:#85959c;
+  --accent:#0f766e; --accent-weak:#d6ede9; --accent-ink:#0b5751;
+  --male:#2563eb; --female:#e11d48; --family:#d97706; --empty:#aab6bc;
+  --good:#15803d; --warn:#b45309; --neutral:#64748b; --return:#7c3aed; --install:#0891b2;
+  --shadow:0 1px 2px rgba(20,40,50,.06),0 2px 8px rgba(20,40,50,.05);
+  --c-enc:#0f766e; --c-cla:#4f46e5; --c-cap:#0e7490;
+  --r:12px; --safe-b:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0d1417; --surface:#141e22; --surface-2:#1a262b; --border:#2a393f;
+  --text:#e7edef; --dim:#93a4ab; --faint:#6c7d84;
+  --accent:#2dd4bf; --accent-weak:#123b38; --accent-ink:#9defe4;
+  --male:#60a5fa; --female:#fb7185; --family:#fbbf24; --empty:#3a4a51;
+  --good:#4ade80; --warn:#fbbf24; --neutral:#94a3b8; --return:#a78bfa; --install:#38bdf8;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 2px 10px rgba(0,0,0,.25);
+  --c-enc:#2dd4bf; --c-cla:#818cf8; --c-cap:#22d3ee;
+}}
+:root[data-theme="light"]{
+  --bg:#eef1f2; --surface:#ffffff; --surface-2:#f4f6f7; --border:#dbe2e4;
+  --text:#17242b; --dim:#5c6d74; --faint:#85959c; --accent:#0f766e; --accent-weak:#d6ede9; --accent-ink:#0b5751;
+  --male:#2563eb; --female:#e11d48; --family:#d97706; --empty:#aab6bc;
+  --good:#15803d; --warn:#b45309; --neutral:#64748b; --return:#7c3aed; --install:#0891b2;
+  --c-enc:#0f766e; --c-cla:#4f46e5; --c-cap:#0e7490; --shadow:0 1px 2px rgba(20,40,50,.06),0 2px 8px rgba(20,40,50,.05);
+}
+:root[data-theme="dark"]{
+  --bg:#0d1417; --surface:#141e22; --surface-2:#1a262b; --border:#2a393f;
+  --text:#e7edef; --dim:#93a4ab; --faint:#6c7d84; --accent:#2dd4bf; --accent-weak:#123b38; --accent-ink:#9defe4;
+  --male:#60a5fa; --female:#fb7185; --family:#fbbf24; --empty:#3a4a51;
+  --good:#4ade80; --warn:#fbbf24; --neutral:#94a3b8; --return:#a78bfa; --install:#38bdf8;
+  --c-enc:#2dd4bf; --c-cla:#818cf8; --c-cap:#22d3ee; --shadow:0 1px 2px rgba(0,0,0,.3),0 2px 10px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button{font-family:inherit;color:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:15px;color:var(--text)}
+a{color:var(--accent);text-decoration:none}
+
+/* ===== 앱바 ===== */
+.mv-appbar{position:fixed;top:0;left:0;right:0;height:calc(52px + env(safe-area-inset-top,0px));
+  padding-top:env(safe-area-inset-top,0px);
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;padding-left:12px;padding-right:12px;z-index:40}
+.mv-appbar .ttl{font-weight:800;font-size:16px;letter-spacing:-.2px;display:flex;align-items:center;gap:7px}
+.mv-appbar .ttl .logo{width:22px;height:22px;border-radius:6px;background:var(--accent);color:#fff;
+  display:grid;place-items:center;font-size:12px;font-weight:900}
+.mv-appbar .sub{font-size:11px;color:var(--dim);font-weight:600}
+.mv-appbar .sp{flex:1}
+.mv-ibtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);
+  display:grid;place-items:center;font-size:16px}
+.mv-ibtn:active{background:var(--accent-weak)}
+
+/* ===== 검색바(선택 표시) ===== */
+.mv-searchbar{position:fixed;top:calc(52px + env(safe-area-inset-top,0px));left:0;right:0;z-index:39;
+  background:var(--surface);border-bottom:1px solid var(--border);padding:8px 12px;display:none}
+.mv-searchbar.on{display:block}
+.mv-searchbar input{width:100%;height:40px;border:1px solid var(--border);border-radius:10px;
+  background:var(--surface-2);padding:0 12px}
+
+/* ===== 메인 스크롤 ===== */
+main.mv-main{position:fixed;left:0;right:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  top:calc(52px + env(safe-area-inset-top,0px));
+  bottom:calc(60px + var(--safe-b));padding:12px 12px 24px;width:100%}
+main.mv-main.has-search{top:calc(105px + env(safe-area-inset-top,0px))}
+
+/* ===== 하단 탭바 ===== */
+.mv-tabbar{position:fixed;left:0;right:0;bottom:0;height:calc(60px + var(--safe-b));
+  padding-bottom:var(--safe-b);background:var(--surface);border-top:1px solid var(--border);
+  display:grid;grid-template-columns:repeat(5,1fr);z-index:40}
+.mv-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  border:0;background:none;color:var(--dim);font-size:10.5px;font-weight:700;height:100%}
+.mv-tab .ic{font-size:20px;line-height:1}
+.mv-tab.on{color:var(--accent)}
+.mv-tab.on .ic{transform:translateY(-1px)}
+
+/* ===== 섹션 스위처(그룹 내 형제 섹션 칩) ===== */
+.mv-switch{display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0 12px;margin:-2px 0 0}
+.mv-switch::-webkit-scrollbar{display:none}
+.mv-switch .sw{flex:0 0 auto;padding:7px 13px;border-radius:999px;border:1px solid var(--border);
+  background:var(--surface);font-size:12.5px;font-weight:700;color:var(--dim);white-space:nowrap}
+.mv-switch .sw.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ===== 공용 카드/칩/필 ===== */
+.mv-sec{animation:mvin .18s ease}
+@keyframes mvin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.mv-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  box-shadow:var(--shadow);padding:12px 13px;margin-bottom:10px}
+.mv-card .kv{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:6px}
+.mv-ph{font-size:11px;font-weight:800;letter-spacing:.4px;color:var(--faint);text-transform:uppercase;margin:2px 2px 8px}
+.mv-chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;
+  padding:3px 9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);color:var(--dim)}
+.mv-pill{display:inline-flex;align-items:center;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;
+  background:var(--surface-2);color:var(--dim);border:1px solid var(--border)}
+.mv-pill.good{color:#fff;background:var(--good);border-color:transparent}
+.mv-pill.warn{color:#fff;background:var(--warn);border-color:transparent}
+.mv-pill.female{color:#fff;background:var(--female);border-color:transparent}
+.mv-pill.male{color:#fff;background:var(--male);border-color:transparent}
+.mv-pill.return{color:#fff;background:var(--return);border-color:transparent}
+.mv-pill.neutral{color:#fff;background:var(--neutral);border-color:transparent}
+.mv-pill.install{color:#fff;background:var(--install);border-color:transparent}
+.mv-cc{display:inline-flex;align-items:center;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:6px;
+  color:#fff;letter-spacing:.2px}
+.mv-cc.enc{background:var(--c-enc)} .mv-cc.cap{background:var(--c-cap)} .mv-cc.cla{background:var(--c-cla)}
+.mv-cc.none{background:var(--empty)}
+.mv-hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.mv-empty{text-align:center;color:var(--dim);padding:38px 14px;font-weight:600}
+.mv-empty .ico{font-size:34px;display:block;margin-bottom:8px}
+.mv-more{width:100%;height:44px;border-radius:10px;border:1px dashed var(--border);background:var(--surface-2);
+  color:var(--accent-ink);font-weight:800;margin:2px 0 14px}
+.mv-btn{height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);
+  font-weight:800;font-size:13.5px}
+.mv-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.mv-field{display:block;margin-bottom:10px}
+.mv-field label{display:block;font-size:11px;font-weight:800;color:var(--dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
+.mv-field input,.mv-field select,.mv-field textarea{width:100%;height:44px;border:1px solid var(--border);
+  border-radius:10px;background:var(--surface-2);padding:0 12px}
+.mv-field textarea{height:auto;padding:10px 12px}
+
+/* ===== 바텀시트 ===== */
+.mv-sheet-ov{position:fixed;inset:0;background:rgba(10,20,25,.5);z-index:60;display:none;align-items:flex-end}
+.mv-sheet-ov.on{display:flex;animation:fade .15s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.mv-sheet{width:100%;max-height:86vh;background:var(--surface);border-radius:18px 18px 0 0;
+  display:flex;flex-direction:column;animation:up .22s cubic-bezier(.2,.8,.2,1);box-shadow:0 -8px 30px rgba(0,0,0,.2)}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+.mv-sheet-h{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+.mv-sheet-h .grip{position:absolute;top:7px;left:50%;transform:translateX(-50%);width:38px;height:4px;border-radius:3px;background:var(--border)}
+.mv-sheet-h b{font-size:15px;font-weight:800;flex:1}
+.mv-sheet-x{width:34px;height:34px;border-radius:9px;border:1px solid var(--border);background:var(--surface-2);font-size:15px}
+.mv-sheet-b{padding:14px 16px calc(20px + var(--safe-b));overflow-y:auto}
+.mv-dl{display:grid;grid-template-columns:96px 1fr;gap:8px 12px}
+.mv-dl dt{font-size:11.5px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.2px}
+.mv-dl dd{margin:0;font-size:13.5px;word-break:break-word}
+
+/* ===== 토스트 ===== */
+#mvToasts{position:fixed;left:12px;right:12px;bottom:calc(70px + var(--safe-b));z-index:80;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.mv-toast{background:var(--text);color:var(--bg);border-radius:12px;padding:11px 14px;box-shadow:0 6px 20px rgba(0,0,0,.25);
+  font-size:13px;animation:up .2s ease}
+.mv-toast b{display:block;font-size:13.5px;margin-bottom:1px}
+.mv-toast.ok{background:var(--good);color:#fff}
+
+/* ===== 전체메뉴 시트 ===== */
+.mv-menu-grp{margin-bottom:16px}
+.mv-menu-grp .gt{font-size:11px;font-weight:900;letter-spacing:.5px;color:var(--faint);text-transform:uppercase;margin:0 2px 8px;display:flex;align-items:center;gap:6px}
+.mv-menu-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--border);
+  background:var(--surface);border-radius:10px;padding:11px 13px;margin-bottom:7px;font-size:13.5px;font-weight:700}
+.mv-menu-item .u{margin-left:auto;font-size:10.5px;color:var(--faint);font-weight:600}
+.mv-menu-item:active{background:var(--accent-weak)}
+
+/* ===== 로그인 게이트 ===== */
+#mvGate{position:fixed;inset:0;z-index:100;background:var(--bg);display:none;align-items:center;justify-content:center;padding:24px}
+#mvGate.on{display:flex}
+.mv-gate-box{width:100%;max-width:340px;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:22px 20px}
+.mv-gate-box h2{margin:0 0 3px;font-size:19px;display:flex;align-items:center;gap:8px}
+.mv-gate-box .logo{width:26px;height:26px;border-radius:7px;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:900;font-size:13px}
+.mv-gate-box p{margin:0 0 16px;font-size:12px;color:var(--dim)}
+.mv-gate-msg{font-size:12px;font-weight:700;margin:2px 2px 10px;min-height:16px}
+.mv-gate-msg.err{color:var(--female)} .mv-gate-msg.ok{color:var(--good)}
+
+/* ===== 섹션별 스코프 CSS(에이전트 산출물, 충돌 격리) ===== */
+/* --- M_dash (.mvsc-d) --- */
+.mvsc-d .mv-sec{display:flex;flex-direction:column;gap:12px;padding:12px 12px 20px}.mvsc-d .mv-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}.mvsc-d .mv-kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 12px;box-shadow:var(--shadow);min-height:44px;display:flex;flex-direction:column;gap:3px}.mvsc-d .mv-kpi[data-act]{cursor:pointer;-webkit-tap-highlight-color:transparent}.mvsc-d .mv-kpi[data-act]:active{background:var(--surface-2)}.mvsc-d .mv-kpi-lb{font-size:11px;color:var(--dim);letter-spacing:.2px;display:flex;align-items:center;gap:5px}.mvsc-d .mv-kpi-big{font-size:23px;font-weight:800;line-height:1.15;color:var(--text)}.mvsc-d .mv-kpi-big .mv-of{font-size:12px;font-weight:600;color:var(--dim)}.mvsc-d .mv-kpi-dl{font-size:11px;color:var(--faint);line-height:1.3}.mvsc-d .mv-kpi .mv-up{color:var(--good)}.mvsc-d .mv-in{color:var(--good);font-weight:800}.mvsc-d .mv-out{color:var(--return);font-weight:800}.mvsc-d .mv-sl{color:var(--faint);margin:0 4px;font-weight:600}.mvsc-d .mv-tag{font-size:9px;font-weight:700;color:var(--accent-ink);background:var(--accent-weak);border-radius:6px;padding:1px 5px;letter-spacing:.3px}.mvsc-d .mv-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px 13px 15px;box-shadow:var(--shadow)}.mvsc-d .mv-h{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:baseline;gap:7px}.mvsc-d .mv-h-sub{font-size:10px;font-weight:600;color:var(--faint);letter-spacing:.4px;text-transform:uppercase}.mvsc-d .mv-note{font-size:10px;color:var(--faint);margin-top:6px}.mvsc-d .mv-bar{margin-bottom:12px}.mvsc-d .mv-bar:last-child{margin-bottom:0}.mvsc-d .mv-bar-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}.mvsc-d .mv-bar-lb{font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px;min-width:0}.mvsc-d .mv-bar-vl{font-size:12px;font-weight:700;color:var(--dim);white-space:nowrap}.mvsc-d .mv-track{height:9px;border-radius:6px;background:var(--surface-2);overflow:hidden;border:1px solid var(--border)}.mvsc-d .mv-fill{height:100%;border-radius:6px;transition:width .5s cubic-bezier(.4,0,.2,1);min-width:3px}.mvsc-d .mv-bar-sub{font-size:10px;color:var(--faint);margin-top:3px;font-variant-numeric:tabular-nums}.mvsc-d .mv-timeline{position:relative}.mvsc-d .mv-timeline:before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:var(--border)}.mvsc-d .mv-log{position:relative;width:100%;text-align:left;background:transparent;border:0;border-radius:8px;padding:8px 4px 8px 22px;display:flex;align-items:flex-start;gap:8px;cursor:pointer;-webkit-tap-highlight-color:transparent;min-height:44px}.mvsc-d .mv-log:active{background:var(--surface-2)}.mvsc-d .mv-log-dot{position:absolute;left:1px;top:12px;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--border)}.mvsc-d .mv-log-body{flex:1;min-width:0}.mvsc-d .mv-log-r1{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.mvsc-d .mv-log-nm{font-size:13px;font-weight:700;color:var(--text)}.mvsc-d .mv-log-tm{font-size:10px;color:var(--faint);white-space:nowrap;font-variant-numeric:tabular-nums}.mvsc-d .mv-log-r2{font-size:12px;color:var(--accent-ink);margin-top:2px;word-break:break-all;line-height:1.35}.mvsc-d .mv-log-r3{font-size:10px;color:var(--dim);margin-top:2px}.mvsc-d .mv-log-chev{align-self:center;color:var(--faint);font-size:20px;font-weight:400;line-height:1;padding-left:2px}.mvsc-d .mv-empty{background:var(--surface);border:1px dashed var(--border);border-radius:var(--r);padding:24px 14px;text-align:center;color:var(--dim);font-size:13px}.mvsc-d .mv-empty.sm{padding:14px;font-size:12px}.mvsc-d .mv-dim{color:var(--faint)}.mvsc-d .mv-dsheet{display:flex;flex-direction:column}.mvsc-d .mv-drow{display:flex;justify-content:space-between;gap:12px;padding:9px 2px;border-bottom:1px solid var(--border);font-size:13px}.mvsc-d .mv-drow:last-child{border-bottom:0}.mvsc-d .mv-dk{color:var(--dim);flex-shrink:0}.mvsc-d .mv-dv{color:var(--text);text-align:right;word-break:break-all}.mvsc-d .mv-dv b{font-weight:700}.mvsc-d .mv-dv em{font-style:normal}
+/* --- M_students (.mvsc-s) --- */
+.mvsc-s .mv-students{display:flex;flex-direction:column;gap:10px;padding:10px 12px 24px}.mvsc-s .mv-hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}.mvsc-s .mv-head{display:flex;flex-direction:column;gap:10px}.mvsc-s .mv-seg{display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);padding:3px;gap:3px}.mvsc-s .mv-segb{flex:1;min-height:42px;border:0;background:transparent;color:var(--dim);font-size:13px;font-weight:700;border-radius:8px;cursor:pointer;letter-spacing:-.2px}.mvsc-s .mv-segb.on{background:var(--accent);color:var(--accent-ink);box-shadow:var(--shadow)}.mvsc-s .mv-search{position:relative}.mvsc-s .mv-sinput{width:100%;box-sizing:border-box;min-height:44px;padding:0 12px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:var(--r);font-size:14px;outline:none}.mvsc-s .mv-sinput:focus{border-color:var(--accent)}.mvsc-s .mv-sinput::placeholder{color:var(--faint)}.mvsc-s .mv-kpi{display:flex;gap:8px}.mvsc-s .mv-kpi-b{flex:1;display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px}.mvsc-s .mv-kpi-n{font-size:18px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:-.5px}.mvsc-s .mv-kpi-l{font-size:11px;color:var(--dim)}.mvsc-s .mv-chips{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0;scrollbar-width:none}.mvsc-s .mv-chips::-webkit-scrollbar{display:none}.mvsc-s .mv-chip{flex:0 0 auto;min-height:44px;padding:0 14px;border:1px solid var(--border);background:var(--surface);color:var(--dim);border-radius:22px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}.mvsc-s .mv-chip.on{border-color:var(--accent);background:var(--accent-weak);color:var(--accent-ink)}.mvsc-s .mv-chip-clear{color:var(--female);border-color:var(--border)}.mvsc-s .mv-cnt{font-size:12px;color:var(--dim);padding:2px 2px 6px}.mvsc-s .mv-cnt b{color:var(--text);font-variant-numeric:tabular-nums}.mvsc-s .mv-list{display:flex;flex-direction:column;gap:10px}.mvsc-s .mv-std-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 12px;display:flex;flex-direction:column;gap:7px;cursor:pointer;box-shadow:var(--shadow);transition:border-color .12s}.mvsc-s .mv-std-card:active{border-color:var(--accent)}.mvsc-s .mv-r1{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.mvsc-s .mv-nm{font-size:15px;font-weight:800;color:var(--text);letter-spacing:-.2px}.mvsc-s .mv-kor{font-size:13px;color:var(--dim);font-weight:600}.mvsc-s .mv-natchip{font-size:11px;font-weight:800;color:var(--accent-ink);background:var(--accent-weak);border-radius:6px;padding:2px 6px;letter-spacing:.3px}.mvsc-s .mv-sex{margin-left:auto;font-size:12px;font-weight:800;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:7px;color:#fff}.mvsc-s .mv-sex.mv-m{background:var(--male)}.mvsc-s .mv-sex.mv-f{background:var(--female)}.mvsc-s .mv-r2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mvsc-s .mv-kv{font-size:12px;font-weight:700;color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:3px 8px;font-variant-numeric:tabular-nums}.mvsc-s .mv-kv.mv-muted{color:var(--faint);font-weight:600}.mvsc-s .mv-r3{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;letter-spacing:-.2px}.mvsc-s .mv-r4{font-size:12px;font-weight:700;color:var(--female);font-variant-numeric:tabular-nums;border-top:1px dashed var(--border);padding-top:6px}.mvsc-s .mv-more{width:100%;min-height:46px;margin-top:2px;border:1px solid var(--border);background:var(--surface);color:var(--accent-ink);font-size:14px;font-weight:700;border-radius:var(--r);cursor:pointer}.mvsc-s .mv-more:active{background:var(--accent-weak)}.mvsc-s .mv-empty{padding:34px 14px;text-align:center;color:var(--dim);font-size:13px;background:var(--surface);border:1px dashed var(--border);border-radius:var(--r)}.mvsc-s .mv-dgrid{display:grid;grid-template-columns:92px 1fr;gap:8px 10px;align-items:center}.mvsc-s .mv-dk{font-size:11px;font-weight:700;color:var(--dim);letter-spacing:.2px}.mvsc-s .mv-dv{font-size:13px;color:var(--text);font-variant-numeric:tabular-nums;word-break:break-word}.mvsc-s .mv-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}.mvsc-s .mv-act{min-height:46px;border:1px solid var(--accent);background:var(--accent-weak);color:var(--accent-ink);font-size:14px;font-weight:800;border-radius:var(--r);cursor:pointer}.mvsc-s .mv-act:active{background:var(--accent);color:var(--accent-ink)}.mvsc-s .mv-fbody{display:flex;flex-direction:column;gap:16px}.mvsc-s .mv-fg{display:flex;flex-direction:column;gap:8px}.mvsc-s .mv-fgt{font-size:12px;font-weight:800;color:var(--dim);letter-spacing:.3px}.mvsc-s .mv-fgo{display:flex;flex-wrap:wrap;gap:7px}.mvsc-s .mv-fo{min-height:38px;padding:0 12px;border:1px solid var(--border);background:var(--surface);color:var(--dim);border-radius:19px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}.mvsc-s .mv-fo.on{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}.mvsc-s .mv-frow{display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:6px;padding-top:12px;border-top:1px solid var(--border)}.mvsc-s .mv-fbtn{min-height:46px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-weight:700;border-radius:var(--r);cursor:pointer}.mvsc-s .mv-fbtn.mv-fapply{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+/* --- M_roomstat (.mvsc-r) --- */
+.mvsc-r .mv-roomstat{display:flex;flex-direction:column;gap:10px}.mvsc-r .mv-hd{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 2px 0}.mvsc-r .mv-hd-t{font-size:16px;color:var(--text);font-weight:600}.mvsc-r .mv-hd-t b{color:var(--accent);font-weight:700}.mvsc-r .mv-hd-s{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}.mvsc-r .mv-ctl{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mvsc-r .mv-sel{min-height:44px;padding:0 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;width:100%;-webkit-appearance:none;appearance:none}.mvsc-r .mv-sel:focus{outline:2px solid var(--accent-weak);outline-offset:1px;border-color:var(--accent)}.mvsc-r .mv-month{font-variant-numeric:tabular-nums}.mvsc-r .mv-rs-body{display:flex;flex-direction:column;gap:8px}.mvsc-r .mv-legend{display:flex;flex-wrap:wrap;gap:6px 12px;padding:8px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);font-size:11px;color:var(--dim)}.mvsc-r .mv-legend span{display:inline-flex;align-items:center;gap:5px}.mvsc-r .mv-legend i{width:10px;height:10px;border-radius:3px;display:inline-block}.mvsc-r .mv-count{font-size:12px;color:var(--dim);padding:2px 2px}.mvsc-r .mv-cat{position:sticky;top:0;z-index:1;font-size:12px;font-weight:700;color:var(--accent-ink);background:var(--accent-weak);padding:6px 10px;border-radius:6px;margin-top:4px;letter-spacing:.02em}.mvsc-r .mv-room{width:100%;text-align:left;display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--border);border-radius:var(--r);padding:10px 12px;min-height:44px;box-shadow:var(--shadow);cursor:pointer}.mvsc-r .mv-room:active{background:var(--surface-2)}.mvsc-r .mv-room:focus-visible{outline:2px solid var(--accent);outline-offset:1px}.mvsc-r .mv-room-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.mvsc-r .mv-rno{font-size:14px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;word-break:break-all}.mvsc-r .mv-tags{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto}.mvsc-r .mv-per{font-size:11px;color:var(--dim);background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:2px 8px}.mvsc-r .mv-gb{font-size:11px;font-weight:700;border-radius:20px;padding:2px 8px;color:#fff}.mvsc-r .mv-gm{background:var(--male)}.mvsc-r .mv-gf{background:var(--female)}.mvsc-r .mv-gfam{background:var(--family)}.mvsc-r .mv-beds{display:flex;flex-direction:column;gap:4px}.mvsc-r .mv-bed{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text)}.mvsc-r .mv-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.mvsc-r .mv-nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mvsc-r .mv-empty{color:var(--faint)}.mvsc-r .mv-st{font-size:11px;color:var(--dim);background:var(--surface-2);border-radius:5px;padding:1px 6px;flex:0 0 auto}.mvsc-r .mv-hold{font-size:10px;font-weight:700;color:var(--warn);border:1px solid var(--warn);border-radius:5px;padding:0 5px;flex:0 0 auto}.mvsc-r .mv-occ{font-size:11px;color:var(--faint);align-self:flex-end}.mvsc-r .mv-more{width:100%;min-height:44px;border:1px dashed var(--border);border-radius:var(--r);background:var(--surface-2);color:var(--accent-ink);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}.mvsc-r .mv-more:active{background:var(--surface)}.mvsc-r .mv-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}.mvsc-r .mv-msg{padding:22px 14px;text-align:center;color:var(--dim);font-size:13px}.mvsc-r .mv-sh-head{display:flex;flex-direction:column;gap:4px;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:10px}.mvsc-r .mv-sh-rno{font-size:17px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;word-break:break-all}.mvsc-r .mv-sh-meta{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mvsc-r .mv-sh-month{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}.mvsc-r .mv-sh-body{display:flex;flex-direction:column;gap:10px}.mvsc-r .mv-sh-bed{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);padding:9px 11px}.mvsc-r .mv-sh-bedname{font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mvsc-r .mv-sh-cur{font-weight:700}.mvsc-r .mv-tl{display:flex;flex-direction:column;gap:5px}.mvsc-r .mv-tl.mv-empty{font-size:12px;padding:2px 0}.mvsc-r .mv-tl-row{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text)}.mvsc-r .mv-tl-date{color:var(--dim);flex:0 0 auto}.mvsc-r .mv-tl-nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;color:var(--text)}.mvsc-r .mv-sh-note{display:flex;flex-direction:column;gap:5px;margin-top:2px}.mvsc-r .mv-sh-note label{font-size:12px;color:var(--dim)}.mvsc-r .mv-note-in{width:100%;min-height:56px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;padding:8px;resize:vertical;box-sizing:border-box}.mvsc-r .mv-move{width:100%;min-height:46px;border:none;border-radius:var(--r);background:var(--accent);color:var(--accent-ink);font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:2px}.mvsc-r .mv-move:active{filter:brightness(.94)}
+/* --- M_pickup (.mvsc-p) --- */
+
+/* --- M_cash (.mvsc-c) --- */
+.mvsc-c .mv-cash{display:flex;flex-direction:column;gap:12px}.mvsc-c .mv-cash-seg{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);padding:4px}.mvsc-c .mv-cash-tab{flex:1;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:0;border-radius:calc(var(--r) - 4px);background:transparent;color:var(--dim);font-size:13px;font-weight:600;cursor:pointer;line-height:1.15}.mvsc-c .mv-cash-tab span{font-size:11px;font-weight:500;color:var(--faint)}.mvsc-c .mv-cash-tab.on{background:var(--surface);color:var(--accent-ink);box-shadow:var(--shadow)}.mvsc-c .mv-cash-tab.on span{color:var(--accent)}.mvsc-c .mv-cash-body{display:flex;flex-direction:column;gap:10px}.mvsc-c .mv-cash-summary{display:flex;flex-wrap:wrap;gap:6px}.mvsc-c .mv-cash-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--dim);background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:4px 10px}.mvsc-c .mv-cash-chip b{color:var(--text);font-weight:700}.mvsc-c .mv-cash-chip.mv-in b{color:var(--good)}.mvsc-c .mv-cash-chip.mv-out b{color:var(--female)}.mvsc-c .mv-cash-list{display:flex;flex-direction:column;gap:8px}.mvsc-c .mv-cash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 12px;display:flex;flex-direction:column;gap:8px;cursor:pointer;transition:border-color .12s,transform .05s}.mvsc-c .mv-cash-card:active{transform:scale(.995)}.mvsc-c .mv-cash-card:hover{border-color:var(--accent-weak)}.mvsc-c .mv-cash-card.mv-is-out{border-left:3px solid var(--female)}.mvsc-c .mv-cash-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.mvsc-c .mv-cash-no{font-size:11px;color:var(--faint);font-weight:600}.mvsc-c .mv-cash-name{font-size:14px;font-weight:700;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mvsc-c .mv-cash-nat{font-size:11px;font-weight:700;color:var(--accent-ink);background:var(--accent-weak);border-radius:5px;padding:2px 7px;letter-spacing:.02em}.mvsc-c .mv-cash-outtag{font-size:10px;font-weight:800;color:#fff;background:var(--female);border-radius:5px;padding:2px 6px;letter-spacing:.04em}.mvsc-c .mv-cash-meta{display:flex;align-items:center;gap:8px;font-size:12px}.mvsc-c .mv-cash-k{color:var(--faint);font-size:11px}.mvsc-c .mv-cash-v{color:var(--dim)}.mvsc-c .mv-cash-row2{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:1px}.mvsc-c .mv-cash-amt{font-size:15px;font-weight:800;color:var(--text)}.mvsc-c .mv-cash-unit{font-size:11px;font-weight:600;color:var(--faint)}.mvsc-c .mv-cash-na{color:var(--faint);font-size:12px}.mvsc-c .mv-cash-money{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.mvsc-c .mv-cash-mcell{display:flex;flex-direction:column;gap:2px;background:var(--surface-2);border-radius:8px;padding:6px 8px;min-width:0}.mvsc-c .mv-cash-ml{font-size:10px;color:var(--faint);font-weight:600;text-transform:uppercase;letter-spacing:.03em}.mvsc-c .mv-cash-mv{font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mvsc-c .mv-cash-mv.mv-cin{color:var(--good)}.mvsc-c .mv-cash-mv.mv-cout{color:var(--female)}.mvsc-c .mv-cash-mv.mv-bal{color:var(--text)}.mvsc-c .mv-cash-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--dim)}.mvsc-c .mv-cash-created{color:var(--faint)}.mvsc-c .mv-cash-act{font-size:11px;color:var(--accent-ink);background:var(--accent-weak);border-radius:5px;padding:2px 8px;font-weight:600;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mvsc-c .mv-cash-more{width:100%;min-height:44px;margin-top:2px;border:1px dashed var(--border);border-radius:var(--r);background:var(--surface-2);color:var(--accent-ink);font-size:13px;font-weight:600;cursor:pointer}.mvsc-c .mv-cash-more:active{background:var(--surface)}.mvsc-c .mv-cash-empty{padding:28px 16px;text-align:center;color:var(--faint);font-size:13px;background:var(--surface);border:1px dashed var(--border);border-radius:var(--r)}.mvsc-c .mv-cash-dl{display:flex;flex-direction:column;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}.mvsc-c .mv-cash-drow{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;background:var(--surface)}.mvsc-c .mv-cash-dk{font-size:12px;color:var(--faint);flex-shrink:0}.mvsc-c .mv-cash-dv{font-size:13px;color:var(--text);font-weight:600;text-align:right;word-break:break-word}
+/* --- M_table (.mvsc-t) --- */
+.mvsc-t .mv-tbl{display:flex;flex-direction:column;gap:10px}.mvsc-t .mv-tbl-head{display:flex;flex-direction:column;gap:2px;padding:2px 2px 0}.mvsc-t .mv-tbl-title{font-size:16px;font-weight:700;color:var(--text);line-height:1.25;word-break:break-word}.mvsc-t .mv-tbl-sub{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}.mvsc-t .mv-tbl-sub b{color:var(--accent);font-weight:700}.mvsc-t .mv-tbl-search{position:relative;display:flex;align-items:center}.mvsc-t .mv-tbl-search input{width:100%;box-sizing:border-box;height:44px;padding:0 38px 0 14px;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--r);outline:none;-webkit-appearance:none}.mvsc-t .mv-tbl-search input::placeholder{color:var(--faint)}.mvsc-t .mv-tbl-search input:focus{border-color:var(--accent)}.mvsc-t .mv-tbl-search .mv-tbl-x{position:absolute;right:6px;width:32px;height:32px;display:none;align-items:center;justify-content:center;border:none;background:transparent;color:var(--dim);font-size:18px;cursor:pointer;border-radius:8px}.mvsc-t .mv-tbl-search.mv-has .mv-tbl-x{display:flex}.mvsc-t .mv-tbl-list{display:flex;flex-direction:column;gap:8px}.mvsc-t .mv-tbl-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 12px;box-shadow:var(--shadow);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .12s,background .12s}.mvsc-t .mv-tbl-card:active{background:var(--surface-2);border-color:var(--accent)}.mvsc-t .mv-tbl-ct{display:flex;align-items:baseline;gap:7px;margin-bottom:7px}.mvsc-t .mv-tbl-idx{flex:none;font-size:11px;font-weight:600;color:var(--accent-ink);background:var(--accent-weak);padding:2px 7px;border-radius:20px;font-variant-numeric:tabular-nums}.mvsc-t .mv-tbl-cname{font-size:14.5px;font-weight:700;color:var(--text);line-height:1.3;word-break:break-word;flex:1}.mvsc-t .mv-tbl-cname .mv-tbl-c2{color:var(--dim);font-weight:600;font-size:13px;margin-left:6px}.mvsc-t .mv-tbl-kv{display:flex;flex-wrap:wrap;gap:5px 6px}.mvsc-t .mv-tbl-chip{display:inline-flex;align-items:baseline;gap:4px;max-width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:3px 8px;font-size:12px;line-height:1.35;min-width:0}.mvsc-t .mv-tbl-chip .mv-k{color:var(--dim);font-size:11px;flex:none}.mvsc-t .mv-tbl-chip .mv-v{color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px}.mvsc-t .mv-tbl-chip.mv-num .mv-v{font-variant-numeric:tabular-nums;color:var(--accent-ink)}.mvsc-t .mv-tbl-chip.mv-date .mv-v{font-variant-numeric:tabular-nums;color:var(--return)}.mvsc-t .mv-tbl-more{height:44px;border:1px dashed var(--border);background:var(--surface);color:var(--accent-ink);font-size:13px;font-weight:700;border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;-webkit-tap-highlight-color:transparent}.mvsc-t .mv-tbl-more:active{background:var(--accent-weak)}.mvsc-t .mv-tbl-more span{color:var(--dim);font-weight:600;font-variant-numeric:tabular-nums}.mvsc-t .mv-tbl-empty{background:var(--surface);border:1px dashed var(--border);border-radius:var(--r);padding:34px 16px;text-align:center;color:var(--dim);display:flex;flex-direction:column;gap:6px}.mvsc-t .mv-tbl-empty .mv-e-ic{font-size:26px;opacity:.65}.mvsc-t .mv-tbl-empty .mv-e-t{font-size:14px;font-weight:700;color:var(--text)}.mvsc-t .mv-tbl-empty .mv-e-s{font-size:12px;color:var(--dim)}.mvsc-t .mv-tbl-sheet{display:flex;flex-direction:column;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}.mvsc-t .mv-tbl-srow{display:flex;gap:10px;padding:9px 12px;background:var(--surface);align-items:baseline}.mvsc-t .mv-tbl-srow:nth-child(even){background:var(--surface-2)}.mvsc-t .mv-tbl-srow .mv-sk{flex:none;width:36%;max-width:140px;font-size:12px;color:var(--dim);font-weight:600;word-break:break-word}.mvsc-t .mv-tbl-srow .mv-sv{flex:1;font-size:13px;color:var(--text);word-break:break-word;min-width:0}.mvsc-t .mv-tbl-srow .mv-sv.mv-num{font-variant-numeric:tabular-nums;color:var(--accent-ink)}.mvsc-t .mv-tbl-srow .mv-sv.mv-date{font-variant-numeric:tabular-nums;color:var(--return)}.mvsc-t .mv-tbl-srow .mv-sv.mv-emp{color:var(--faint);font-style:italic}.mvsc-t .mv-hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* --- M_changelog (.mvsc-g) --- */
+.mvsc-g .mv-cl{display:flex;flex-direction:column;gap:12px}.mvsc-g .mv-cl-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.mvsc-g .mv-cl-htitle{font-size:16px;font-weight:800;color:var(--text);line-height:1.2}.mvsc-g .mv-cl-htitle span{display:block;font-size:11px;font-weight:600;color:var(--dim);margin-top:2px;letter-spacing:.02em}.mvsc-g .mv-cl-hcount{min-width:34px;text-align:center;font-size:13px;font-weight:800;color:var(--accent-ink);background:var(--accent-weak);border:1px solid var(--border);border-radius:999px;padding:3px 10px}.mvsc-g .mv-cl-filters{display:flex;flex-direction:column;gap:8px;position:sticky;top:0;z-index:2;background:var(--bg);padding-bottom:2px}.mvsc-g .mv-cl-search{width:100%;box-sizing:border-box;min-height:44px;padding:0 12px;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--r);outline:none;-webkit-appearance:none;font-variant-numeric:tabular-nums}.mvsc-g .mv-cl-search::placeholder{color:var(--faint)}.mvsc-g .mv-cl-search:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-weak)}.mvsc-g .mv-hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}.mvsc-g .mv-cl-chips{display:flex;gap:6px;padding-bottom:2px;scrollbar-width:none}.mvsc-g .mv-cl-chips::-webkit-scrollbar{display:none}.mvsc-g .mv-chip{flex:0 0 auto;min-height:40px;padding:0 12px;font-size:12px;font-weight:600;white-space:nowrap;color:var(--dim);background:var(--surface);border:1px solid var(--border);border-radius:999px;cursor:pointer;transition:.12s}.mvsc-g .mv-chip b{margin-left:4px;font-weight:800;color:var(--text)}.mvsc-g .mv-chip-on{color:var(--accent-ink);background:var(--accent-weak);border-color:var(--accent)}.mvsc-g .mv-chip-on b{color:var(--accent-ink)}.mvsc-g .mv-cl-list{display:flex;flex-direction:column;padding-top:2px}.mvsc-g .mv-cl-item{display:flex;gap:10px;position:relative;padding-bottom:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}.mvsc-g .mv-cl-rail{position:relative;flex:0 0 14px;width:14px;display:flex;justify-content:center;padding-top:8px}.mvsc-g .mv-cl-rail::before{content:"";position:absolute;top:12px;bottom:-14px;left:50%;transform:translateX(-50%);width:2px;background:var(--border)}.mvsc-g .mv-cl-item:last-child .mv-cl-rail::before{display:none}.mvsc-g .mv-cl-dot{width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--bg);z-index:1}.mvsc-g .mv-cl-card{flex:1 1 auto;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;box-shadow:var(--shadow);transition:.12s}.mvsc-g .mv-cl-item:active .mv-cl-card{border-color:var(--accent);background:var(--surface-2)}.mvsc-g .mv-cl-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.mvsc-g .mv-cl-name{font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.mvsc-g .mv-cl-time{flex:0 0 auto;font-size:11px;color:var(--dim);white-space:nowrap}.mvsc-g .mv-cl-time b{font-weight:700;color:var(--text)}.mvsc-g .mv-cl-period{margin-top:4px;font-size:12px;color:var(--dim)}.mvsc-g .mv-cl-move{display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap}.mvsc-g .mv-cl-room{font-size:12px;font-weight:700;padding:3px 8px;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);word-break:break-word;max-width:100%}.mvsc-g .mv-cl-room.mv-old{color:var(--dim);background:var(--surface-2)}.mvsc-g .mv-cl-room.mv-new{color:var(--accent-ink);background:var(--accent-weak);border-color:var(--accent)}.mvsc-g .mv-cl-room.mv-cl-empty{color:var(--faint);font-weight:600}.mvsc-g .mv-cl-arrow{flex:0 0 auto;font-size:15px;font-weight:800;color:var(--accent);line-height:1}.mvsc-g .mv-cl-foot{margin-top:8px;display:flex;justify-content:flex-end}.mvsc-g .mv-cl-mgr{font-size:11px;font-weight:600;color:var(--dim)}.mvsc-g .mv-more{width:100%;min-height:44px;margin-top:2px;font-size:13px;font-weight:700;color:var(--accent-ink);background:var(--accent-weak);border:1px solid var(--border);border-radius:var(--r);cursor:pointer}.mvsc-g .mv-more span{font-weight:600;color:var(--dim)}.mvsc-g .mv-empty{padding:34px 16px;text-align:center;font-size:14px;font-weight:600;color:var(--dim);background:var(--surface);border:1px dashed var(--border);border-radius:var(--r);line-height:1.7}.mvsc-g .mv-empty span{font-size:12px;color:var(--faint)}.mvsc-g .mv-dt{display:flex;flex-direction:column;gap:2px}.mvsc-g .mv-dt-move{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0 12px;margin-bottom:6px;border-bottom:1px solid var(--border)}.mvsc-g .mv-dt-row{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}.mvsc-g .mv-dt-row:last-child{border-bottom:0}.mvsc-g .mv-dt-k{flex:0 0 40%;font-size:12px;font-weight:600;color:var(--dim)}.mvsc-g .mv-dt-v{flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;color:var(--text);word-break:break-word;font-variant-numeric:tabular-nums}.mvsc-g .mv-adm-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:16px}.mvsc-g .mv-adm-title{font-size:17px;font-weight:800;color:var(--text)}.mvsc-g .mv-adm-title span{display:block;font-size:12px;font-weight:600;color:var(--dim);margin-top:2px}.mvsc-g .mv-adm-badge{display:inline-block;margin-top:10px;font-size:11px;font-weight:700;color:var(--accent-ink);background:var(--accent-weak);border:1px solid var(--border);border-radius:999px;padding:3px 10px}.mvsc-g .mv-adm-stat{margin-top:14px;display:flex;align-items:baseline;gap:8px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r)}.mvsc-g .mv-adm-num{font-size:26px;font-weight:800;color:var(--text);line-height:1}.mvsc-g .mv-adm-numlbl{font-size:12px;font-weight:600;color:var(--dim)}.mvsc-g .mv-adm-ph{margin-top:14px;padding:20px 12px;text-align:center;font-size:13px;font-weight:600;color:var(--dim);background:var(--surface-2);border:1px dashed var(--border);border-radius:var(--r);line-height:1.7}.mvsc-g .mv-adm-ph span{font-size:11px;color:var(--faint)}.mvsc-g .mv-adm-body{margin-top:14px}.mvsc-g .mv-adm-body p{margin:0 0 8px;font-size:13px;line-height:1.6;color:var(--text)}.mvsc-g .mv-adm-body p:nth-of-type(2){color:var(--dim);font-size:12px}.mvsc-g .mv-adm-list{margin:10px 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}.mvsc-g .mv-adm-list li{font-size:12px;color:var(--text);padding-left:14px;position:relative;line-height:1.5}.mvsc-g .mv-adm-list li::before{content:"";position:absolute;left:2px;top:7px;width:5px;height:5px;border-radius:50%;background:var(--accent)}.mvsc-g .mv-adm-list code{font-size:11px;font-weight:700;color:var(--accent-ink);background:var(--accent-weak);padding:1px 5px;border-radius:5px}.mvsc-g .mv-adm-note{margin-top:12px;padding:10px 12px;font-size:12px;line-height:1.6;color:var(--dim);background:var(--accent-weak);border:1px solid var(--border);border-radius:var(--r)}.mvsc-g .mv-adm-note span{font-size:11px;color:var(--faint)}
+</style>
+</head>
+<body>
+
+<div class="mv-appbar">
+  <div class="ttl"><span class="logo">S</span><span><span id="mvTitle">홈</span> <span class="sub" id="mvSub"></span></span></div>
+  <span class="sp"></span>
+  <button class="mv-ibtn" id="mvSearchBtn" title="검색">🔍</button>
+  <button class="mv-ibtn" id="mvThemeBtn" title="테마">◑</button>
+  <button class="mv-ibtn" id="mvMenuBtn" title="전체메뉴">☰</button>
+</div>
+<div class="mv-searchbar" id="mvSearchBar"><input id="mvSearchInput" placeholder="이름·방·항공편 검색…" autocomplete="off"></div>
+
+<main class="mv-main" id="mvMain"></main>
+
+<nav class="mv-tabbar" id="mvTabbar"></nav>
+
+<div class="mv-sheet-ov" id="mvSheetOv"><div class="mv-sheet"><div class="mv-sheet-h"><span class="grip"></span><b id="mvSheetTitle"></b><button class="mv-sheet-x" id="mvSheetX">✕</button></div><div class="mv-sheet-b" id="mvSheetBody"></div></div></div>
+<div id="mvToasts"></div>
+
+<div id="mvGate"><div class="mv-gate-box">
+  <h2><span class="logo">S</span> SMEAG 관리자</h2>
+  <p>모바일 · 승인된 관리자만 접근 (admin1 / admin2 / master / manager)</p>
+  <div class="mv-gate-msg" id="mvGateMsg"></div>
+  <form id="mvGateForm">
+    <div class="mv-field"><label>아이디</label><input id="mvGateUser" autocomplete="username" autocapitalize="off" spellcheck="false"></div>
+    <div class="mv-field"><label>비밀번호</label><input id="mvGatePass" type="password" autocomplete="current-password"></div>
+    <button class="mv-btn primary" type="submit" style="width:100%">로그인</button>
+  </form>
+</div></div>
+
+<script>
+/* ================= 데이터 ================= */
+let REAL=null; /*__REALDATA__*/
+/* let/const 는 window 프로퍼티가 아니므로 window.REAL/window.DICT 접근 섹션을 위해 브리지 */
+setTimeout(function(){try{window.REAL=REAL;window.DICT=DICT;}catch(e){}},0);
+const DICT=/*__DICT__*/{"uhak":[{"v":"","t":"AGENCY"},{"v":"doa","t":"\"DELGER OD AND\" LLC"},{"v":"amahn","t":"(1)AMAHN"},{"v":"ames","t":"(1)AMES"},{"v":"blueocean","t":"(1)BLUE OCEAN GROUP"},{"v":"OEA","t":"(1)BrainClick Vietnam/OEA Vietnam"},{"v":"bridgeblue","t":"(1)Bridge Blue"},{"v":"bbblue","t":"(1)Bridge Blue"},{"v":"catta","t":"(1)CATTA"},{"v":"EBVN","t":"(1)EduBridge Viet Nam"},{"v":"eduvietglobal","t":"(1)Eduviet Global"},{"v":"eduzone","t":"(1)Eduzone"},{"v":"Futurelink","t":"(1)Futurelink"},{"v":"gitizen","t":"(1)gitizen"},{"v":"hathai","t":"(1)Ha Thai Tour and Travel"},{"v":"hungcuong","t":"(1)Hung Cuong"},{"v":"idc","t":"(1)IDC"},{"v":"indec","t":"(1)INTELLECTUAL DEVELOPMENT COMPANY (IND"},{"v":"Interconex","t":"(1)Interconex"},{"v":"isd","t":"(1)International Study Development JSC."},{"v":"Jellyfish","t":"(1)Jellyfish"},{"v":"ladeco","t":"(1)LADECO CORP"},{"v":"lienchau","t":"(1)Lien Chau Company, Ltd."},{"v":"megastudy","t":"(1)MEGA STUDY FPT"},{"v":"newstar","t":"(1)newstar"},{"v":"AIT","t":"(1)PHUONG ANH"},{"v":"queensland","t":"(1)Queensland"},{"v":"sunmoon","t":"(1)sunmoon"},{"v":"sunrisevietnam","t":"(1)Sunrise Vietnam Agency"},{"v":"tve","t":"(1)Tan Viet Education"},{"v":"tec","t":"(1)TEC Academy"},{"v":"viet","t":"(1)Viet Vision"},{"v":"aauco","t":"(2)A Au Co"},{"v":"AMA","t":"(2)AMA"},{"v":"coc","t":"(2)COC Vietnam"},{"v":"compass","t":"(2)COMPASS EDU"},{"v":"dtu","t":"(2)Duc Tu Trading Corporation-DTU"},{"v":"edulinks","t":"(2)EDULINKS"},{"v":"GOLDENWAY","t":"(2)GOLDENWAY"},{"v":"icsa","t":"(2)ICSA"},{"v":"inec","t":"(2)INEC"},{"v":"mice","t":"(2)MICE"},{"v":"newsky","t":"(2)New Sky"},{"v":"newworld","t":"(2)New World"},{"v":"saigontourist","t":"(2)Saigon Tourist"},{"v":"udc","t":"(2)United Education Corporation"},{"v":"VINAM","t":"(2)VI NAM INTERNATIONAL COMPANY"},{"v":"vicom","t":"(2)VICOM"},{"v":"vietclever","t":"(2)Vietclever"}],"nation":[{"v":"","t":"COUNTRY"},{"v":"kor","t":"KOR[한국]"},{"v":"chi","t":"CHI[중국]"},{"v":"jap","t":"JAP[일본]"},{"v":"twa","t":"TWA[대만]"},{"v":"vtn","t":"VTN[베트남]"},{"v":"tha","t":"THA[태국]"},{"v":"rus","t":"RUS[러시아]"},{"v":"mgl","t":"MGL[몽고]"},{"v":"om","t":"OM[오만]"},{"v":"etc","t":"ETC[기타]"}],"now_status":[{"v":"","t":"CONDITION"},{"v":"normal","t":"NORMAL[정상]"},{"v":"extend","t":"EXTEND[연장]"},{"v":"refund","t":"REFUND[환불]"},{"v":"exchange","t":"EXCHANGE[변경]"},{"v":"out","t":"OUT[퇴교]"},{"v":"holding","t":"HOLDING[홀딩]"},{"v":"holdinguse","t":"HOLDINGUSE[홀딩사용]"},{"v":"graduated","t":"GRADUATED[졸업]"},{"v":"cancel","t":"취소"},{"v":"paycancel","t":"납부취소"},{"v":"waiting","t":"보류"},{"v":"checking","t":"관리"},{"v":"etc","t":"ETC[기타]"}],"campus":[{"v":"","t":"::캠퍼스::"},{"v":"sparta","t":"엔칸토"},{"v":"classic","t":"클래식"},{"v":"capital","t":"캐피탈"}],"pay_status":[{"v":"","t":"납부상태"},{"v":"N","t":"미납(UNPAID)"},{"v":"Y","t":"완납(PAID)"},{"v":"X","t":"분납(INSTALL)"},{"v":"R","t":"반환(RETURN)"}],"pay_channel":[{"v":"","t":"납부방법"},{"v":"center","t":"센터수금(center)"},{"v":"account","t":"계좌수금(account)"}],"room_gubun":[{"v":"1","t":"TEMPORARY/FAMILY"},{"v":"68","t":"CAPITAL1/MALE"},{"v":"71","t":"CAPITAL1/FEMALE"},{"v":"69","t":"CAPITAL2/MALE"},{"v":"75","t":"CAPITAL2/FEMALE"},{"v":"82","t":"S hotel(H)_M/MALE"},{"v":"83","t":"S hotel(H)_F/FEMALE"},{"v":"137","t":"Amethyst(AM)_F/FEMALE"},{"v":"130","t":"ENCANTO2/FAMILY"},{"v":"133","t":"ENCANTO(VIP)/FAMILY"}],"course_info1":[{"v":"","t":"::FIRST COURSE::"},{"v":"14","t":"ESL(CAPITAL)"},{"v":"16","t":"Pre-IELTS"},{"v":"17","t":"IELTS 5.5"},{"v":"18","t":"IELTS 6.0"},{"v":"31","t":"IELTS 6.5"},{"v":"32","t":"IELTS 7.0"},{"v":"25","t":"TOEIC 600"},{"v":"26","t":"TOEIC 700"},{"v":"50","t":"TOEFL 4.0(80)"},{"v":"38","t":"GAC Level 1"},{"v":"52","t":"Business"}],"pay_result":[{"v":"","t":"::비용처리::"},{"v":"center","t":"센터수납미처리(Center not yet)"},{"v":"account","t":"계좌수납미처리(Account not yet)"},{"v":"collection","t":"수금완료(Paid)"},{"v":"refund","t":"환급완료(Refunded)"},{"v":"holding","t":"홀딩확정(Holding)"},{"v":"cancel","t":"취소(Cancel)"}],"r_limit":[{"v":"","t":"::per/room::"},{"v":"1","t":"1per/room"},{"v":"2","t":"2per/room"},{"v":"3","t":"3per/room"},{"v":"4","t":"4per/room"},{"v":"5","t":"5per/room"}]};
+
+/* ================= 공용 헬퍼(섹션 렌더러가 사용) ================= */
+function esc(s){return (s==null?'':(''+s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function natLabel(code){if(!code)return '';const f=(DICT.nation||[]).find(o=>o.v&&o.v.toLowerCase()===(''+code).toLowerCase());return f?f.t.split('[')[0]:(''+code).toUpperCase();}
+function chipCampus(s){const v=(''+(s||'')).toLowerCase();
+  if(/encanto|sparta|스파|엔칸/.test(v))return '<span class="mv-cc enc">ENCANTO</span>';
+  if(/capital|캐피/.test(v))return '<span class="mv-cc cap">CAPITAL</span>';
+  if(/classic|클래/.test(v))return '<span class="mv-cc cla">CLASSIC</span>';
+  return s?('<span class="mv-cc none">'+esc((''+s).toUpperCase())+'</span>'):'';}
+const _COND={normal:['good','NORMAL'],extend:['install','EXTEND'],refund:['return','REFUND'],exchange:['warn','EXCHANGE'],
+  out:['neutral','OUT'],holding:['warn','HOLDING'],holdinguse:['warn','HOLD-USE'],graduated:['neutral','GRAD'],
+  cancel:['neutral','CANCEL'],paycancel:['neutral','PAYCANCEL'],waiting:['neutral','WAIT'],checking:['neutral','관리']};
+function pillCond(c){const k=(''+(c||'')).toLowerCase();const m=_COND[k]||['neutral',(c?(''+c).toUpperCase():'—')];return '<span class="mv-pill '+m[0]+'">'+esc(m[1])+'</span>';}
+function fmtInt(n){n=+n||0;return n.toLocaleString('en-US');}
+
+let _sheetStack=0;
+function openSheet(title,bodyHtml){const ov=document.getElementById('mvSheetOv');
+  document.getElementById('mvSheetTitle').textContent=title||'';
+  const bd=document.getElementById('mvSheetBody');
+  bd.className='mv-sheet-b'+(window.CUR_SCOPE?(' mvsc-'+window.CUR_SCOPE):''); // 시트에도 현재 섹션 스코프 적용
+  bd.innerHTML=bodyHtml||'';
+  ov.classList.add('on');_sheetStack++;return bd;}
+function closeSheet(){document.getElementById('mvSheetOv').classList.remove('on');_sheetStack=0;}
+document.getElementById('mvSheetX').addEventListener('click',closeSheet);
+document.getElementById('mvSheetOv').addEventListener('click',e=>{if(e.target.id==='mvSheetOv')closeSheet();});
+
+function toast(title,msg,ok){const box=document.getElementById('mvToasts');
+  const d=document.createElement('div');d.className='mv-toast'+(ok?' ok':'');
+  d.innerHTML='<b>'+esc(title||'')+'</b>'+esc(msg||'');box.appendChild(d);
+  setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),320);},2600);}
+
+/* dl 헬퍼(섹션 상세시트에서 자유 사용) */
+function mvDL(pairs){return '<dl class="mv-dl">'+pairs.filter(p=>p&&p[1]!=null&&p[1]!=='').map(p=>'<dt>'+esc(p[0])+'</dt><dd>'+(p[2]?p[1]:esc(p[1]))+'</dd>').join('')+'</dl>';}
+
+/* ================= 메뉴/라우팅 ================= */
+/* 데스크톱 CATS/MENU 를 모바일 그룹으로 축약. handler 미지정 spec 계열은 M_table 로 폴백. */
+const MENU=[
+  {id:'record',label:'Record',icon:'⌂',items:[
+    {k:'dash',t:'대시보드',u:'',tab:'home'},
+  ]},
+  {id:'student',label:"Student's",icon:'👤',items:[
+    {k:'enroll',t:'수강등록관리',u:'student_list.php',tab:'std'},
+    {k:'stdlist',t:'STUDENT LIST',u:'student.php',tab:'std'},
+    {k:'table',t:'멀티수강관리',u:'student_list3.php'},
+    {k:'table',t:'APPLY LIST',u:'student_list2.php'},
+    {k:'table',t:'HISTORY',u:'student_history.php'},
+    {k:'table',t:'수금관리',u:'student_list_pay.php'},
+    {k:'table',t:'MC Report 1',u:'student_list3_en1.php'},
+    {k:'table',t:'FARM & GYM',u:'student_farm.php'},
+    {k:'table',t:'GYM 리포트',u:'student_gym.php'},
+    {k:'table',t:'POPULATION',u:'student_population.php'},
+  ]},
+  {id:'dorm',label:'Dormitory',icon:'🏠',items:[
+    {k:'roomstat',t:'기숙사현황(배치도)',u:'room_stat3.php',tab:'dorm'},
+    {k:'pickup',t:'주간 픽업 리스트',u:'room_search2.php/pickup',tab:'pickup'},
+    {k:'table',t:'기숙사이동관리',u:'room_move_list.php',tab:'dorm'},
+    {k:'table',t:'ROOM M-LIST',u:'room_move_list2.php',tab:'dorm'},
+    {k:'table',t:'일별 입실&퇴실',u:'room_use_count_list.php',tab:'dorm'},
+    {k:'table',t:'DORM SEARCH',u:'room_search2.php'},
+    {k:'table',t:'DORM LIST',u:'room_list.php'},
+    {k:'table',t:'ELEC & WATER',u:'room_elec.php'},
+    {k:'table',t:'VISIT',u:'uhak_agency_visit.php'},
+    {k:'changelog',t:'BACK-UP LOG',u:'room_change_log.php',tab:'dorm'},
+    {k:'admission',t:'Admission Date',u:'smeag_admissiondate.php'},
+  ]},
+  {id:'cash',label:'Cash Cards',icon:'💳',items:[
+    {k:'cash',t:'DEPOSIT / Manage Cash',u:'student_payment.php',tab:'more'},
+  ]},
+];
+/* 탭 정의 */
+const TABS=[
+  {tab:'home',ic:'⌂',label:'홈',route:{k:'dash'}},
+  {tab:'std',ic:'👤',label:'학생',route:{k:'enroll',u:'student_list.php'}},
+  {tab:'dorm',ic:'🏠',label:'기숙사',route:{k:'roomstat',u:'room_stat3.php'}},
+  {tab:'pickup',ic:'✈',label:'픽업',route:{k:'pickup'}},
+  {tab:'more',ic:'☰',label:'더보기',route:{k:'__more__'}},
+];
+function itemsForTab(tab){const out=[];MENU.forEach(g=>g.items.forEach(it=>{if((it.tab||'more')===tab)out.push(it);}));return out;}
+
+let CUR={k:'dash',u:'',t:'대시보드',tab:'home'};
+const SCOPE_FN={M_dash:'d',M_students:'s',M_roomstat:'r',M_pickup:'p',M_cash:'c',M_table:'t',M_changelog:'g',M_admission:'g'};
+function titleFor(it){return it.t||({dash:'대시보드',enroll:'수강등록관리',stdlist:'STUDENT LIST',roomstat:'기숙사현황',pickup:'주간 픽업',cash:'CASH',changelog:'BACK-UP LOG',admission:'Admission'}[it.k])||it.k;}
+
+function render(it){
+  CUR=Object.assign({},it);
+  const main=document.getElementById('mvMain');
+  // 앱바 타이틀
+  document.getElementById('mvTitle').textContent=titleFor(it);
+  document.getElementById('mvSub').textContent=it.u?('· '+it.u):'';
+  // 그룹 형제 스위처
+  let sw='';
+  const grp=MENU.find(g=>g.items.some(x=>x.k===it.k&&(x.u||'')===(it.u||'')))||MENU.find(g=>g.items.some(x=>x.k===it.k));
+  const sib=(grp?grp.items:[]).filter(x=>(x.tab||'more')===(it.tab||'more'));
+  if(sib.length>1){sw='<div class="mv-switch">'+sib.map(x=>{const on=(x.k===it.k&&(x.u||'')===(it.u||''));
+    return '<button class="sw'+(on?' on':'')+'" data-nav=\''+esc(JSON.stringify(x))+'\'>'+esc(titleFor(x))+'</button>';}).join('')+'</div>';}
+  // 섹션 본문
+  let body='';
+  try{
+    if(it.k==='dash') body=win('M_dash')();
+    else if(it.k==='enroll') body=win('M_students')({mode:'enroll'});
+    else if(it.k==='stdlist') body=win('M_students')({mode:'list'});
+    else if(it.k==='roomstat') body=win('M_roomstat')({});
+    else if(it.k==='pickup') body=win('M_pickup')({});
+    else if(it.k==='cash') body=win('M_cash')({});
+    else if(it.k==='changelog') body=win('M_changelog')({});
+    else if(it.k==='admission') body=win('M_admission')({});
+    else body=win('M_table')({url:it.u,title:it.t});
+  }catch(e){body='<div class="mv-empty"><span class="ico">⚠️</span>렌더 오류: '+esc(e.message)+'</div>';console.error(e);}
+  const fnName={dash:'M_dash',enroll:'M_students',stdlist:'M_students',roomstat:'M_roomstat',pickup:'M_pickup',cash:'M_cash',changelog:'M_changelog',admission:'M_admission'}[it.k]||'M_table';
+  window.CUR_SCOPE=SCOPE_FN[fnName]||'t';
+  main.innerHTML=sw+'<div id="mvSecRoot" class="mvsc-'+window.CUR_SCOPE+'">'+body+'</div>';
+  main.scrollTop=0;
+  // init 훅
+  const fn=window[fnName];const root=document.getElementById('mvSecRoot');
+  if(fn&&typeof fn.init==='function'){try{fn.init(root,CUR);}catch(e){console.error('init',e);}}
+  try{window.adminAuthLog&&window.adminAuthLog('menu_view',{menu:it.k,url:it.u},'read');}catch(e){}
+}
+function win(n){const f=window[n];if(typeof f==='function')return f;
+  // 섹션 미탑재 시 안전 폴백
+  return ()=> '<div class="mv-empty"><span class="ico">🧩</span>'+esc(n)+' 섹션 준비중</div>';}
+
+/* 탭바 렌더 */
+function buildTabs(){const bar=document.getElementById('mvTabbar');bar.innerHTML=TABS.map(t=>
+  '<button class="mv-tab" data-tab="'+t.tab+'"><span class="ic">'+t.ic+'</span>'+t.label+'</button>').join('');
+  bar.querySelectorAll('.mv-tab').forEach(b=>b.addEventListener('click',()=>selectTab(b.dataset.tab)));}
+function selectTab(tab){
+  document.querySelectorAll('.mv-tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  if(tab==='more'){openMenuSheet();return;}
+  const t=TABS.find(x=>x.tab===tab);const items=itemsForTab(tab);
+  const first=items[0]||t.route;render(Object.assign({tab:tab},first,{u:first.u||t.route.u||''}));
+}
+
+/* 전체메뉴 시트 */
+function openMenuSheet(){
+  const pcLink='<a class="mv-menu-item" href="../" style="justify-content:center;background:var(--accent-weak);border-color:var(--accent);color:var(--accent-ink)">🖥 PC(데스크톱) 버전으로 보기</a>';
+  const html=pcLink+MENU.map(g=>'<div class="mv-menu-grp"><div class="gt">'+g.icon+' '+esc(g.label)+'</div>'+
+    g.items.map(it=>'<button class="mv-menu-item" data-nav=\''+esc(JSON.stringify(it))+'\'>'+esc(titleFor(it))+
+      (it.u?'<span class="u">'+esc(it.u)+'</span>':'')+'</button>').join('')+'</div>').join('');
+  const b=openSheet('전체 메뉴',html);
+  b.addEventListener('click',e=>{const el=e.target.closest('[data-nav]');if(!el)return;
+    const it=JSON.parse(el.dataset.nav);closeSheet();
+    // 탭 하이라이트
+    const tab=it.tab||'more';document.querySelectorAll('.mv-tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===tab));
+    render(Object.assign({tab:tab},it));});
+}
+
+/* 스위처 클릭 위임 */
+document.getElementById('mvMain').addEventListener('click',e=>{const el=e.target.closest('.mv-switch [data-nav]');
+  if(!el)return;render(JSON.parse(el.dataset.nav));});
+
+/* 검색바 → 현재 섹션에 검색어 전달(섹션이 window.__mvSearch 훅 제공 시) */
+document.getElementById('mvSearchBtn').addEventListener('click',()=>{
+  const bar=document.getElementById('mvSearchBar'),main=document.getElementById('mvMain');
+  const on=bar.classList.toggle('on');main.classList.toggle('has-search',on);
+  if(on)setTimeout(()=>document.getElementById('mvSearchInput').focus(),50);});
+document.getElementById('mvSearchInput').addEventListener('input',e=>{
+  if(typeof window.__mvSearch==='function')window.__mvSearch(e.target.value);});
+
+/* 테마 토글 */
+document.getElementById('mvThemeBtn').addEventListener('click',()=>{
+  const cur=document.documentElement.getAttribute('data-theme');
+  const sysDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;
+  const now=cur?cur:(sysDark?'dark':'light');const next=now==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  try{localStorage.setItem('mv-theme',next);}catch(e){}});
+document.getElementById('mvMenuBtn').addEventListener('click',openMenuSheet);
+(function(){try{const t=localStorage.getItem('mv-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+
+/* ================= 섹션 렌더러(에이전트 산출물) ================= */
+/* ===== M_dash ===== */
+(function(){
+  function fmt(n){ n=Number(n)||0; return n.toLocaleString('en-US'); }
+  function pct(a,b){ if(!b) return 0; return Math.round((a/b)*1000)/10; }
+  function trunc(s,n){ s=String(s==null?'':s); return s.length>n ? s.slice(0,n-1)+'…' : s; }
+  function todayISO(){ var d=new Date(); var m=('0'+(d.getMonth()+1)).slice(-2); var day=('0'+d.getDate()).slice(-2); return d.getFullYear()+'-'+m+'-'+day; }
+
+  function curMonth(){
+    if(typeof REAL!=='undefined'&&REAL&&REAL.roomstat&&REAL.roomstat.from) return String(REAL.roomstat.from).slice(0,7);
+    return todayISO().slice(0,7);
+  }
+  function overlapsMonth(s,e,mk){
+    if(!s&&!e) return false;
+    var ms=mk+'-01', me=mk+'-31';
+    s=s||ms; e=e||me;
+    return s<=me && e>=ms;
+  }
+  function campusOf(cat){
+    cat=cat||'';
+    if(cat.indexOf('ENCANTO')===0) return 'ENCANTO';
+    if(cat.indexOf('CAPITAL')===0) return 'CAPITAL';
+    if(cat.indexOf('CLASSIC')===0) return 'CLASSIC';
+    return '';
+  }
+
+  function occStats(){
+    var res={total:0,occ:0,sample:false,perCampus:{ENCANTO:{t:0,o:0},CLASSIC:{t:0,o:0},CAPITAL:{t:0,o:0}}};
+    var g = (typeof REAL!=='undefined'&&REAL&&REAL.roomstat&&REAL.roomstat.groups);
+    if(g&&g.length){
+      var mk=curMonth();
+      g.forEach(function(grp){
+        var cat=(grp.name||'').split('/')[0]||'';
+        var cp=campusOf(cat);
+        (grp.rooms||[]).forEach(function(r){
+          (r.beds||[]).forEach(function(bed){
+            res.total++;
+            var occd=(bed.segs||[]).some(function(sg){ return overlapsMonth(sg.s,sg.e,mk); });
+            if(occd) res.occ++;
+            if(cp){ res.perCampus[cp].t++; if(occd) res.perCampus[cp].o++; }
+          });
+        });
+      });
+    }
+    if(res.total===0){
+      res.sample=true; res.total=1127; res.occ=1038;
+      res.perCampus={ENCANTO:{t:540,o:512},CLASSIC:{t:287,o:236},CAPITAL:{t:300,o:290}};
+    }
+    return res;
+  }
+
+  function natStats(){
+    var b={KOR:0,VTN:0,JAP:0,CHI:0,ETC:0}, n=0, sample=false;
+    var rows = (typeof REAL!=='undefined'&&REAL&&REAL.studentsFull&&REAL.studentsFull.rows);
+    if(rows&&rows.length){
+      var lim=Math.min(rows.length,2000);
+      for(var i=0;i<lim;i++){
+        var c=(rows[i]&&rows[i][1]!=null?String(rows[i][1]):'').toUpperCase();
+        n++;
+        if(c.indexOf('KOR')>=0) b.KOR++;
+        else if(c.indexOf('VTN')>=0||c.indexOf('VIE')>=0) b.VTN++;
+        else if(c.indexOf('JAP')>=0||c.indexOf('JPN')>=0) b.JAP++;
+        else if(c.indexOf('CHI')>=0||c.indexOf('CHN')>=0) b.CHI++;
+        else b.ETC++;
+      }
+    }
+    if(n===0){ sample=true; b={KOR:1720,VTN:96,JAP:74,CHI:41,ETC:69}; n=2000; }
+    return {b:b,n:n,sample:sample};
+  }
+
+  function todayMoves(){
+    var t=todayISO(), ins=0, outs=0;
+    var pk = (typeof REAL!=='undefined'&&REAL&&REAL.pickup&&REAL.pickup.rows);
+    if(pk){ pk.forEach(function(r){ if(String(r.arrive||'')===t) ins++; }); }
+    var g = (typeof REAL!=='undefined'&&REAL&&REAL.roomstat&&REAL.roomstat.groups);
+    if(g){ g.forEach(function(grp){ (grp.rooms||[]).forEach(function(r){ (r.beds||[]).forEach(function(bed){ (bed.segs||[]).forEach(function(sg){
+      if(String(sg.s||'')===t && sg.st==='S') ins++;
+      if(String(sg.e||'')===t && (sg.et==='E'||sg.st==='E')) outs++;
+    }); }); }); }); }
+    var week = (pk&&pk.length)||0;
+    return {ins:ins,outs:outs,week:week};
+  }
+
+  function unpaid(){
+    var dep = (typeof REAL!=='undefined'&&REAL&&REAL.deposits);
+    if(!dep||!dep.length) return {n:0,list:[]};
+    var list = dep.filter(function(d){
+      var s=String(d.status||'').trim();
+      if(!s) return true;
+      return /미납|unpaid|대기|pending/i.test(s);
+    });
+    return {n:list.length,list:list};
+  }
+
+  var LOGS=[];
+
+  function bar(label, value, of, colorVar, showRate){
+    var p=pct(value,of);
+    var right = showRate ? (p+'%') : fmt(value);
+    return '<div class="mv-bar">'
+      + '<div class="mv-bar-top"><span class="mv-bar-lb">'+label+'</span>'
+      + '<span class="mv-bar-vl">'+right+'</span></div>'
+      + '<div class="mv-track"><div class="mv-fill" style="width:'+Math.min(p,100)+'%;background:'+colorVar+'"></div></div>'
+      + (showRate ? '<div class="mv-bar-sub">'+fmt(value)+' / '+fmt(of)+'실</div>' : '')
+      + '</div>';
+  }
+
+  function kpi(label, big, delta, act, tag){
+    return '<div class="mv-kpi"'+(act?(' data-act="'+act+'" role="button" tabindex="0"'):'')+'>'
+      + '<div class="mv-kpi-lb">'+label+(tag?(' <span class="mv-tag">'+tag+'</span>'):'')+'</div>'
+      + '<div class="mv-kpi-big">'+big+'</div>'
+      + '<div class="mv-kpi-dl">'+delta+'</div>'
+      + '</div>';
+  }
+
+  window.M_dash = function(ctx){
+    if(typeof REAL==='undefined' || !REAL){
+      return '<div class="mv-sec"><div class="mv-empty">데이터를 불러오는 중입니다 <span class="mv-dim">(no data)</span></div></div>';
+    }
+
+    var totalStd = (REAL.meta&&REAL.meta.student_info_total)||0;
+    var oc = occStats();
+    var ns = natStats();
+    var tm = todayMoves();
+    var up = unpaid();
+
+    LOGS = (REAL.changelog||[]).slice(0,8);
+
+    var kpis = '<div class="mv-kpis">'
+      + kpi('재학생', fmt(totalStd), '<span class="mv-up">전체 재학생</span>', '', '')
+      + kpi('기숙사 재실', fmt(oc.occ)+'<span class="mv-of"> / '+fmt(oc.total)+'실</span>',
+            pct(oc.occ,oc.total)+'% 가동 · '+curMonth(), '', oc.sample?'샘플':'')
+      + kpi('오늘 입/퇴실', '<span class="mv-in">'+tm.ins+'</span><span class="mv-sl">/</span><span class="mv-out">'+tm.outs+'</span>',
+            '입실 '+tm.ins+' · 퇴실 '+tm.outs+' · 주간픽업 '+tm.week, '', '')
+      + kpi('미납', fmt(up.n)+'<span class="mv-of">건</span>',
+            (up.n>0?'미결제 대기 · 탭하여 보기':'미납 없음'), up.n>0?'unpaid':'', '')
+      + '</div>';
+
+    var cp=oc.perCampus;
+    var camp = '<section class="mv-card"><div class="mv-h">캠퍼스별 재실률 <span class="mv-h-sub">Occupancy</span></div>'
+      + bar(chipCampus('ENCANTO'), cp.ENCANTO.o, cp.ENCANTO.t, 'var(--c-enc)', true)
+      + bar(chipCampus('CLASSIC'), cp.CLASSIC.o, cp.CLASSIC.t, 'var(--c-cla)', true)
+      + bar(chipCampus('CAPITAL'), cp.CAPITAL.o, cp.CAPITAL.t, 'var(--c-cap)', true)
+      + (oc.sample?'<div class="mv-note">샘플 데이터 (roomstat 미제공)</div>':'')
+      + '</section>';
+
+    var nb=ns.b;
+    var natColors={KOR:'var(--accent)',VTN:'var(--good)',JAP:'var(--female)',CHI:'var(--install)',ETC:'var(--neutral)'};
+    var natOrder=['KOR','VTN','JAP','CHI','ETC'];
+    var natMax=Math.max(1,nb.KOR,nb.VTN,nb.JAP,nb.CHI,nb.ETC);
+    var natLabels={KOR:'KOR[한국]',VTN:'VTN[베트남]',JAP:'JAP[일본]',CHI:'CHI[중국]',ETC:'ETC[기타]'};
+    var natHtml='';
+    natOrder.forEach(function(k){
+      var v=nb[k], p=pct(v,ns.n);
+      natHtml += '<div class="mv-bar">'
+        + '<div class="mv-bar-top"><span class="mv-bar-lb">'+natLabels[k]+'</span>'
+        + '<span class="mv-bar-vl">'+fmt(v)+' · '+p+'%</span></div>'
+        + '<div class="mv-track"><div class="mv-fill" style="width:'+Math.round((v/natMax)*100)+'%;background:'+natColors[k]+'"></div></div>'
+        + '</div>';
+    });
+    var nat = '<section class="mv-card"><div class="mv-h">국적 분포 <span class="mv-h-sub">'
+      + (ns.sample?'샘플':('상위 '+fmt(ns.n)+'명 표본'))+'</span></div>'+natHtml+'</section>';
+
+    var tl='';
+    if(LOGS.length){
+      LOGS.forEach(function(L,i){
+        tl += '<button class="mv-log" data-log="'+i+'">'
+          + '<span class="mv-log-dot"></span>'
+          + '<div class="mv-log-body">'
+          + '<div class="mv-log-r1"><span class="mv-log-nm">'+esc(trunc(L.name,10))+'</span>'
+          + '<span class="mv-log-tm">'+esc(String(L.apply||'').replace(/[()]/g,' ').trim())+'</span></div>'
+          + '<div class="mv-log-r2">→ '+esc(trunc(L.newr||'-',34))+'</div>'
+          + '<div class="mv-log-r3">'+esc(L.mgr||'')+'</div>'
+          + '</div>'
+          + '<span class="mv-log-chev">›</span>'
+          + '</button>';
+      });
+    } else {
+      tl = '<div class="mv-empty sm">최근 방변경 내역 없음</div>';
+    }
+    var logSec = '<section class="mv-card"><div class="mv-h">최근 방변경 로그 <span class="mv-h-sub">Room change</span></div>'
+      + '<div class="mv-timeline">'+tl+'</div></section>';
+
+    return '<div class="mv-sec">'+kpis+camp+nat+logSec+'</div>';
+  };
+
+  window.M_dash.init = function(root){
+    if(!root) return;
+    root.addEventListener('click', function(e){
+      var lg = e.target.closest('[data-log]');
+      if(lg){
+        var idx=+lg.getAttribute('data-log');
+        var L=LOGS[idx]; if(!L) return;
+        function drow(k,v){ return '<div class="mv-drow"><span class="mv-dk">'+k+'</span><span class="mv-dv">'+v+'</span></div>'; }
+        var body='<div class="mv-dsheet">'
+          + drow('학생', esc(String(L.name||'-')))
+          + drow('기간', esc(String(L.period||'-')))
+          + drow('이전 객실', esc(String(L.oldr||'-')))
+          + drow('변경 객실', '<b>'+esc(String(L.newr||'-'))+'</b>')
+          + drow('이전 코스', esc(String(L.oldc||'-')))
+          + drow('변경 코스', esc(String(L.newc||'-')))
+          + drow('담당', esc(String(L.mgr||'-')))
+          + drow('신청', esc(String(L.apply||'-')))
+          + drow('학생 IDX', esc(String(L.sidx==null?'-':L.sidx)))
+          + '</div>';
+        openSheet('방변경 상세', body);
+        return;
+      }
+      var act = e.target.closest('[data-act]');
+      if(act){
+        var a=act.getAttribute('data-act');
+        if(a==='unpaid'){
+          var up=unpaid();
+          if(!up.list.length){ toast('미납','미납 건이 없습니다',true); return; }
+          var items = up.list.slice(0,40).map(function(d){
+            return '<div class="mv-drow"><span class="mv-dk">'+esc(String(d.name||'-'))
+              + ' <span class="mv-dim">'+esc(natLabel(String(d.nat||'')))+'</span></span>'
+              + '<span class="mv-dv">'+esc(String(d.amount||''))+' '+esc(String(d.unit||''))
+              + ' <em class="mv-dim">'+esc(String(d.status||'미납'))+'</em></span></div>';
+          }).join('');
+          openSheet('미납 목록 ('+up.list.length+')', '<div class="mv-dsheet">'+items+'</div>');
+        }
+      }
+    });
+    root.addEventListener('keydown', function(e){
+      if(e.key==='Enter'||e.key===' '){
+        var a=e.target.closest&&e.target.closest('[data-act]');
+        if(a){ e.preventDefault(); a.click(); }
+      }
+    });
+  };
+})();
+
+/* ===== M_students ===== */
+window.M_students=(function(){
+  var state={mode:'manage',q:'',f:{nat:'',status:'',sex:'',campus:''},shown:25};
+  var sortedIdx=null,rootEl=null,chipsEl=null,listEl=null;
+
+  var SEX_OPTS=[{v:'M',t:'M[남]'},{v:'F',t:'F[여]'}];
+  var CAMPUS_OPTS=[{v:'ENCANTO',t:'ENCANTO'},{v:'CAPITAL',t:'CAPITAL'},{v:'CLASSIC',t:'CLASSIC'}];
+
+  function rows(){return (window.REAL&&REAL.studentsFull&&REAL.studentsFull.rows)||[];}
+  function dnation(){return (window.DICT&&DICT.nation)||[];}
+  function dstatus(){return (window.DICT&&DICT.now_status)||[];}
+  function nf(n){return String(n||0).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+  function pd(s){if(!s)return NaN;var m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/);if(!m)return NaN;return new Date(+m[1],+m[2]-1,+m[3]).getTime();}
+  function keyOf(r){var d=pd(r[7]);if(!isNaN(d))return d;var a=[pd(r[6]),pd(r[8]),pd(r[9])].filter(function(x){return !isNaN(x);});return a.length?Math.max.apply(null,a):-1;}
+  function dv(v){return esc(v==null||v===''?'—':String(v));}
+
+  function ensureSorted(){
+    if(sortedIdx)return sortedIdx;
+    var R=rows();
+    sortedIdx=R.map(function(_,i){return i;});
+    sortedIdx.sort(function(a,b){return keyOf(R[b])-keyOf(R[a]);});
+    return sortedIdx;
+  }
+
+  function passes(r){
+    var f=state.f;
+    if(f.nat && r[1]!==f.nat)return false;
+    if(f.status && r[11]!==f.status)return false;
+    if(f.sex && String(r[5]||'').toUpperCase()!==f.sex)return false;
+    if(f.campus && r[14]!==f.campus)return false;
+    if(state.q){
+      var q=state.q.toLowerCase();
+      if(String(r[2]||'').toLowerCase().indexOf(q)<0 && String(r[3]||'').toLowerCase().indexOf(q)<0)return false;
+    }
+    return true;
+  }
+  function anyFilter(){var f=state.f;return !!(f.nat||f.status||f.sex||f.campus);}
+
+  function sexPill(s){s=String(s||'').toUpperCase();if(s==='M')return '<span class="mv-sex mv-m">M</span>';if(s==='F')return '<span class="mv-sex mv-f">F</span>';return '';}
+
+  function cardHtml(i,r){
+    return '<div class="mv-std-card" data-i="'+i+'">'
+      +'<div class="mv-r1">'
+        +'<span class="mv-nm">'+dv(r[2])+'</span>'
+        +'<span class="mv-kor">'+esc(r[3]||'')+'</span>'
+        +'<span class="mv-natchip">'+esc(natLabel(r[1]||''))+'</span>'
+        +sexPill(r[5])
+      +'</div>'
+      +'<div class="mv-r2">'
+        +'<span class="mv-kv">'+esc(r[10]||'0')+'주</span>'
+        +pillCond(r[11]||'')
+        +'<span class="mv-kv'+(r[13]?'':' mv-muted')+'">'+(r[13]?esc(r[13]):'미배정')+'</span>'
+        +chipCampus(r[14]||'')
+      +'</div>'
+      +'<div class="mv-r3">출발 '+dv(r[7])+' · 시작 '+dv(r[8])+' · 종료 '+dv(r[9])+'</div>'
+      +(r[15]?'<div class="mv-r4">PICKUP · '+esc(r[15])+'</div>':'')
+      +'</div>';
+  }
+
+  function matched(){
+    var R=rows(),idx=ensureSorted(),out=[];
+    for(var i=0;i<idx.length;i++){if(passes(R[idx[i]]))out.push(idx[i]);}
+    return out;
+  }
+
+  function listInner(){
+    var R=rows();
+    if(!R.length)return '<div class="mv-empty">데이터가 없습니다.</div>';
+    var m=matched(),total=m.length;
+    if(!total)return '<div class="mv-cnt">필터결과 <b>0</b>명</div><div class="mv-empty">조건에 맞는 학생이 없습니다.</div>';
+    var slice=m.slice(0,state.shown),h='';
+    for(var j=0;j<slice.length;j++){h+=cardHtml(slice[j],R[slice[j]]);}
+    var head='<div class="mv-cnt">필터결과 <b>'+nf(total)+'</b>명 · 표시 '+nf(Math.min(state.shown,total))+'</div>';
+    var more=state.shown<total?'<button class="mv-more" data-more>더 보기 ('+nf(total-state.shown)+') ▾</button>':'';
+    return head+h+more;
+  }
+
+  function chipBtn(key,label){return '<button class="mv-chip'+(state.f[key]?' on':'')+'" data-filter>'+esc(label)+' ▾</button>';}
+  function chipsHtml(){
+    return chipBtn('nat',state.f.nat?natLabel(state.f.nat):'국적')
+      +chipBtn('status',state.f.status?state.f.status:'상태')
+      +chipBtn('sex',state.f.sex?state.f.sex:'성별')
+      +chipBtn('campus',state.f.campus?state.f.campus:'캠퍼스')
+      +(anyFilter()?'<button class="mv-chip mv-chip-clear" data-clear>초기화 ✕</button>':'');
+  }
+
+  function renderChips(){if(chipsEl)chipsEl.innerHTML=chipsHtml();}
+  function renderList(){if(listEl)listEl.innerHTML=listInner();}
+
+  /* ---- detail sheet ---- */
+  function detailBody(r){
+    var pairs=[
+      ['AGENCY',dv(r[0])],['국적',esc(natLabel(r[1]||''))],['NAME',dv(r[2])],['한글명',dv(r[3])],
+      ['나이',dv(r[4])],['성별',dv(r[5])],['등록일',dv(r[6])],['출발일',dv(r[7])],['시작일',dv(r[8])],
+      ['종료일',dv(r[9])],['기간',r[10]?esc(r[10])+'주':'—'],['상태',pillCond(r[11]||'')],
+      ['연수코스',dv(r[12])],['객실',r[13]?esc(r[13]):'미배정'],['캠퍼스',chipCampus(r[14]||'')||'—'],
+      ['PICKUP',dv(r[15])],['이전 PICKUP',dv(r[16])]
+    ];
+    var g='<div class="mv-dgrid">';
+    for(var i=0;i<pairs.length;i++){g+='<div class="mv-dk">'+pairs[i][0]+'</div><div class="mv-dv">'+pairs[i][1]+'</div>';}
+    g+='</div>';
+    if(state.mode==='manage'){
+      g+='<div class="mv-acts">'
+        +'<button class="mv-act" data-act="수정">수정</button>'
+        +'<button class="mv-act" data-act="연장">연장</button>'
+        +'<button class="mv-act" data-act="상담">상담</button>'
+        +'<button class="mv-act" data-act="픽업">픽업</button>'
+        +'</div>';
+    }
+    return g;
+  }
+  function openDetail(i){
+    var r=rows()[i];if(!r)return;
+    var nm=r[2]||r[3]||'학생';
+    var sr=openSheet('학생 상세 · '+esc(nm),detailBody(r));
+    if(sr){sr.onclick=function(e){var b=e.target.closest('[data-act]');if(!b)return;toast('준비',nm+' '+b.getAttribute('data-act'),true);};}
+  }
+
+  /* ---- filter sheet ---- */
+  function fgroup(title,key,opts){
+    var h='<div class="mv-fg"><div class="mv-fgt">'+title+'</div><div class="mv-fgo">';
+    h+='<button class="mv-fo'+(!state.f[key]?' on':'')+'" data-fg="'+key+'" data-fv="">전체</button>';
+    for(var i=0;i<opts.length;i++){var o=opts[i];h+='<button class="mv-fo'+(state.f[key]===o.v?' on':'')+'" data-fg="'+key+'" data-fv="'+esc(o.v)+'">'+esc(o.t)+'</button>';}
+    return h+'</div></div>';
+  }
+  function fapplyRow(){return '<div class="mv-frow"><button class="mv-fbtn" data-freset>초기화</button><button class="mv-fbtn mv-fapply" data-fapply>적용</button></div>';}
+  function fbodyInner(){return fgroup('국적','nat',dnation())+fgroup('상태','status',dstatus())+fgroup('성별','sex',SEX_OPTS)+fgroup('캠퍼스','campus',CAMPUS_OPTS)+fapplyRow();}
+  function openFilter(){
+    var sr=openSheet('필터','<div class="mv-fbody">'+fbodyInner()+'</div>');
+    if(!sr)return;
+    sr.onclick=function(e){
+      var b=e.target.closest('[data-fg]');
+      if(b){state.f[b.getAttribute('data-fg')]=b.getAttribute('data-fv');state.shown=25;renderChips();renderList();var bd=sr.querySelector('.mv-fbody');if(bd)bd.innerHTML=fbodyInner();return;}
+      if(e.target.closest('[data-freset]')){state.f={nat:'',status:'',sex:'',campus:''};state.shown=25;renderChips();renderList();var bd2=sr.querySelector('.mv-fbody');if(bd2)bd2.innerHTML=fbodyInner();return;}
+      if(e.target.closest('[data-fapply]')){closeSheet();return;}
+    };
+  }
+
+  function setMode(m){state.mode=m;if(!rootEl)return;var bs=rootEl.querySelectorAll('[data-mode]');for(var i=0;i<bs.length;i++){bs[i].classList.toggle('on',bs[i].getAttribute('data-mode')===m);}}
+
+  function build(){
+    var R=rows();
+    if(!R.length){
+      return '<div class="mv-sec mv-students"><div class="mv-empty">학생 데이터가 없습니다.<br>데이터 연결을 확인해 주세요.</div></div>';
+    }
+    var meta=(window.REAL&&REAL.meta)||{};
+    return '<div class="mv-sec mv-students">'
+      +'<div class="mv-head">'
+        +'<div class="mv-seg">'
+          +'<button class="mv-segb'+(state.mode==='manage'?' on':'')+'" data-mode="manage">수강등록관리</button>'
+          +'<button class="mv-segb'+(state.mode==='list'?' on':'')+'" data-mode="list">STUDENT LIST</button>'
+        +'</div>'
+        +'<div class="mv-search"><input class="mv-sinput" data-search placeholder="이름(EN)·한글명 검색" value="'+esc(state.q)+'"/></div>'
+        +'<div class="mv-kpi">'
+          +'<div class="mv-kpi-b"><span class="mv-kpi-n">'+nf(meta.student_info_total||0)+'</span><span class="mv-kpi-l">전체 재학생</span></div>'
+          +'<div class="mv-kpi-b"><span class="mv-kpi-n">'+nf(R.length)+'</span><span class="mv-kpi-l">데이터 행</span></div>'
+        +'</div>'
+      +'</div>'
+      +'<div class="mv-chips">'+chipsHtml()+'</div>'
+      +'<div class="mv-list">'+listInner()+'</div>'
+    +'</div>';
+  }
+
+  var fn=function(ctx){return build();};
+  fn.init=function(root){
+    rootEl=root;
+    chipsEl=root.querySelector('.mv-chips');
+    listEl=root.querySelector('.mv-list');
+    root.addEventListener('click',function(e){
+      var mb=e.target.closest('[data-mode]');if(mb){setMode(mb.getAttribute('data-mode'));return;}
+      if(e.target.closest('[data-filter]')){openFilter();return;}
+      if(e.target.closest('[data-clear]')){state.f={nat:'',status:'',sex:'',campus:''};state.shown=25;renderChips();renderList();return;}
+      if(e.target.closest('[data-more]')){state.shown+=25;renderList();return;}
+      var card=e.target.closest('[data-i]');if(card){openDetail(+card.getAttribute('data-i'));return;}
+    });
+    root.addEventListener('input',function(e){
+      var s=e.target.closest('[data-search]');if(!s)return;
+      state.q=s.value.trim();state.shown=25;renderList();
+    });
+  };
+  return fn;
+})();
+
+/* ===== M_roomstat ===== */
+(function(){
+  var state = { center:'', gender:'', per:'', month:'2026-07', limit:25 };
+
+  function esc2(s){ return (typeof esc==='function') ? esc(s) : String(s==null?'':s); }
+  function categoryOf(n){ return String(n||'').split('/')[0]; }
+
+  function centerOf(cat){
+    var c = String(cat||'').toUpperCase();
+    if(c.indexOf('ENCANTO')===0) return 'ENCANTO';
+    if(c.indexOf('CAPITAL')===0) return 'CAPITAL';
+    if(c.indexOf('AMETHYST')>-1 || c.indexOf('CANBERRY')>-1) return 'ENCANTO';
+    if(c.indexOf('S HOTEL')>-1 || c.indexOf('CASABLU')>-1 || c.indexOf('CITADINES')>-1 || c.indexOf('COMMERCIAL')>-1 || c.indexOf('TEMPORARY')>-1) return 'CAPITAL';
+    return 'CAPITAL';
+  }
+  function segColor(st){
+    switch(String(st||'').toUpperCase()){
+      case 'S': return 'var(--female)';
+      case 'E': return 'var(--return)';
+      case 'R': return 'var(--good)';
+      case 'I': return 'var(--neutral)';
+    }
+    return 'var(--neutral)';
+  }
+  function segLabel(st){
+    var m={S:'입실',I:'재실',E:'퇴실',R:'예약'};
+    return m[String(st||'').toUpperCase()] || String(st||'');
+  }
+  function genderBadge(g){
+    if(g==='m') return '<span class="mv-gb mv-gm">남</span>';
+    if(g==='f') return '<span class="mv-gb mv-gf">여</span>';
+    if(g==='fam') return '<span class="mv-gb mv-gfam">공용</span>';
+    return '<span class="mv-gb" style="background:var(--neutral)">-</span>';
+  }
+  function bedOccupant(bed, mS, mE){
+    if(!bed || !bed.segs) return null;
+    for(var i=0;i<bed.segs.length;i++){
+      var sg=bed.segs[i];
+      if(sg && sg.s<=mE && sg.e>=mS) return sg;
+    }
+    return null;
+  }
+  function ready(){ return !!(state.center && state.gender && state.per); }
+
+  function collectRooms(){
+    var out=[];
+    var groups = (REAL && REAL.roomstat && REAL.roomstat.groups) || [];
+    for(var g=0; g<groups.length; g++){
+      var grp=groups[g]; if(!grp) continue;
+      var cat=categoryOf(grp.name);
+      if(centerOf(cat)!==state.center) continue;
+      var rooms=grp.rooms||[];
+      for(var r=0;r<rooms.length;r++){
+        var room=rooms[r]; if(!room) continue;
+        if(state.gender!=='all' && room.gender!==state.gender) continue;
+        if(state.per!=='all' && room.per!==state.per) continue;
+        out.push({g:g, rm:r, cat:cat, room:room});
+      }
+    }
+    return out;
+  }
+
+  function roomCard(item){
+    var room=item.room;
+    var mS=state.month+'-01', mE=state.month+'-31';
+    var beds=room.beds||[];
+    var lines='', occ=0, borderColor='var(--border)', firstSet=false;
+    for(var i=0;i<beds.length;i++){
+      var sg=bedOccupant(beds[i], mS, mE);
+      var col = sg ? segColor(sg.st) : 'var(--empty)';
+      if(sg && !firstSet){ borderColor=col; firstSet=true; }
+      if(sg) occ++;
+      var nm = sg ? esc2(sg.nm||'-') : '<span class="mv-empty">빈방</span>';
+      var st = sg ? '<span class="mv-st">'+esc2(segLabel(sg.st))+'</span>' : '';
+      var hold = (sg&&sg.h) ? '<span class="mv-hold">HOLD</span>' : '';
+      lines += '<div class="mv-bed"><span class="mv-dot" style="background:'+col+'"></span><span class="mv-nm">'+nm+'</span>'+st+hold+'</div>';
+    }
+    if(!beds.length){
+      lines='<div class="mv-bed"><span class="mv-dot" style="background:var(--empty)"></span><span class="mv-nm mv-empty">배정정보 없음</span></div>';
+    }
+    return '<div class="mv-room" data-g="'+item.g+'" data-rm="'+item.rm+'" tabindex="0" style="border-left-color:'+borderColor+'">'
+      + '<div class="mv-room-top"><span class="mv-rno">'+esc2(room.no||'-')+'</span>'
+      + '<span class="mv-tags"><span class="mv-per">'+esc2(room.per||'')+'</span>'+genderBadge(room.gender)+'</span></div>'
+      + '<div class="mv-beds">'+lines+'</div>'
+      + '<div class="mv-occ" style="font-variant-numeric:tabular-nums">점유 '+occ+'/'+beds.length+'</div>'
+      + '</div>';
+  }
+
+  function legend(){
+    return '<div class="mv-legend">'
+      +'<span><i style="background:var(--female)"></i>입실</span>'
+      +'<span><i style="background:var(--neutral)"></i>재실</span>'
+      +'<span><i style="background:var(--return)"></i>퇴실</span>'
+      +'<span><i style="background:var(--good)"></i>예약</span>'
+      +'<span><i style="background:var(--empty)"></i>빈방</span>'
+      +'</div>';
+  }
+
+  function renderResults(){
+    if(!(REAL && REAL.roomstat)){
+      return '<div class="mv-card mv-msg">기숙사 배치 데이터가 없습니다.</div>';
+    }
+    if(!ready()){
+      return '<div class="mv-card mv-msg">센터·성별·인실을 선택하세요</div>';
+    }
+    var list=collectRooms();
+    if(!list.length){
+      return legend()+'<div class="mv-card mv-msg">조건에 맞는 방이 없습니다.</div>';
+    }
+    var total=list.length;
+    var slice=list.slice(0, state.limit);
+    var html=legend();
+    html+='<div class="mv-count" style="font-variant-numeric:tabular-nums">'+esc2(state.center)+' · '+esc2(state.month)+' · 총 '+total+'개 방</div>';
+    var curCat=null;
+    for(var i=0;i<slice.length;i++){
+      if(slice[i].cat!==curCat){
+        curCat=slice[i].cat;
+        html+='<div class="mv-cat">'+esc2(curCat)+'</div>';
+      }
+      html+=roomCard(slice[i]);
+    }
+    if(state.limit<total){
+      html+='<button class="mv-more" data-more="1">더 보기 ('+(total-state.limit)+')</button>';
+    }
+    return html;
+  }
+
+  function buildSheetBody(grp, room){
+    var mS=state.month+'-01', mE=state.month+'-31';
+    var beds=room.beds||[];
+    var head='<div class="mv-sh-head">'
+      +'<div class="mv-sh-rno">'+esc2(room.no||'-')+'</div>'
+      +'<div class="mv-sh-meta">'+esc2(categoryOf(grp.name))+' · '+esc2(room.per||'')+' '+genderBadge(room.gender)+'</div>'
+      +'<div class="mv-sh-month">기준월 '+esc2(state.month)+'</div>'
+      +'</div>';
+    var body='';
+    for(var i=0;i<beds.length;i++){
+      var bed=beds[i];
+      var cur=bedOccupant(bed, mS, mE);
+      body+='<div class="mv-sh-bed"><div class="mv-sh-bedname">'+esc2(bed.name||('BED '+(i+1)))
+        + (cur ? ' <span class="mv-sh-cur" style="color:'+segColor(cur.st)+'">▸ '+esc2(cur.nm||'-')+'</span>' : ' <span class="mv-empty">빈방</span>')
+        +'</div>';
+      var segs=(bed.segs||[]).slice().sort(function(a,b){ return (String(a.s||'')<String(b.s||'')) ? -1 : 1; });
+      if(segs.length){
+        body+='<div class="mv-tl">';
+        for(var j=0;j<segs.length;j++){
+          var sg=segs[j];
+          body+='<div class="mv-tl-row"><span class="mv-dot" style="background:'+segColor(sg.st)+'"></span>'
+            +'<span class="mv-tl-date" style="font-variant-numeric:tabular-nums">'+esc2(sg.s||'')+' ~ '+esc2(sg.e||'')+'</span>'
+            +'<span class="mv-st">'+esc2(segLabel(sg.st))+'</span>'
+            +(sg.h?'<span class="mv-hold">HOLD</span>':'')
+            +'<span class="mv-tl-nm">'+esc2(sg.nm||'')+'</span></div>';
+        }
+        body+='</div>';
+      } else {
+        body+='<div class="mv-tl mv-empty">배정 이력 없음</div>';
+      }
+      body+='</div>';
+    }
+    if(!beds.length) body='<div class="mv-sh-bed mv-empty">배정 정보가 없습니다.</div>';
+    var note='<div class="mv-sh-note"><label>메모</label><textarea class="mv-note-in" placeholder="이동 사유 / 메모 (placeholder)"></textarea></div>';
+    var act='<button class="mv-move" data-move="1">방 변경</button>';
+    return head+'<div class="mv-sh-body">'+body+note+act+'</div>';
+  }
+
+  function openRoomSheet(g, rm){
+    if(!(REAL&&REAL.roomstat&&REAL.roomstat.groups)) return;
+    var grp=REAL.roomstat.groups[g]; if(!grp) return;
+    var room=(grp.rooms||[])[rm]; if(!room) return;
+    var sheet = openSheet('ROOM REPLACEMENT', buildSheetBody(grp, room));
+    if(sheet && sheet.addEventListener){
+      sheet.addEventListener('click', function(e){
+        if(e.target.closest('[data-move]')){
+          toast('방 변경','이동 기능은 준비 중입니다 (placeholder)', true);
+        }
+      });
+    }
+  }
+
+  function controls(){
+    var perOpts='<option value="">인실</option><option value="all"'+(state.per==='all'?' selected':'')+'>전체</option>';
+    ['1인실','2인실','3인실','4인실','5인실'].forEach(function(p){
+      perOpts+='<option value="'+p+'"'+(state.per===p?' selected':'')+'>'+p+'</option>';
+    });
+    return '<div class="mv-ctl">'
+      +'<select class="mv-sel" data-ctl="center">'
+        +'<option value="">센터</option>'
+        +'<option value="ENCANTO"'+(state.center==='ENCANTO'?' selected':'')+'>ENCANTO</option>'
+        +'<option value="CAPITAL"'+(state.center==='CAPITAL'?' selected':'')+'>CAPITAL</option>'
+      +'</select>'
+      +'<select class="mv-sel" data-ctl="gender">'
+        +'<option value="">성별</option>'
+        +'<option value="all"'+(state.gender==='all'?' selected':'')+'>전체</option>'
+        +'<option value="m"'+(state.gender==='m'?' selected':'')+'>남</option>'
+        +'<option value="f"'+(state.gender==='f'?' selected':'')+'>여</option>'
+        +'<option value="fam"'+(state.gender==='fam'?' selected':'')+'>공용</option>'
+      +'</select>'
+      +'<select class="mv-sel" data-ctl="per">'+perOpts+'</select>'
+      +'<input class="mv-sel mv-month" type="month" data-ctl="month" value="'+esc2(state.month)+'">'
+      +'</div>';
+  }
+
+  window.M_roomstat = function(ctx){
+    return '<div class="mv-sec mv-roomstat">'
+      + '<div class="mv-hd"><span class="mv-hd-t">기숙사현황 <b>배치도</b></span><span class="mv-hd-s">room_reserve</span></div>'
+      + controls()
+      + '<div class="mv-rs-body">'+renderResults()+'</div>'
+      + '</div>';
+  };
+
+  window.M_roomstat.init = function(root){
+    if(!root) return;
+    var body=root.querySelector('.mv-rs-body');
+    function rerender(){ if(body) body.innerHTML=renderResults(); }
+    root.addEventListener('change', function(e){
+      var s=e.target.closest('[data-ctl]'); if(!s) return;
+      var k=s.getAttribute('data-ctl');
+      state[k]=s.value;
+      if(k!=='month') state.limit=25;
+      rerender();
+    });
+    root.addEventListener('click', function(e){
+      var more=e.target.closest('[data-more]');
+      if(more){ state.limit+=25; rerender(); return; }
+      var card=e.target.closest('.mv-room[data-g]');
+      if(card){ openRoomSheet(+card.getAttribute('data-g'), +card.getAttribute('data-rm')); }
+    });
+    root.addEventListener('keydown', function(e){
+      if((e.key==='Enter'||e.key===' ') && e.target.closest){
+        var card=e.target.closest('.mv-room[data-g]');
+        if(card){ e.preventDefault(); openRoomSheet(+card.getAttribute('data-g'), +card.getAttribute('data-rm')); }
+      }
+    });
+  };
+})();
+
+/* ===== M_pickup ===== */
+(function(){
+  var WD=['일','월','화','수','목','금','토'];
+  var state={filter:'all',campus:null};
+
+  function pd(s){ if(!s)return null; var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s); if(!m)return null; return new Date(Date.UTC(+m[1],+m[2]-1,+m[3])); }
+  function dow(s){ var d=pd(s); return d?WD[d.getUTCDay()]:''; }
+
+  function getRows(){ return (window.REAL&&REAL.pickup&&Array.isArray(REAL.pickup.rows))?REAL.pickup.rows:[]; }
+  function flightStr(r){ var f=(r.flight||'').trim(), t=(r.time||'').trim(); var s=(f+' '+t).trim(); return s; }
+
+  function campusesOf(rows){ var seen={},out=[]; rows.forEach(function(r){ var c=(r.campus||'').trim(); if(c&&!seen[c]){seen[c]=1;out.push(c);} }); return out; }
+
+  function applyFilter(rows){
+    if(state.filter==='new') return rows.filter(function(r){return !!r.isNew;});
+    if(state.filter==='campus'&&state.campus) return rows.filter(function(r){return (r.campus||'').trim()===state.campus;});
+    return rows.slice();
+  }
+
+  function groupByDay(rows){
+    var map={},order=[];
+    rows.forEach(function(r,i){
+      var key=(r.arrive||'미정');
+      if(!map[key]){map[key]=[];order.push(key);}
+      map[key].push({r:r,idx:i});
+    });
+    order.sort(function(a,b){ return String(a).localeCompare(String(b)); });
+    return order.map(function(k){ return {date:k,items:map[k]}; });
+  }
+
+  function cardHtml(r,gidx){
+    var room=(r.room||'').trim();
+    var fs=flightStr(r);
+    var natC=window.natLabel?natLabel(r.nation||''):(String(r.nation||'').toUpperCase());
+    return '<div class="mv-pk-card" data-idx="'+gidx+'">'
+      +'<div class="mv-pk-ctop">'
+        +'<span class="mv-pk-name">'+esc(r.name||'-')+'</span>'
+        +(r.isNew?'<span class="mv-pk-new">NEW</span>':'')
+        +(window.pillCond?pillCond(r.status||''):'')
+      +'</div>'
+      +'<div class="mv-pk-chips">'
+        +'<span class="mv-pk-nat">'+esc(natC||'-')+'</span>'
+        +(window.chipCampus?chipCampus(r.campus||''):'')
+      +'</div>'
+      +'<div class="mv-pk-meta">'
+        +'<span class="mv-pk-kv"><span class="mv-pk-k">객실</span>'
+          +(room?'<span class="mv-pk-room">'+esc(room)+'</span>':'<span class="mv-pk-room mv-none">미배정</span>')
+        +'</span>'
+      +'</div>'
+      +'<div class="mv-pk-frow">'
+        +(fs?'<span class="mv-pk-flight">✈ '+esc(fs)+'</span>':'<span class="mv-pk-flight mv-none">✈ 항공정보 없음</span>')
+      +'</div>'
+    +'</div>';
+  }
+
+  function listHtml(){
+    var all=getRows();
+    var filtered=applyFilter(all);
+    if(!filtered.length){
+      return '<div class="mv-pk-empty"><b>해당 조건의 픽업 없음</b>다른 필터를 선택해 보세요.</div>';
+    }
+    // build a global index map so sheet can look up original row
+    var groups=groupByDay(filtered);
+    var html='';
+    groups.forEach(function(g){
+      html+='<div class="mv-pk-day"><span>'+esc(g.date)+' ('+esc(dow(g.date)||'-')+')</span><span class="mv-pk-dn">'+g.items.length+'명</span></div>';
+      g.items.forEach(function(it){
+        html+=cardHtml(it.r,it.idx);
+      });
+    });
+    return html;
+  }
+
+  function chipsHtml(){
+    var all=getRows();
+    var newCnt=all.filter(function(r){return !!r.isNew;}).length;
+    function chip(id,label,cnt){
+      return '<button class="mv-pk-chip'+(state.filter===id?' is-on':'')+'" data-filter="'+id+'">'+label+(cnt!=null?'<span class="mv-pk-cn">'+cnt+'</span>':'')+'</button>';
+    }
+    var row='<div class="mv-pk-filters">'
+      +chip('all','전체',all.length)
+      +chip('new','NEW만',newCnt)
+      +chip('campus','캠퍼스별',null)
+    +'</div>';
+    var camp='<div class="mv-pk-campchips">';
+    if(state.filter==='campus'){
+      campusesOf(all).forEach(function(c){
+        camp+='<button class="mv-pk-camp'+(state.campus===c?' is-on':'')+'" data-campus="'+esc(c)+'">'+esc(c)+'</button>';
+      });
+    }
+    camp+='</div>';
+    return row+camp;
+  }
+
+  window.M_pickup=function(ctx){
+    if(!(window.REAL&&REAL.pickup)){
+      return '<div class="mv-sec"><div class="mv-pk-empty"><b>데이터 없음</b>픽업 데이터를 불러올 수 없습니다.</div></div>';
+    }
+    var w=REAL.pickup.window||{};
+    var from=w.from||'', to=w.to||'';
+    var fd=w.fromDow||dow(from), td=w.toDow||dow(to);
+    var total=getRows().length;
+    return '<div class="mv-sec">'
+      +'<div class="mv-pk-head">'
+        +'<div class="mv-pk-title">주간 픽업 <span class="mv-pk-count">'+total+'명</span></div>'
+        +'<div class="mv-pk-range"><b>'+esc(from)+'</b> ('+esc(dow(from)||'')+', '+esc(fd)+') ~ <b>'+esc(to)+'</b> ('+esc(dow(to)||'')+', '+esc(td)+')</div>'
+      +'</div>'
+      +'<div class="mv-pk-chipwrap">'+chipsHtml()+'</div>'
+      +'<div class="mv-pk-list">'+listHtml()+'</div>'
+    +'</div>';
+  };
+
+  window.M_pickup.init=function(root){
+    var chipWrap=root.querySelector('.mv-pk-chipwrap');
+    var listEl=root.querySelector('.mv-pk-list');
+
+    function rerenderChips(){ if(chipWrap) chipWrap.innerHTML=chipsHtml(); }
+    function rerenderList(){ if(listEl) listEl.innerHTML=listHtml(); }
+
+    root.addEventListener('click',function(e){
+      var fb=e.target.closest('[data-filter]');
+      if(fb){
+        var f=fb.getAttribute('data-filter');
+        state.filter=f;
+        if(f!=='campus') state.campus=null;
+        rerenderChips(); rerenderList();
+        return;
+      }
+      var cb=e.target.closest('[data-campus]');
+      if(cb){
+        var c=cb.getAttribute('data-campus');
+        state.campus=(state.campus===c)?null:c;
+        rerenderChips(); rerenderList();
+        return;
+      }
+      var card=e.target.closest('[data-idx]');
+      if(card){
+        var idx=+card.getAttribute('data-idx');
+        openDetail(idx);
+        return;
+      }
+    });
+
+    function openDetail(idx){
+      var r=getRows()[idx]; if(!r) return;
+      var fs=flightStr(r);
+      var raw=(r.flight||'').trim();
+      var natC=window.natLabel?natLabel(r.nation||''):String(r.nation||'').toUpperCase();
+      var room=(r.room||'').trim();
+      function drow(k,v,cls){ return '<div class="mv-pk-drow"><span class="mv-pk-dk">'+k+'</span><span class="mv-pk-dv'+(cls?' '+cls:'')+'">'+v+'</span></div>'; }
+      var body='<div class="mv-pk-sheet">'
+        +'<div class="mv-pk-shhead">'
+          +'<span class="mv-pk-shname">'+esc(r.name||'-')+'</span>'
+          +(r.isNew?'<span class="mv-pk-new">NEW</span>':'')
+          +(window.pillCond?pillCond(r.status||''):'')
+        +'</div>'
+        +drow('도착일',esc((r.arrive||'-'))+' ('+esc(dow(r.arrive)||'-')+')')
+        +drow('국적',esc(natC||'-'))
+        +drow('캠퍼스',(r.campus?esc(r.campus):'<span class="mv-none">미지정</span>'))
+        +drow('객실',(room?esc(room):'<span class="mv-none">미배정</span>'),'')
+        +drow('에이전시',(r.agency?esc(r.agency):'<span class="mv-none">-</span>'))
+        +drow('상태',esc(r.status||'-'))
+        +drow('항공편',(fs?esc(fs):'<span class="mv-none">항공정보 없음</span>'),fs?'mv-fl':'mv-none')
+        +(raw?drow('항공 원본',esc(raw),'mv-fl'):'')
+        +'<button class="mv-pk-btn" data-act="flight-query">✈ 항공 조회</button>'
+      +'</div>';
+      var sheet=openSheet('픽업 상세',body);
+      var btn=sheet&&sheet.querySelector?sheet.querySelector('[data-act="flight-query"]'):null;
+      if(btn){
+        btn.addEventListener('click',function(){
+          toast('항공 조회', esc(r.name||'')+' — 실시간 항공정보는 서버에서 조회됩니다.', true);
+        });
+      }
+    }
+  };
+})();
+
+/* ===== M_cash ===== */
+(function(){
+  var st = { tab:'deposit', pageA:25, pageB:25 };
+  var PAGE = 25;
+
+  function R(){ return (typeof REAL!=='undefined' && REAL) ? REAL : null; }
+  function getDeposits(){ var r=R(); return (r && Array.isArray(r.deposits)) ? r.deposits : []; }
+  function getCash(){ var r=R(); return (r && r.tables && r.tables['student_cash_payment.php']) ? r.tables['student_cash_payment.php'] : null; }
+
+  function money(v){
+    if(v===''||v==null) return '—';
+    var s=String(v).trim();
+    if(s==='') return '—';
+    var n=Number(s.replace(/[^0-9.\-]/g,''));
+    if(isNaN(n)) return esc(s);
+    return n.toLocaleString('en-US');
+  }
+  function dash(v){ if(v===''||v==null||String(v).trim()==='') return '—'; return esc(String(v)); }
+  function findCol(cols, keys, fallback){
+    if(!cols) return fallback;
+    for(var i=0;i<cols.length;i++){
+      var c=String(cols[i]||'').toLowerCase().replace(/[\s_-]/g,'');
+      for(var k=0;k<keys.length;k++){ if(c.indexOf(keys[k])>=0) return i; }
+    }
+    return fallback;
+  }
+  function empty(msg){ return '<div class="mv-cash-empty">'+esc(msg)+'</div>'; }
+
+  function buildDeposit(){
+    var arr=getDeposits();
+    if(!arr.length) return { chips:'', html:empty('입금 데이터 없음 (No deposit data)') };
+    var shown=Math.min(st.pageA, arr.length);
+    var chips='<span class="mv-cash-chip">건수 <b style="font-variant-numeric:tabular-nums">'+arr.length+'</b></span>';
+    var out='';
+    for(var i=0;i<shown;i++){
+      var d=arr[i]||{};
+      var nat = d.nat ? natLabel(d.nat) : '';
+      var period = (d.begin||d.end) ? (dash(d.begin)+' ~ '+dash(d.end)) : '—';
+      var amt = money(d.amount);
+      var unit = (d.unit&&String(d.unit).trim()!=='') ? ' <span class="mv-cash-unit">'+esc(String(d.unit))+'</span>' : '';
+      var status = (d.status&&String(d.status).trim()!=='') ? pillCond(d.status) : '<span class="mv-cash-na">—</span>';
+      out+='<div class="mv-cash-card" data-card="a" data-idx="'+i+'" role="button" tabindex="0">'
+        +'<div class="mv-cash-top">'
+          +'<span class="mv-cash-no" style="font-variant-numeric:tabular-nums">#'+dash(d.no)+'</span>'
+          +'<span class="mv-cash-name">'+dash(d.name)+'</span>'
+          +(nat?'<span class="mv-cash-nat">'+esc(nat)+'</span>':'')
+        +'</div>'
+        +'<div class="mv-cash-meta"><span class="mv-cash-k">기간</span><span class="mv-cash-v" style="font-variant-numeric:tabular-nums">'+period+'</span></div>'
+        +'<div class="mv-cash-row2">'
+          +'<div class="mv-cash-stat">'+status+'</div>'
+          +'<div class="mv-cash-amt" style="font-variant-numeric:tabular-nums">'+amt+unit+'</div>'
+        +'</div>'
+      +'</div>';
+    }
+    var more = (shown<arr.length) ? '<button class="mv-cash-more" data-more="a">더 보기 ('+(arr.length-shown)+')</button>' : '';
+    return { chips:chips, html:out+more };
+  }
+
+  function buildCash(){
+    var ct=getCash();
+    if(!ct || !ct.rows || !ct.rows.length) return { chips:'', html:empty('현금 관리 데이터 없음 (No cash records)') };
+    var cols=ct.cols||[];
+    var rows=ct.rows;
+    var iNo=findCol(cols,['#','no'],0);
+    var iName=findCol(cols,['name'],1);
+    var iCountry=findCol(cols,['country','nat'],2);
+    var iBal=findCol(cols,['balance'],3);
+    var iIn=findCol(cols,['cashin','in'],4);
+    var iOut=findCol(cols,['cashout','out'],5);
+    var iCreated=findCol(cols,['created','date'],6);
+    var iAct=findCol(cols,['action','type'],7);
+
+    var sumIn=0,sumOut=0;
+    for(var r=0;r<rows.length;r++){
+      var vi=Number(String(rows[r][iIn]||'').replace(/[^0-9.\-]/g,'')); if(!isNaN(vi)) sumIn+=vi;
+      var vo=Number(String(rows[r][iOut]||'').replace(/[^0-9.\-]/g,'')); if(!isNaN(vo)) sumOut+=vo;
+    }
+    var chips='<span class="mv-cash-chip">건수 <b style="font-variant-numeric:tabular-nums">'+rows.length+'</b></span>'
+      +'<span class="mv-cash-chip mv-in">IN <b style="font-variant-numeric:tabular-nums">'+sumIn.toLocaleString('en-US')+'</b></span>'
+      +'<span class="mv-cash-chip mv-out">OUT <b style="font-variant-numeric:tabular-nums">'+sumOut.toLocaleString('en-US')+'</b></span>';
+
+    var shown=Math.min(st.pageB, rows.length);
+    var out='';
+    for(var i=0;i<shown;i++){
+      var row=rows[i]||[];
+      var isOut=false;
+      for(var c=0;c<row.length;c++){ if(String(row[c]||'').toUpperCase().indexOf('OUT')>=0){ isOut=true; break; } }
+      var actTxt = (row[iAct]!=null&&String(row[iAct]).trim()!=='') ? String(row[iAct]) : '';
+      out+='<div class="mv-cash-card'+(isOut?' mv-is-out':'')+'" data-card="b" data-idx="'+i+'" role="button" tabindex="0">'
+        +'<div class="mv-cash-top">'
+          +'<span class="mv-cash-no" style="font-variant-numeric:tabular-nums">#'+dash(row[iNo])+'</span>'
+          +'<span class="mv-cash-name">'+dash(row[iName])+'</span>'
+          +(row[iCountry]!=null&&String(row[iCountry]).trim()!==''?'<span class="mv-cash-nat">'+dash(row[iCountry])+'</span>':'')
+          +(isOut?'<span class="mv-cash-outtag">OUT</span>':'')
+        +'</div>'
+        +'<div class="mv-cash-money">'
+          +'<div class="mv-cash-mcell"><span class="mv-cash-ml">Balance</span><span class="mv-cash-mv mv-bal" style="font-variant-numeric:tabular-nums">'+money(row[iBal])+'</span></div>'
+          +'<div class="mv-cash-mcell"><span class="mv-cash-ml">Cash-in</span><span class="mv-cash-mv mv-cin" style="font-variant-numeric:tabular-nums">'+money(row[iIn])+'</span></div>'
+          +'<div class="mv-cash-mcell"><span class="mv-cash-ml">Cash-out</span><span class="mv-cash-mv mv-cout" style="font-variant-numeric:tabular-nums">'+money(row[iOut])+'</span></div>'
+        +'</div>'
+        +'<div class="mv-cash-foot">'
+          +'<span class="mv-cash-created" style="font-variant-numeric:tabular-nums">'+dash(row[iCreated])+'</span>'
+          +(actTxt?'<span class="mv-cash-act">'+esc(actTxt)+'</span>':'')
+        +'</div>'
+      +'</div>';
+    }
+    var more = (shown<rows.length) ? '<button class="mv-cash-more" data-more="b">더 보기 ('+(rows.length-shown)+')</button>' : '';
+    return { chips:chips, html:out+more };
+  }
+
+  function buildBody(){
+    var res = (st.tab==='deposit') ? buildDeposit() : buildCash();
+    return '<div class="mv-cash-summary">'+res.chips+'</div>'
+      +'<div class="mv-cash-list">'+res.html+'</div>';
+  }
+
+  function seg(){
+    return '<div class="mv-cash-seg" role="tablist">'
+      +'<button class="mv-cash-tab'+(st.tab==='deposit'?' on':'')+'" data-tab="deposit" role="tab">DEPOSIT<span>입금</span></button>'
+      +'<button class="mv-cash-tab'+(st.tab==='cash'?' on':'')+'" data-tab="cash" role="tab">Manage Cash<span>현금관리</span></button>'
+    +'</div>';
+  }
+
+  function openDeposit(i){
+    var d=getDeposits()[i]; if(!d) return;
+    var rows=[
+      ['No', dash(d.no)],
+      ['Name', dash(d.name)],
+      ['Nationality', d.nat?esc(natLabel(d.nat)):'—'],
+      ['Begin', dash(d.begin)],
+      ['End', dash(d.end)],
+      ['Status', (d.status&&String(d.status).trim()!=='')?esc(String(d.status)):'—'],
+      ['Amount', money(d.amount)],
+      ['Unit', dash(d.unit)]
+    ];
+    openSheet('입금 상세 (Deposit) #'+dash(d.no), dl(rows));
+  }
+  function openCash(i){
+    var ct=getCash(); if(!ct) return;
+    var row=ct.rows[i]; if(!row) return;
+    var cols=ct.cols||[];
+    var rows=[];
+    for(var c=0;c<row.length;c++){
+      rows.push([ dash(cols[c]!=null?cols[c]:('col'+c)), (row[c]!=null&&String(row[c]).trim()!=='')?esc(String(row[c])):'—' ]);
+    }
+    openSheet('현금 상세 (Cash) #'+dash(row[0]), dl(rows));
+  }
+  function dl(rows){
+    var h='<div class="mv-cash-dl">';
+    for(var i=0;i<rows.length;i++){
+      h+='<div class="mv-cash-drow"><span class="mv-cash-dk">'+rows[i][0]+'</span><span class="mv-cash-dv" style="font-variant-numeric:tabular-nums">'+rows[i][1]+'</span></div>';
+    }
+    return h+'</div>';
+  }
+
+  window.M_cash = function(ctx){
+    if(!R()){
+      return '<div class="mv-sec mv-cash">'+seg()+'<div class="mv-cash-body">'+empty('데이터 로딩 대기 (No data)')+'</div></div>';
+    }
+    return '<div class="mv-sec mv-cash">'+seg()+'<div class="mv-cash-body">'+buildBody()+'</div></div>';
+  };
+
+  window.M_cash.init = function(root){
+    var body = root.querySelector('.mv-cash-body');
+    function refresh(){ if(body) body.innerHTML = buildBody(); }
+    function setTab(t){ if(st.tab===t) return; st.tab=t;
+      var tabs=root.querySelectorAll('.mv-cash-tab');
+      for(var i=0;i<tabs.length;i++){ tabs[i].classList.toggle('on', tabs[i].getAttribute('data-tab')===t); }
+      refresh();
+    }
+    root.addEventListener('click', function(e){
+      var tb=e.target.closest('[data-tab]');
+      if(tb){ setTab(tb.getAttribute('data-tab')); return; }
+      var mo=e.target.closest('[data-more]');
+      if(mo){ if(mo.getAttribute('data-more')==='a') st.pageA+=PAGE; else st.pageB+=PAGE; refresh(); return; }
+      var cd=e.target.closest('[data-card]');
+      if(cd){ var idx=parseInt(cd.getAttribute('data-idx'),10);
+        if(cd.getAttribute('data-card')==='a') openDeposit(idx); else openCash(idx); return; }
+    });
+    root.addEventListener('keydown', function(e){
+      if(e.key!=='Enter'&&e.key!==' ') return;
+      var cd=e.target.closest('[data-card]'); if(!cd) return;
+      e.preventDefault();
+      var idx=parseInt(cd.getAttribute('data-idx'),10);
+      if(cd.getAttribute('data-card')==='a') openDeposit(idx); else openCash(idx);
+    });
+  };
+})();
+
+/* ===== M_table ===== */
+window.M_table = (function(){
+  var PAGE = 25;
+  // module-scoped render state (one section visible at a time in the shell)
+  var S = { url:'', title:'', cols:[], rows:[], filtered:[], q:'', shown:PAGE, rootEl:null };
+
+  function isNum(v){ return typeof v==='string' && /^-?[\d,]+(\.\d+)?$/.test(v.trim()) && /\d/.test(v); }
+  function isDate(v){ return typeof v==='string' && /^\d{4}[-.\/]\d{1,2}[-.\/]\d{1,2}/.test(v.trim()); }
+  function cellClass(v){ if(v==null||v==='') return ''; if(isDate(v)) return 'mv-date'; if(isNum(v)) return 'mv-num'; return ''; }
+  function s(v){ return v==null ? '' : String(v); }
+
+  function applyFilter(){
+    var q = S.q.trim().toLowerCase();
+    if(!q){ S.filtered = S.rows; return; }
+    S.filtered = S.rows.filter(function(r){
+      for(var i=0;i<r.length;i++){ if(s(r[i]).toLowerCase().indexOf(q)!==-1) return true; }
+      return false;
+    });
+  }
+
+  function cardHtml(row, absIdx){
+    var c0 = s(row[0]), c1 = S.cols.length>1 ? s(row[1]) : '';
+    var titleHtml = '<span>'+esc(c0||'—')+'</span>';
+    // use 2nd column in title only if short-ish, else it becomes a chip
+    var startChip = 1;
+    if(c1 && c1.length<=22){ titleHtml += '<span class="mv-tbl-c2">'+esc(c1)+'</span>'; startChip = 2; }
+    var chips = '';
+    for(var i=startChip;i<S.cols.length;i++){
+      var v = s(row[i]); if(v==='') continue;
+      var cc = cellClass(v);
+      chips += '<span class="mv-tbl-chip '+cc+'"><span class="mv-k">'+esc(s(S.cols[i]))+'</span>'+
+               '<span class="mv-v">'+esc(v)+'</span></span>';
+    }
+    return '<div class="mv-tbl-card" data-idx="'+absIdx+'">'+
+             '<div class="mv-tbl-ct"><span class="mv-tbl-idx">#'+(absIdx+1)+'</span>'+
+             '<span class="mv-tbl-cname">'+titleHtml+'</span></div>'+
+             (chips?'<div class="mv-tbl-kv">'+chips+'</div>':'')+
+           '</div>';
+  }
+
+  function listHtml(){
+    if(!S.filtered.length){
+      return '<div class="mv-tbl-empty"><div class="mv-e-ic">🔍</div>'+
+             '<div class="mv-e-t">일치하는 데이터 없음</div>'+
+             '<div class="mv-e-s">No matching rows'+(S.q?' for “'+esc(S.q)+'”':'')+'</div></div>';
+    }
+    var n = Math.min(S.shown, S.filtered.length), html='';
+    for(var i=0;i<n;i++){ html += cardHtml(S.filtered[i], S.filtered[i].__i); }
+    if(S.filtered.length > n){
+      var rem = S.filtered.length - n, nx = Math.min(PAGE, rem);
+      html += '<button class="mv-tbl-more" data-more="1">더 보기 <span>+'+nx+' / 남은 '+rem+'</span></button>';
+    }
+    return html;
+  }
+
+  function emptyState(msg, sub){
+    return '<div class="mv-tbl-empty"><div class="mv-e-ic">🗂️</div>'+
+           '<div class="mv-e-t">'+esc(msg)+'</div>'+
+           '<div class="mv-e-s">'+esc(sub||'')+'</div></div>';
+  }
+
+  function render(ctx){
+    ctx = ctx||{};
+    S.url = ctx.url||''; S.title = ctx.title || S.url || '테이블';
+    S.q=''; S.shown=PAGE; S.rootEl=null;
+
+    var tbl = (typeof REAL!=='undefined' && REAL && REAL.tables) ? REAL.tables[S.url] : null;
+    if(!tbl || !tbl.cols || !tbl.rows){
+      return '<div class="mv-tbl"><div class="mv-tbl-head"><div class="mv-tbl-title">'+esc(S.title)+'</div>'+
+             '<div class="mv-tbl-sub">'+esc(S.url||'')+'</div></div>'+
+             emptyState('데이터 없음', 'No data available for this table')+'</div>';
+    }
+    S.cols = tbl.cols.slice();
+    // tag each row with its original absolute index (stable for sheet lookup)
+    S.rows = tbl.rows.map(function(r,i){ var a=Array.isArray(r)?r.slice():[r]; a.__i=i; return a; });
+    applyFilter();
+
+    return '<div class="mv-tbl">'+
+      '<div class="mv-tbl-head">'+
+        '<div class="mv-tbl-title">'+esc(S.title)+'</div>'+
+        '<div class="mv-tbl-sub"><b class="mv-tbl-count">'+S.rows.length.toLocaleString()+'</b> rows · '+
+          S.cols.length+' cols · <span style="opacity:.75">'+esc(S.url)+'</span></div>'+
+      '</div>'+
+      '<div class="mv-tbl-search"><input type="search" data-q inputmode="search" '+
+        'placeholder="검색 (모든 컬럼 · search all columns)" autocomplete="off" autocapitalize="off" spellcheck="false">'+
+        '<button class="mv-tbl-x" data-clear type="button" aria-label="clear">✕</button></div>'+
+      '<div class="mv-tbl-list" data-list>'+listHtml()+'</div>'+
+    '</div>';
+  }
+
+  render.init = function(root){
+    if(!root) return; S.rootEl = root;
+    var list = root.querySelector('[data-list]');
+    var input = root.querySelector('[data-q]');
+    var searchWrap = root.querySelector('.mv-tbl-search');
+    var countEl = root.querySelector('.mv-tbl-count');
+    var t=null;
+
+    function rerenderList(){ if(list) list.innerHTML = listHtml(); }
+
+    if(input){
+      input.addEventListener('input', function(){
+        if(searchWrap) searchWrap.classList.toggle('mv-has', !!input.value);
+        clearTimeout(t);
+        t = setTimeout(function(){
+          S.q = input.value; S.shown = PAGE; applyFilter();
+          if(countEl) countEl.textContent = S.filtered.length.toLocaleString();
+          rerenderList();
+        }, 120);
+      });
+    }
+
+    root.addEventListener('click', function(e){
+      var clr = e.target.closest('[data-clear]');
+      if(clr){ if(input){ input.value=''; } if(searchWrap) searchWrap.classList.remove('mv-has');
+        S.q=''; S.shown=PAGE; applyFilter(); if(countEl) countEl.textContent=S.filtered.length.toLocaleString();
+        rerenderList(); if(input) input.focus(); return; }
+
+      var more = e.target.closest('[data-more]');
+      if(more){ S.shown += PAGE; rerenderList(); return; }
+
+      var card = e.target.closest('[data-idx]');
+      if(card){ openRow(parseInt(card.getAttribute('data-idx'),10)); return; }
+    });
+  };
+
+  function openRow(absIdx){
+    var row = null;
+    for(var i=0;i<S.rows.length;i++){ if(S.rows[i].__i===absIdx){ row=S.rows[i]; break; } }
+    if(!row) return;
+    var title = esc(s(row[0])||('#'+(absIdx+1)));
+    var body = '<div class="mv-tbl-sheet">';
+    for(var c=0;c<S.cols.length;c++){
+      var v = s(row[c]), cc = v==='' ? 'mv-emp' : cellClass(v);
+      body += '<div class="mv-tbl-srow"><div class="mv-sk">'+esc(s(S.cols[c]))+'</div>'+
+              '<div class="mv-sv '+cc+'">'+(v===''?'—':esc(v))+'</div></div>';
+    }
+    body += '</div>';
+    if(typeof openSheet==='function') openSheet(title, body);
+  }
+
+  return render;
+})();
+
+/* ===== M_changelog ===== */
+(function(){
+  // ---- module-scoped state (closure) ----
+  var mgrFilter = 'all';
+  var q = '';
+  var limit = 25;
+  var STEP = 25;
+  var rootEl = null;
+
+  function esc2(s){ return (typeof esc==='function') ? esc(s==null?'':s) : String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  function parseApply(s){
+    var m = /(\d{4}-\d{2}-\d{2})\s*\(?\s*(\d{1,2}:\d{2}(?::\d{2})?)?/.exec(s||'');
+    if(!m) return {date:(s||''), time:'', sortKey:0};
+    var date = m[1], time = m[2]||'';
+    var sk = Date.parse(date + (time?('T'+ (time.length===5?time+':00':time)):'T00:00:00')) || 0;
+    return {date:date, time:time, sortKey:sk};
+  }
+
+  function truncName(n){
+    n = n==null ? '' : String(n);
+    if(n.length <= 20) return n;
+    return n.slice(0,19) + '…';
+  }
+
+  function distinctMgrs(){
+    var out = [], seen = {};
+    var arr = (REAL&&REAL.changelog)?REAL.changelog:[];
+    for(var i=0;i<arr.length;i++){
+      var m = arr[i].mgr||'';
+      if(m && !seen[m]){ seen[m]=1; out.push(m); }
+    }
+    out.sort();
+    return out;
+  }
+
+  function filtered(){
+    var arr = (REAL&&REAL.changelog)?REAL.changelog:[];
+    var qq = q.trim().toLowerCase();
+    var list = [];
+    for(var i=0;i<arr.length;i++){
+      var e = arr[i];
+      if(mgrFilter!=='all' && (e.mgr||'')!==mgrFilter) continue;
+      if(qq){
+        var hay = ((e.name||'')+' '+(e.oldr||'')+' '+(e.newr||'')+' '+(e.oldc||'')+' '+(e.newc||'')).toLowerCase();
+        if(hay.indexOf(qq)<0) continue;
+      }
+      var pa = parseApply(e.apply);
+      list.push({e:e, i:i, pa:pa});
+    }
+    list.sort(function(a,b){ return b.pa.sortKey - a.pa.sortKey; });
+    return list;
+  }
+
+  function roomPill(txt, cls){
+    var t = (txt==null?'':String(txt)).trim();
+    if(!t) return '<span class="mv-cl-room mv-cl-empty '+cls+'">—</span>';
+    return '<span class="mv-cl-room '+cls+'">'+esc2(t)+'</span>';
+  }
+
+  function itemHtml(row){
+    var e = row.e, pa = row.pa;
+    return ''
+      + '<div class="mv-cl-item" data-idx="'+row.i+'" role="button" tabindex="0">'
+      +   '<div class="mv-cl-rail"><span class="mv-cl-dot"></span></div>'
+      +   '<div class="mv-cl-card">'
+      +     '<div class="mv-cl-top">'
+      +       '<span class="mv-cl-name">'+esc2(truncName(e.name))+'</span>'
+      +       '<span class="mv-cl-time" style="font-variant-numeric:tabular-nums">'+esc2(pa.date)+(pa.time?(' <b>'+esc2(pa.time)+'</b>'):'')+'</span>'
+      +     '</div>'
+      +     (e.period?('<div class="mv-cl-period" style="font-variant-numeric:tabular-nums">'+esc2(e.period)+'</div>'):'')
+      +     '<div class="mv-cl-move">'
+      +       roomPill(e.oldr,'mv-old')
+      +       '<span class="mv-cl-arrow">→</span>'
+      +       roomPill(e.newr,'mv-new')
+      +     '</div>'
+      +     '<div class="mv-cl-foot"><span class="mv-cl-mgr">👤 '+esc2(e.mgr||'—')+'</span></div>'
+      +   '</div>'
+      + '</div>';
+  }
+
+  function listInner(){
+    if(!(REAL&&REAL.changelog&&REAL.changelog.length)){
+      return '<div class="mv-empty">방변경 이력 데이터가 없습니다.<br><span>No back-up log records.</span></div>';
+    }
+    var rows = filtered();
+    if(!rows.length){
+      return '<div class="mv-empty">검색 결과 없음<br><span>No matching entries.</span></div>';
+    }
+    var shown = rows.slice(0, limit);
+    var html = '<div class="mv-cl-list">';
+    for(var i=0;i<shown.length;i++) html += itemHtml(shown[i]);
+    html += '</div>';
+    if(rows.length > limit){
+      html += '<button class="mv-more" data-more="1">더 보기 <span>('+ (rows.length-limit) +')</span></button>';
+    }
+    return html;
+  }
+
+  function chipsInner(){
+    var mgrs = distinctMgrs();
+    var total = (REAL&&REAL.changelog)?REAL.changelog.length:0;
+    var html = '';
+    html += '<button class="mv-chip'+(mgrFilter==='all'?' mv-chip-on':'')+'" data-mgr="all">전체 <b>'+total+'</b></button>';
+    for(var i=0;i<mgrs.length;i++){
+      html += '<button class="mv-chip'+(mgrFilter===mgrs[i]?' mv-chip-on':'')+'" data-mgr="'+esc2(mgrs[i])+'">'+esc2(mgrs[i])+'</button>';
+    }
+    return html;
+  }
+
+  function repaintList(){
+    if(!rootEl) return;
+    var box = rootEl.querySelector('[data-listbox]');
+    if(box) box.innerHTML = listInner();
+  }
+  function repaintChips(){
+    if(!rootEl) return;
+    var c = rootEl.querySelector('[data-chips]');
+    if(c) c.innerHTML = chipsInner();
+  }
+
+  function openDetail(idx){
+    var e = (REAL&&REAL.changelog)?REAL.changelog[idx]:null;
+    if(!e) return;
+    var pa = parseApply(e.apply);
+    function row(k,v){ return '<div class="mv-dt-row"><div class="mv-dt-k">'+esc2(k)+'</div><div class="mv-dt-v">'+ (v==null||v===''?'—':esc2(v)) +'</div></div>'; }
+    var body = ''
+      + '<div class="mv-dt">'
+      +   '<div class="mv-dt-move">'
+      +     roomPill(e.oldr,'mv-old')
+      +     '<span class="mv-cl-arrow">→</span>'
+      +     roomPill(e.newr,'mv-new')
+      +   '</div>'
+      +   row('학생 Student', e.name)
+      +   row('학생IDX sidx', e.sidx)
+      +   row('기간 Period', e.period)
+      +   row('기존 코스 oldc', e.oldc)
+      +   row('변경 코스 newc', e.newc)
+      +   row('기존 객실 oldr', e.oldr)
+      +   row('변경 객실 newr', e.newr)
+      +   row('신청일 Apply', pa.date + (pa.time?(' '+pa.time):''))
+      +   row('담당자 Manager', e.mgr)
+      + '</div>';
+    if(typeof openSheet==='function') openSheet('방변경 상세 · Back-up Log', body);
+  }
+
+  // ================= M_changelog =================
+  window.M_changelog = function(ctx){
+    var total = (REAL&&REAL.changelog)?REAL.changelog.length:0;
+    return ''
+      + '<div class="mv-sec mv-cl">'
+      +   '<div class="mv-cl-head">'
+      +     '<div class="mv-cl-htitle">백업로그 <span>Back-up Log · 방변경 이력</span></div>'
+      +     '<div class="mv-cl-hcount" style="font-variant-numeric:tabular-nums">'+total+'</div>'
+      +   '</div>'
+      +   '<div class="mv-cl-filters">'
+      +     '<input class="mv-cl-search" type="search" inputmode="search" data-search placeholder="이름 · 객실 검색  name / room" autocomplete="off">'
+      +     '<div class="mv-cl-chips mv-hscroll" data-chips>'+chipsInner()+'</div>'
+      +   '</div>'
+      +   '<div data-listbox>'+listInner()+'</div>'
+      + '</div>';
+  };
+
+  window.M_changelog.init = function(root){
+    rootEl = root;
+    limit = STEP; // reset paging on (re)mount
+
+    root.addEventListener('click', function(ev){
+      var chip = ev.target.closest('[data-mgr]');
+      if(chip){ mgrFilter = chip.getAttribute('data-mgr'); limit = STEP; repaintChips(); repaintList(); return; }
+      var more = ev.target.closest('[data-more]');
+      if(more){ limit += STEP; repaintList(); return; }
+      var item = ev.target.closest('[data-idx]');
+      if(item){ openDetail(+item.getAttribute('data-idx')); return; }
+    });
+
+    root.addEventListener('keydown', function(ev){
+      if(ev.key!=='Enter' && ev.key!==' ') return;
+      var item = ev.target.closest && ev.target.closest('[data-idx]');
+      if(item){ ev.preventDefault(); openDetail(+item.getAttribute('data-idx')); }
+    });
+
+    var si = root.querySelector('[data-search]');
+    if(si){
+      var t = null;
+      si.addEventListener('input', function(){
+        clearTimeout(t);
+        t = setTimeout(function(){ q = si.value||''; limit = STEP; repaintList(); }, 140);
+      });
+    }
+  };
+
+  // ================= M_admission =================
+  window.M_admission = function(ctx){
+    var refCount = null, refLabel = '';
+    try{
+      if(REAL && REAL.studentsFull && REAL.studentsFull.rows){ refCount = REAL.studentsFull.rows.length; refLabel = '등록일 보유 학생 레코드'; }
+      else if(REAL && REAL.meta && REAL.meta.student_info_total){ refCount = REAL.meta.student_info_total; refLabel = '전체 재학생'; }
+    }catch(_){}
+
+    var countHtml = (refCount!=null)
+      ? '<div class="mv-adm-stat"><div class="mv-adm-num" style="font-variant-numeric:tabular-nums">'+Number(refCount).toLocaleString()+'</div><div class="mv-adm-numlbl">'+esc2(refLabel)+'</div></div>'
+      : '<div class="mv-adm-ph">연결된 입학일 데이터셋이 없습니다.<br><span>No admission dataset bound.</span></div>';
+
+    return ''
+      + '<div class="mv-sec mv-adm">'
+      +   '<div class="mv-adm-card">'
+      +     '<div class="mv-adm-title">입학일 관리 <span>Admission Date</span></div>'
+      +     '<div class="mv-adm-badge">읽기 전용 · Read-only reference</div>'
+      +     countHtml
+      +     '<div class="mv-adm-body">'
+      +       '<p>레거시 관리자의 <b>입학일(등록일)</b> 기준으로 학생의 연수 시작·종료 일정과 픽업·객실 배정을 산출합니다.</p>'
+      +       '<p>The admission (registration) date anchors each student’s course window, pickup schedule, and room assignment.</p>'
+      +       '<ul class="mv-adm-list">'
+      +         '<li>기준 필드 Source · <code>등록일</code> (studentsFull col 6)</li>'
+      +         '<li>파생 Derived · 시작일·종료일·기간(주)</li>'
+      +         '<li>변경 Edit · 신전산 등록/수정 화면에서만 처리 (여기선 조회 전용)</li>'
+      +       '</ul>'
+      +       '<div class="mv-adm-note">본 화면은 참고용 설명 카드입니다. 실제 입학일 수정은 원본 시스템을 침해하지 않습니다.<br><span>Reference only — source records are never modified here.</span></div>'
+      +     '</div>'
+      +   '</div>'
+      + '</div>';
+  };
+})();
+
+/* ================= 경량 로그인 게이트(데스크톱 클라이언트 폴백과 동일 정책) ================= */
+(function(){
+  const ACCTS=['admin1','admin2','master','manager'];
+  const SS='smeag_admin_session', LS='smeag_admin_pw', LSLOG='smeag_admin_log';
+  function sess(){try{return JSON.parse(sessionStorage.getItem(SS)||'null');}catch(e){return null;}}
+  function pwStore(){try{return JSON.parse(localStorage.getItem(LS)||'{}');}catch(e){return {};}}
+  window.adminAuthLog=function(action,detail,kind){try{const a=JSON.parse(localStorage.getItem(LSLOG)||'[]');
+    const s=sess();a.push({username:s&&s.username,kind:kind||null,action:action,detail:detail||{},at:new Date().toISOString()});
+    localStorage.setItem(LSLOG,JSON.stringify(a.slice(-5000)));}catch(e){}};
+  const gate=document.getElementById('mvGate'),msg=document.getElementById('mvGateMsg');
+  function showGate(){gate.classList.add('on');}
+  function hideGate(){gate.classList.remove('on');}
+  function boot(){buildTabs();selectTab('home');}
+  if(sess()){hideGate();boot();}else{showGate();}
+  document.getElementById('mvGateForm').addEventListener('submit',function(ev){ev.preventDefault();
+    const u=(document.getElementById('mvGateUser').value||'').trim().toLowerCase();
+    const p=document.getElementById('mvGatePass').value||'';
+    if(ACCTS.indexOf(u)<0){msg.className='mv-gate-msg err';msg.textContent='없는 관리자 아이디입니다.';return;}
+    const pw=pwStore();const expect=pw[u]||u; /* 초기 비번=아이디 */
+    if(p!==expect){msg.className='mv-gate-msg err';msg.textContent='비밀번호가 올바르지 않습니다.';return;}
+    sessionStorage.setItem(SS,JSON.stringify({username:u,since:new Date().toISOString()}));
+    window.adminAuthLog('login',{u:u},'auth');
+    msg.className='mv-gate-msg ok';msg.textContent='로그인 성공';
+    setTimeout(function(){hideGate();boot();},250);
+  });
+})();
+</script>
+</body>
+</html>
