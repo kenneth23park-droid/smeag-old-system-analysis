@@ -876,18 +876,21 @@ R.roomstat=()=>{
     if(d===sg.e)return RRK[sg.et]||'x';
     return 'x';
   }return 'e';});
-  // 이름칸(레거시 room_stat3 규칙): 선택월(중앙월)부터 앞으로 이어지는 "확정 재실(type=S)"만,
-  // 첫 "예약(type=R, 미입실)"에서 중단. 선택월 이전 종료분은 제외. 월 클릭 시 갱신.
+  // 이름칸(레거시 room_stat3 규칙): 선택월(중앙월)의 "현재 점유자"부터 앞으로 전개.
+  //   - 첫 점유자(현재 방 사용자)는 staff/홀딩이어도 표시(준블락_single use 등).
+  //   - 이후 세그먼트는 예약(R)·홀딩(h)에서 중단(실학생 뒤 임시홀딩 Tammy 등 제외).
+  //   - 선택월 이전 종료분 제외, 가시범위 밖 미래 제외. 월 클릭 시 갱신.
   const cFrom=`${roomCenter.y}-${pad(roomCenter.m)}-01`;
-  const cHorizon=dateLabels[dateLabels.length-1]; // 가시범위 끝(과도한 미래 차단)
+  const cHorizon=dateLabels[dateLabels.length-1];
   const bedName=(segs)=>{
-    const ss=(segs||[]).slice().sort((a,b)=>a.s.localeCompare(b.s));
-    const seen=new Set(),ns=[];
+    const ss=(segs||[]).filter(s=>s.nm).slice().sort((a,b)=>a.s.localeCompare(b.s));
+    const seen=new Set(),ns=[];let started=false;
     for(const sg of ss){
-      if(sg.e<cFrom)continue;      // 선택월 이전에 이미 종료 → 제외
+      if(sg.e<cFrom)continue;      // 선택월 이전 종료 → 제외
       if(sg.s>cHorizon)break;      // 가시범위 밖 미래 → 중단
-      if(sg.st==='R'||sg.h)break;  // 미입실 예약(R) 또는 홀딩(h) 만나면 중단(레거시는 확정 재실만 표기)
-      if(sg.nm&&!seen.has(sg.nm)){seen.add(sg.nm);ns.push(sg.nm);}
+      if(started&&(sg.st==='R'||sg.h))break;  // 첫 점유자 이후의 예약/홀딩에서 중단
+      if(!seen.has(sg.nm)){seen.add(sg.nm);ns.push(sg.nm);}
+      started=true;
       if(ns.length>=6)break;
     }
     return ns.join(' / ');};
