@@ -173,6 +173,13 @@
 - **검증**: 519 2026-07 = XU WEI / RINKA·LIN CHUN CHIEN / Sofia Ryzhmanova / Sofia Kiseleva → **레거시 스크린샷과 일치**. Playwright OK, JS오류 0.
 - 원본 MySQL read-only 유지. 배포: smeag-bay.vercel.app.
 
+### 2026-07-16(4) — 배치도 이름칸 규칙 레거시 완전 일치
+- 잔차: room_reserve 교체 후에도 이름칸 명단이 레거시와 미세 불일치(뒤 학생 누락/홀딩 노출).
+- 원인: (1) 내 규칙이 "선택월만" 봐서 뒤 확정재실(TASHIRO/HSU) 누락, (2) 홀딩(Tammy for=now_status checking)이 노출.
+- 규칙 확정(레거시 room_stat3 동일): 선택월부터 앞으로 **확정 재실(rr_type=S)** 만 표기, **예약(R)** 또는 **홀딩(now_status∈checking/holding/holdinguse/waiting)** 만나면 중단.
+- 결과 519 4침대 전부 레거시 일치(XU WEI / RINKA·LIN CHUN CHIEN·TASHIRO KAON / Sofia Ryzhmanova·HSU JIA JIE / Sofia Kiseleva), 520도 일치. build_roomstat_rr.py 에 seg.h(홀딩) 플래그.
+- 잔여(경미): 이름 언어 — 레거시는 한국인 k_name(안미진), 내 추출은 e_name 우선(AN mijin). 배치는 100% 일치, 표기 언어만 상이(선택 시 k_name 우선으로 전환 가능).
+
 ## 남은 작업 / TODO
 - [ ] (이관 반영) Supabase 배치도용 정본을 room_reserve 기반으로 재구성(현 dorm_reservations=reserve_info 파생은 예약원장 용도로 유지, 배치도는 room_reserve 뷰 별도) — 방변경 반영 필요
 - [ ] 핵심 6화면 고해상도 목업 확정 + 나머지 화면 실렌더 확장
