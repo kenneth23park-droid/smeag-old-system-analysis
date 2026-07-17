@@ -638,10 +638,82 @@ const STUPROJ={
  'student_list_pay.php':{h:['유학원','국적','이름','나이','성별','상태','기간','객실'],i:[0,1,2,4,5,11,10,13]},
  'student_list3_en1.php':{h:['CAMPUS','COURSE','START','END','WEEK','NAME','NAT'],i:[14,12,8,9,10,2,1]},
 };
+// ─── 파생 데이터 계층 — 임베드 데이터(studentsFull·deposits·기존테이블)로 미크롤 메뉴를 실제 작동시킴 ───
+function _sfRows(){return (REAL&&REAL.studentsFull&&REAL.studentsFull.rows)||null;}
+function _campNorm(c){c=(''+(c||'')).toUpperCase();
+  if(c.includes('ENCANTO')||c.includes('SPARTA'))return 'ENCANTO';
+  if(c.includes('CLASSIC'))return 'CLASSIC';
+  if(c.includes('CAPITAL'))return 'CAPITAL';return '기타';}
+function _mode(arr){const c={};let best='',bn=0;arr.forEach(x=>{if(!x)return;c[x]=(c[x]||0)+1;if(c[x]>bn){bn=c[x];best=x;}});return best||'—';}
+function _crossNationCampus(SF,statusSet){
+  const NATS=['KOR','CHI','JAP','TWA','VTN','THA','RUS','MGL','OM','ETC'];
+  const M={};NATS.forEach(n=>M[n]={ENCANTO:0,CLASSIC:0,CAPITAL:0,'기타':0});
+  SF.forEach(r=>{if(statusSet&&!statusSet.includes((r[11]||'').toLowerCase()))return;
+    let n=(r[1]||'').toUpperCase();if(NATS.indexOf(n)<0)n='ETC';
+    M[n][_campNorm(r[14])]++;});
+  const cols=['국적','ENCANTO','CLASSIC','CAPITAL','기타','합계'];
+  const rows=NATS.map(n=>{const o=M[n];const s=o.ENCANTO+o.CLASSIC+o.CAPITAL+o['기타'];return [n,o.ENCANTO,o.CLASSIC,o.CAPITAL,o['기타'],s];});
+  const tot=['합계',0,0,0,0,0];rows.forEach(r=>{for(let i=1;i<=5;i++)tot[i]+=r[i];});rows.push(tot);
+  return {cols,rows};}
+function _courseWeekMatrix(SF){
+  const B=[['1-2주',1,2],['3-4주',3,4],['5-8주',5,8],['9-12주',9,12],['13주+',13,999]];
+  const camps=['ENCANTO','CLASSIC','CAPITAL','기타'];
+  const M={};camps.forEach(c=>M[c]=B.map(()=>0));
+  SF.forEach(r=>{const c=_campNorm(r[14]);const w=parseInt(r[10])||0;const bi=B.findIndex(b=>w>=b[1]&&w<=b[2]);if(bi<0)return;M[c][bi]++;});
+  const cols=['CAMPUS'].concat(B.map(b=>b[0])).concat(['합계']);
+  const rows=camps.map(c=>{const a=M[c];return [c].concat(a).concat([a.reduce((x,y)=>x+y,0)]);});
+  const tot=['합계'].concat(B.map(()=>0)).concat([0]);rows.forEach(r=>{for(let i=1;i<cols.length;i++)tot[i]+=r[i];});rows.push(tot);
+  return {cols,rows};}
+function specDerived(url){
+  const SF=_sfRows();
+  switch(url){
+    case 'student_list3_en3.php':{ // Graduate — 수료/종료(상태=graduated 또는 종료일 경과)
+      if(!SF)return null;const today=new Date().toISOString().slice(0,10);
+      const g=SF.filter(r=>{const st=(r[11]||'').toLowerCase();const end=r[9]||'';
+        return st==='graduated'||(/^\d{4}-\d\d-\d\d$/.test(end)&&end<today&&st!=='cancel'&&st!=='paycancel');});
+      return {cols:['CAMPUS','COURSE','START','END','WEEK','NAME','KOR','NAT','상태'],
+        rows:g.map(r=>[r[14],r[12],r[8],r[9],r[10],r[2],r[3],(r[1]||'').toUpperCase(),(r[11]||'').toUpperCase()])};}
+    case 'student_list_change.php':      // 변경환불홀딩
+    case 'student_list_change-back.php':{ // CHG-REF-HOLD(영문변형) — 변경/연장/환불/홀딩/취소/납부취소
+      if(!SF)return null;const set=['exchange','refund','holding','holdinguse','extend','cancel','paycancel','out'];
+      return {cols:['NAME','KOR','NAT','CAMPUS','상태','기간','시작일','종료일','객실'],
+        rows:SF.filter(r=>set.indexOf((r[11]||'').toLowerCase())>=0).map(r=>[r[2],r[3],(r[1]||'').toUpperCase(),r[14],(r[11]||'').toUpperCase(),r[10],r[8],r[9],r[13]])};}
+    case 'student_payment-2.php':{ // Deposit(test)/Pre-paid Info — deposits 기반
+      const dep=REAL&&REAL.deposits;if(!dep||!dep.length)return null;
+      return {cols:['Deposit #','NAT','NAME','BEGIN','END','STATUS','DEPOSIT','UNIT'],
+        rows:dep.map(d=>[d.no,(d.nat||'').toUpperCase(),d.name,d.begin,d.end,d.status||'—',d.amount||'—',d.unit||''])};}
+    case 'student_farm2.php':{ // FARM 리포트 — farm 테이블 재사용
+      const t=REAL&&REAL.tables&&REAL.tables['student_farm.php'];if(!t||!t.rows.length)return null;return {cols:t.cols,rows:t.rows};}
+    case 'room_use_count_list2.php':{ // DAY IN&OUT — 일별 입퇴실 카운트 재사용
+      const t=REAL&&REAL.tables&&REAL.tables['room_use_count_list.php'];if(!t||!t.rows.length)return null;return {cols:t.cols,rows:t.rows};}
+    case 'student_population2.php': // POPULATION2 — 국적×캠퍼스(전체)
+      return SF?_crossNationCampus(SF,null):null;
+    case 'student_present2.php': // STDNT STATUS — 재실(활성) 국적×캠퍼스
+      return SF?_crossNationCampus(SF,['normal','extend','holdinguse','checking','waiting']):null;
+    case 'student_register.php':{ // REGISTER STATS — 등록월별 신규/누적
+      if(!SF)return null;const cnt={};SF.forEach(r=>{const d=((r[6]||r[8])||'').slice(0,7);if(/^\d{4}-\d\d$/.test(d))cnt[d]=(cnt[d]||0)+1;});
+      const keys=Object.keys(cnt).sort();let cum=0;const rows=keys.map(k=>{cum+=cnt[k];return [k,cnt[k],cum];});
+      return {cols:['등록월','신규등록','누적'],rows:rows.reverse()};}
+    case 'student_list3_en2.php': // MC Report 2 — 캠퍼스×주차 매트릭스
+      return SF?_courseWeekMatrix(SF):null;
+    case 'uhak_agency_schedule_list.php':{ // VISIT(calendar) — 방문 일자별 요약
+      const t=REAL&&REAL.tables&&REAL.tables['uhak_agency_visit.php'];if(!t||!t.rows.length)return null;
+      const di=t.cols.findIndex(c=>/date/i.test(c)),ai=t.cols.findIndex(c=>/agency|name/i.test(c));
+      const by={};t.rows.forEach(r=>{const d=(''+(r[di]||'')).slice(0,10);if(!/^\d{4}-\d\d-\d\d$/.test(d))return;(by[d]=by[d]||[]).push(r[ai]||'');});
+      const rows=Object.keys(by).sort().reverse().map(d=>[d,by[d].length,by[d].filter(Boolean).slice(0,6).join(', ')]);
+      return {cols:['VISIT DATE','방문건수','에이전시(샘플)'],rows};}
+    case 'student_group_payment.php':{ // Group Students — studentsFull에 유학원이 비어 국적별 그룹으로 파생
+      if(!SF)return null;const g={};SF.forEach(r=>{const n=(r[1]||'etc').toUpperCase();(g[n]=g[n]||[]).push(r);});
+      const rows=Object.keys(g).map(n=>{const arr=g[n];return [n,arr.length,_mode(arr.map(x=>_campNorm(x[14])))];})
+        .sort((x,y)=>y[1]-x[1]).map((r,i)=>[i+1,r[0],r[1].toLocaleString(),r[2]]);
+      return {cols:['#','국적 그룹','학생수','대표 캠퍼스'],rows};}
+  }
+  return null;}
 const _specCache={};
 function specData(url){if(_specCache[url])return _specCache[url];let d=null;
   if(REAL&&REAL.studentsFull&&STUPROJ[url]){const p=STUPROJ[url],sf=REAL.studentsFull;d={cols:p.h,rows:sf.rows.map(r=>p.i.map(ix=>r[ix]))};}
   else if(REAL&&REAL.tables&&REAL.tables[url]&&REAL.tables[url].rows.length)d=REAL.tables[url];
+  else{const dv=specDerived(url);if(dv&&dv.rows&&dv.rows.length)d=dv;} // 파생 데이터 폴백(임베드 데이터로 계산)
   if(d)_specCache[url]=d;return d;}
 const pgState={};
 function paintPaged(box,cols,rows,name){const st=pgState[name]||(pgState[name]={page:0,per:50});
@@ -1072,6 +1144,7 @@ R.cashmng=()=>{
   </div>`;};
 
 R.spec=(m)=>{
+  if(m.u==='room_stat2.php')return R.roomstat(m); // DORM STATUS = 배치도(영문판) 재사용 → 실 캘린더
   const d=specData(m.u);
   if(d)return `
   <div class="ph"><h1>${m.t}</h1><span class="sub">${m.note||'MySQL 비교검증'}</span><span class="url">${m.u}</span>
@@ -1090,8 +1163,18 @@ R.spec=(m)=>{
     </div>
     ${m.note?`<div class="note">${m.note}</div>`:''}
     ${m.cols?`<div><div class="side-title" style="padding:0 0 8px">데이터 컬럼 (크롤 실측)</div><div class="colgrid">${m.cols.map(c=>`<span class="c">${c}</span>`).join('')}</div></div>`:'<div class="note">통계/매트릭스·캘린더·배치도형 화면 — 표준 테이블 아님.</div>'}
-    <div class="card pad" style="color:var(--dim);font-size:12.5px">이 화면은 <b>전체 메뉴 골격</b> 단계로, 실렌더링은 핵심 6화면(대시보드·STUDENT LIST·DEPOSIT·기숙사현황·BACK-UP LOG·Admission Date)에 우선 적용했습니다.</div>
+    <div class="card pad" style="color:var(--dim);font-size:12.5px">${specReason(m.u)}</div>
   </div>`;};
+// 무데이터 메뉴의 "왜 데이터가 없는가" 정확한 사유 표기(에러 아님)
+function specReason(u){
+  if(/student_present2-\*/.test(u)||/student_present2-/.test(u))
+    return '⚠ 이 4종(Fullsize/Encanto/Classic/Capital)은 레거시에서 모두 홈(/)으로 <b>리다이렉트되는 외부 에이전시 포털</b>입니다 — 관리자 기능이 아니므로 데이터가 없습니다(정상).';
+  if(/bbs\/board\.php/.test(u))
+    return '📋 게시판(gnuboard4 bbs) 화면입니다. 게시글 테이블은 이관 대상에서 제외(미크롤)되어 표시할 데이터가 없습니다. 게시판 연동 시 실제 글목록으로 대체됩니다.';
+  if(/scheduler_index/.test(u))
+    return '🗓 매니저 휴무(DAYOFF) 월/주/일 캘린더입니다. 스케줄러 테이블 미크롤로 데이터가 없습니다. 스케줄 데이터 연동 시 캘린더로 대체됩니다.';
+  return '이 화면은 임베드 데이터로 파생 불가하여 골격만 표시합니다(핵심 화면은 실데이터 렌더 적용).';
+}
 
 // ─── 상태/네비게이션 ───
 let curCat='record', curKey='dash', curMenu=null;

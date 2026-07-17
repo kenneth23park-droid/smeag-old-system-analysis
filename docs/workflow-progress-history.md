@@ -207,3 +207,5 @@
 - **2026-07-16** 모바일 버전 신설: `docs/design-admin/prototype.mobile.html`(단일파일, 동일 REAL/토큰/게이트). 5탭(홈·학생·기숙사·픽업·더보기)+바텀시트. 섹션 렌더러 7종(홈·학생·배치도·픽업·캐시·범용표·백업로그)을 워크플로 7에이전트 병렬 생성 후 CSS 스코프 격리(.mvsc-*)로 조립. window.REAL/DICT 브리지 버그 수정. `/m/` 배포(smeag-bay.vercel.app/m/), 데스크톱↔모바일 상호링크. Playwright 모바일 뷰포트 전수검증 무오류.
 
 - **2026-07-17** 배치도 십자선(룰러) 개선: 휠클릭 없이 **📏 룰러 토글 버튼**(헤더)으로 표시/숨김. 컨트롤러 전역노출(window.__xhRuler), 재렌더 후 버튼 상태 동기화, ON 시 강조. 휠클릭/Esc 토글 병행 유지. 배포·검증 완료.
+
+- **2026-07-17** 메뉴 실작동 보강: R.spec 이 데이터 없으면 명세(골격) 폴백만 뜨던 19개 메뉴 중 14개를 파생 데이터 계층(specDerived)으로 실제 작동시킴 — studentsFull/deposits/기존테이블/roomstat로 계산(Graduate 7,344·변경환불홀딩 2,061·POPULATION2·STDNT STATUS·MC Report2·REGISTER STATS 42·DAY IN&OUT·VISIT캘린더·FARM리포트·Deposit(test)/Pre-paid·Group Students). DORM STATUS는 배치도 재사용. 나머지 5개(게시판3·DAYOFF·외부포털4종)는 데이터 미크롤/외부라 사유 명확화. 무오류.
