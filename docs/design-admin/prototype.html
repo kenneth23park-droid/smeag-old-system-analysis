@@ -1277,6 +1277,16 @@ function agencyStudents(){
   if(s.q){const q=s.q.toLowerCase();f=f.filter(r=>(''+(r[2]||'')).toLowerCase().includes(q)||(''+(r[3]||'')).includes(s.q));}
   return f.slice().sort((a,b)=>dOf(b).localeCompare(dOf(a))); // APPLY DATE ↓
 }
+// 항공/픽업 등록 가능 창: 출발일 7일 전까지 등록 가능, 지나면 마감
+function flightWindow(row){
+  const depStr=((row[7]||'')+'').slice(0,10);
+  const dep=/^\d{4}-\d\d-\d\d$/.test(depStr)?new Date(depStr+'T00:00:00'):null;
+  if(!dep)return {canEdit:false,deadline:null,dep:null,reason:'no-depart'};
+  const deadline=new Date(dep.getTime()-7*86400000); // 출발일 -7일
+  const today=new Date();today.setHours(0,0,0,0);
+  return {canEdit:today.getTime()<=deadline.getTime(),deadline,dep,depStr,reason:null};
+}
+function _ymd(d){if(!d)return '';const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${dd}`;} // 로컬(KST) 기준 — UTC 밀림 방지
 R.agency=(m)=>{
   const s=agencyState;const G='background:#a7c68a;color:#2f3d1c';
   const rowsAll=agencyStudents();const per=30;
@@ -1302,7 +1312,9 @@ R.agency=(m)=>{
     </div>
     <div class="twrap"><table class="grid">
       <thead><tr>${HDR.map(h=>`<th style="${G}">${h}</th>`).join('')}</tr></thead>
-      <tbody>${pg.length?pg.map((r,i)=>`<tr>
+      <tbody>${pg.length?pg.map((r,i)=>{const fw=flightWindow(r);
+        const flBtn=`<button class="btn ag-flight" data-i="${i}" title="${fw.canEdit?'항공/픽업 등록 가능 (마감 '+_ymd(fw.deadline)+')':(fw.reason==='no-depart'?'출발일 미정':'마감: 출발 7일 전 지남')}" style="padding:3px 8px;${fw.canEdit?'background:var(--good);color:#fff;border-color:var(--good)':'opacity:.6'}">✈${r[15]?' ✓':''}</button>`;
+        return `<tr>
         <td class="mono">${s.page*per+i+1}</td>
         <td><b>${esc(r[2]||'')}</b>${(r[3]&&r[3]!==r[2])?`<br><span style="color:var(--dim);font-size:11px">${esc(r[3])}</span>`:''}</td>
         <td class="mono">${esc(r[4]||'')}</td>
@@ -1314,10 +1326,11 @@ R.agency=(m)=>{
         <td class="mono">${esc(r[6]||'—')}</td>
         <td class="mono">${esc(r[7]||'—')}</td>
         <td class="mono">—</td>
-        <td>—</td><td>—</td><td>—</td>
+        <td>—</td><td>—</td>
+        <td>${flBtn}</td>
         <td><span class="pill ${condPill(r[11])}">${esc((''+(r[11]||'')).toUpperCase()||'—')}</span></td>
         <td><button class="btn ag-edit" data-i="${i}">Edit</button></td>
-        <td><button class="btn ag-score" data-i="${i}">Score</button></td></tr>`).join('')
+        <td><button class="btn ag-score" data-i="${i}">Score</button></td></tr>`;}).join('')
         :`<tr><td colspan="17" style="text-align:center;color:var(--dim);padding:22px;font-weight:700">NO DATA</td></tr>`}</tbody></table></div>
     <div class="pager"><button class="btn" id="agFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="agPrev" ${s.page<=0?'disabled':''}>◀</button>
       <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 전체 <b>${rowsAll.length.toLocaleString()}</b>명</span>
@@ -1399,6 +1412,7 @@ function wireAgency(root){
   root.querySelectorAll('.ag-edit').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];if(row)openStudentEdit(row,'edit');
     if(window.adminAuthLog)try{window.adminAuthLog('agency_student_edit',{name:row&&row[2]},'update');}catch(_){}});
   root.querySelectorAll('.ag-score').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];toast('SCORE',(row&&row[2]||'')+' · 성적 입력(데모)',true);});
+  root.querySelectorAll('.ag-flight').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];if(row)openFlightReg(row);});
   const sub=root.querySelector('#agApplySubmit');
   if(sub)sub.onclick=()=>{const en=(root.querySelector('#apEn').value||'').trim();
     if(!en){toast('입력 필요','NAME(영문)을 입력하세요',false);return;}
@@ -1407,6 +1421,48 @@ function wireAgency(root){
   const rs=root.querySelector('#agApplyReset');if(rs)rs.onclick=()=>root.querySelectorAll('.agency-main input,.agency-main select').forEach(x=>{if(x.type!=='button')x.value=(x.tagName==='SELECT'?x.options[0].value:'');});
 }
 function sessionUser(){try{return (JSON.parse(sessionStorage.getItem('smeag_admin_session')||'null')||{}).username;}catch(e){return null;}}
+
+// 항공정보·픽업시간 등록(출발일 7일 전까지) — 마감 지나면 비활성 + 안내메세지
+function openFlightReg(row){
+  const fw=flightWindow(row);const name=row[2]||row[3]||'';
+  const depStr=fw.depStr||'미정';const dlStr=_ymd(fw.deadline)||'—';
+  const cur=(''+(row[15]||''));const dis=fw.canEdit?'':'disabled';
+  // 기존값 파싱(항공편 / 도착 / 픽업)
+  const mArr=cur.match(/(\d{1,2}:\d{2})/);const mPk=cur.match(/PICKUP\s+(\d{1,2}:\d{2})/i);
+  const curCode=cur.replace(/PICKUP\s+\d{1,2}:\d{2}/i,'').replace(/\d{1,2}:\d{2}/,'').trim();
+  const okMsg=`<div style="background:var(--accent-weak);color:var(--accent-ink);border:1px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:700">✅ 등록 가능 — 마감일 <b>${dlStr}</b> (출발일 ${esc(depStr)}의 <b>7일 전</b>)까지 항공/픽업 정보를 등록·수정할 수 있습니다.</div>`;
+  const noDep=`<div style="background:var(--surface-2);color:var(--dim);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:700">출발일이 미정이라 항공/픽업 등록을 진행할 수 없습니다. 출발일 확정 후 등록하세요.</div>`;
+  const closed=`<div style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:800">⚠ 등록은 출발일 기준 일주일 전입니다.<div style="font-weight:500;margin-top:4px">마감일 <b>${dlStr}</b> 이(가) 지나 항공/픽업 정보 <b>등록·수정이 불가</b>합니다. 변경이 필요하면 담당 매니저에게 문의하세요.</div></div>`;
+  const banner=fw.canEdit?okMsg:(fw.reason==='no-depart'?noDep:closed);
+  const ov=el('div','modal-ov');ov.id='flightModal';
+  ov.innerHTML=`<div class="modal" style="max-width:440px">
+    <div class="modal-h"><b>✈ 항공/픽업 등록 · ${esc(name)}</b><button class="modal-x" id="flX">✕</button></div>
+    <div class="modal-body">
+      <table class="rp-info"><tr><th>출발일</th><td class="mono">${esc(depStr)}</td></tr>
+        <tr><th>등록 마감</th><td class="mono">${dlStr} <span style="color:var(--dim)">(출발 7일 전)</span></td></tr></table>
+      <div style="margin:11px 0">${banner}</div>
+      <div class="field"><label>항공편 (항공사/편명)</label><input id="flCode" value="${esc(curCode)}" placeholder="예: PR433" ${dis}></div>
+      <div class="field"><label>도착 시간</label><input id="flArrive" type="time" value="${esc(mArr?mArr[1]:'')}" ${dis}></div>
+      <div class="field"><label>픽업 시간</label><input id="flPickup" type="time" value="${esc(mPk?mPk[1]:'')}" ${dis}></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button class="btn" id="flCancel">닫기</button>
+        <button class="btn primary" id="flSave" ${dis}>저장</button></div>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelector('#flX').onclick=close;ov.querySelector('#flCancel').onclick=close;ov.onclick=(e)=>{if(e.target===ov)close();};
+  const save=ov.querySelector('#flSave');
+  if(save&&fw.canEdit)save.onclick=()=>{
+    const code=(ov.querySelector('#flCode').value||'').trim();
+    const arr=ov.querySelector('#flArrive').value||'';const pk=ov.querySelector('#flPickup').value||'';
+    if(!code){toast('입력 필요','항공편(항공사/편명)을 입력하세요',false);return;}
+    row[15]=`${code}${arr?' '+arr:''}${pk?' PICKUP '+pk:''}`;
+    if(window.adminAuthLog)try{window.adminAuthLog('agency_flight_reg',{name,code,arrive:arr,pickup:pk},'update');}catch(_){}
+    close();renderMain();toast('항공/픽업 등록 완료',`${name} · ${code}${pk?' · 픽업 '+pk:''}`,true);
+  };
+  // 마감 지난 경우 안내메세지 토스트도 발송
+  if(!fw.canEdit&&fw.reason!=='no-depart')toast('등록 마감','등록은 출발일 기준 일주일 전입니다.',false);
+}
 
 function openGroupEdit(id){
   const G=(REAL&&REAL.groups)||(REAL&&(REAL.groups=[]))||[];
