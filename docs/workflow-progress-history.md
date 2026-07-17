@@ -205,3 +205,5 @@
 - **2026-07-16** 배치도 셀 클릭 → 레거시 ROOM REPLACEMENT(reserve_move.php) 직접 표시. 학생 실데이터(studentsFull)·후보방 실그룹 416행·빠른작업 통합. 배포 smeag-bay.vercel.app, 커밋 7869d9d. (re.sub 백슬래시 이스케이프 주입버그 → str.replace 로 수정)
 
 - **2026-07-16** 모바일 버전 신설: `docs/design-admin/prototype.mobile.html`(단일파일, 동일 REAL/토큰/게이트). 5탭(홈·학생·기숙사·픽업·더보기)+바텀시트. 섹션 렌더러 7종(홈·학생·배치도·픽업·캐시·범용표·백업로그)을 워크플로 7에이전트 병렬 생성 후 CSS 스코프 격리(.mvsc-*)로 조립. window.REAL/DICT 브리지 버그 수정. `/m/` 배포(smeag-bay.vercel.app/m/), 데스크톱↔모바일 상호링크. Playwright 모바일 뷰포트 전수검증 무오류.
+
+- **2026-07-17** 배치도 십자선(룰러) 개선: 휠클릭 없이 **📏 룰러 토글 버튼**(헤더)으로 표시/숨김. 컨트롤러 전역노출(window.__xhRuler), 재렌더 후 버튼 상태 동기화, ON 시 강조. 휠클릭/Esc 토글 병행 유지. 배포·검증 완료.

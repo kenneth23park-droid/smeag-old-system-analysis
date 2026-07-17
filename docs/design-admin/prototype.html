@@ -291,6 +291,7 @@
   .xh-hint{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:57;
     background:var(--accent);color:#fff;font-size:12px;font-weight:650;padding:6px 13px;border-radius:20px;
     box-shadow:var(--shadow);pointer-events:none}
+  #rsRuler.on{background:var(--accent);color:#fff;border-color:var(--accent)}
   .gantt td.info{padding:5px 9px;text-align:left;background:var(--surface);white-space:nowrap;text-overflow:ellipsis}
   .gantt td.rno{font-weight:800;text-align:center}
   .gantt .rno .bldg{display:block;font-size:8.5px;font-weight:700;color:var(--dim);letter-spacing:.2px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -966,6 +967,7 @@ R.roomstat=()=>{
   return `
   <div class="ph"><h1>기숙사 현황 (배치도)</h1><span class="sub">room_stat3.php · 방배치 캘린더</span>
     <span class="actions dorm-actions" style="margin-left:auto">
+      <button class="btn" id="rsRuler" title="십자 안내선(룰러) 표시/숨김 · 휠클릭/Esc 로도 토글">📏 룰러</button>
       <button class="btn" data-excel="1">📊 1MONTH EXCEL(TOTAL)</button>
       <button class="btn" data-excel="2">📊 2MONTH EXCEL(TOTAL)</button>
       <button class="btn">⚠ ROOM ERROR CHECK</button>
@@ -1173,6 +1175,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     toast('엑셀 내보내기 완료',`${rows.length.toLocaleString()}행${d.rows.length>cap?` (상위 ${cap.toLocaleString()}/${d.rows.length.toLocaleString()})`:''} · 노란헤더·필터`,true);}));
   m.querySelectorAll('[data-my]').forEach(b=>b.addEventListener('click',()=>{
     roomCenter={y:+b.dataset.my,m:+b.dataset.mm};renderMain();}));
+  if(window.__xhRuler)window.__xhRuler.sync(); // 룰러 버튼 상태 반영(재렌더 후)
   const rc=m.querySelector('#rsCenter');if(rc)rc.addEventListener('change',()=>{roomFilter.center=rc.value;renderMain();});
   const rg=m.querySelector('#rsGender');if(rg)rg.addEventListener('change',()=>{roomFilter.gender=rg.value;renderMain();});
   const rp=m.querySelector('#rsPer');if(rp)rp.addEventListener('change',()=>{roomFilter.per=rp.value;renderMain();});
@@ -1632,14 +1635,20 @@ document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();cl
     tip.style.display='block';
     let lx=e.clientX+16;if(lx+tip.offsetWidth>innerWidth-8)lx=e.clientX-tip.offsetWidth-16;
     tip.style.left=lx+'px';tip.style.top=(e.clientY+18)+'px';}
+  function syncBtn(){const b=document.getElementById('rsRuler');if(!b)return;
+    b.classList.toggle('on',on);b.textContent=on?'📏 룰러 ON':'📏 룰러';}
   function set(s){on=s;
     document.querySelectorAll('.twrap.dorm-scroll').forEach(t=>t.style.cursor=on?'crosshair':'');
     hint.style.display=on?'block':'none';
     if(on)document.addEventListener('mousemove',move);
-    else{document.removeEventListener('mousemove',move);v.style.display=h.style.display=tip.style.display='none';}}
+    else{document.removeEventListener('mousemove',move);v.style.display=h.style.display=tip.style.display='none';}
+    syncBtn();}
   document.addEventListener('mousedown',e=>{if(e.button===1&&e.target.closest&&e.target.closest('.gantt')){e.preventDefault();set(!on);}});
   document.addEventListener('auxclick',e=>{if(e.button===1&&e.target.closest&&e.target.closest('.gantt'))e.preventDefault();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&on)set(false);});
+  // 룰러 토글 버튼(배치도 재렌더 시마다 위임으로 처리) + 렌더 후 버튼 상태 동기화
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#rsRuler');if(b){e.preventDefault();set(!on);}});
+  window.__xhRuler={set,toggle:()=>set(!on),isOn:()=>on,sync:syncBtn};
 })();
 
 applyHash();renderAll();
