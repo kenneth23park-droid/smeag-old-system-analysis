@@ -211,3 +211,5 @@
 - **2026-07-17** 메뉴 실작동 보강: R.spec 이 데이터 없으면 명세(골격) 폴백만 뜨던 19개 메뉴 중 14개를 파생 데이터 계층(specDerived)으로 실제 작동시킴 — studentsFull/deposits/기존테이블/roomstat로 계산(Graduate 7,344·변경환불홀딩 2,061·POPULATION2·STDNT STATUS·MC Report2·REGISTER STATS 42·DAY IN&OUT·VISIT캘린더·FARM리포트·Deposit(test)/Pre-paid·Group Students). DORM STATUS는 배치도 재사용. 나머지 5개(게시판3·DAYOFF·외부포털4종)는 데이터 미크롤/외부라 사유 명확화. 무오류.
 
 - **2026-07-17** Group Students(student_group_payment.php)를 레거시와 동일하게 구현: Supabase legacy.student_group_info(12행) + student_info.group_id 카운트를 추출해 REAL.groups 임베드. R.groups 전용화면(#·Group Name·Country·#of Students(View)·Status·Added by·Created·Action(EDIT)) + Group Name 검색·EXCEL·Add New Group·(View)학생명단·EDIT/추가 모달(확인 플로우). 국적그룹 파생은 제거. 배포·검증 완료.
+
+- **2026-07-17** ① 모바일/데스크톱 자동 분리: 데스크톱 루트에서 모바일 기기 감지 시 /m/ 자동 이동, 모바일 "PC 버전"=../?pc=1(강제 데스크톱·루프방지). E2E 검증(데스크톱 유지/모바일→m//?pc=1 유지). ② AGENCY PAGE(유학원 포털) 신설: R.agency — 히어로(3캠퍼스)+MY PAGE 사이드바(MY INFO/STUDENT LIST/APPLICATION/LOGOUT), 레거시 컬럼 17종(NO~Score), UHAK ID·연도·월·이름 검색·EXCEL·페이지네이션·Edit(상세폼)·등록신청 폼. studentsFull에 uhak_id 백필(이름+출발일 조인 99.7

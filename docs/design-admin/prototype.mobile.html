@@ -357,7 +357,7 @@ function selectTab(tab){
 
 /* 전체메뉴 시트 */
 function openMenuSheet(){
-  const pcLink='<a class="mv-menu-item" href="../" style="justify-content:center;background:var(--accent-weak);border-color:var(--accent);color:var(--accent-ink)">🖥 PC(데스크톱) 버전으로 보기</a>';
+  const pcLink='<a class="mv-menu-item" href="../?pc=1" style="justify-content:center;background:var(--accent-weak);border-color:var(--accent);color:var(--accent-ink)">🖥 PC(데스크톱) 버전으로 보기</a>';
   const html=pcLink+MENU.map(g=>'<div class="mv-menu-grp"><div class="gt">'+g.icon+' '+esc(g.label)+'</div>'+
     g.items.map(it=>'<button class="mv-menu-item" data-nav=\''+esc(JSON.stringify(it))+'\'>'+esc(titleFor(it))+
       (it.u?'<span class="u">'+esc(it.u)+'</span>':'')+'</button>').join('')+'</div>').join('');
