@@ -1287,12 +1287,22 @@ function flightWindow(row){
   return {canEdit:today.getTime()<=deadline.getTime(),deadline,dep,depStr,reason:null};
 }
 function _ymd(d){if(!d)return '';const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${dd}`;} // 로컬(KST) 기준 — UTC 밀림 방지
+// 실 유학원 목록 — studentsFull 의 uhak_id(실값) 기준·건수순, 라벨은 DICT.uhak 있으면 사용
+let _agListCache=null;
+function agencyList(){
+  if(_agListCache)return _agListCache;
+  const SF=(REAL&&REAL.studentsFull&&REAL.studentsFull.rows)||[];
+  const dict={};(DICT.uhak||[]).forEach(o=>{if(o.v)dict[o.v]=o.t;});
+  const cnt={};SF.forEach(r=>{const a=r[0];if(a)cnt[a]=(cnt[a]||0)+1;});
+  const out=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).map(code=>({code,label:dict[code]||code,count:cnt[code]}));
+  _agListCache=out;return out;}
+function agencyOptsHtml(sel){return agencyList().map(a=>`<option value="${esc(a.code)}" ${sel===a.code?'selected':''}>${esc(a.label)} (${a.count})</option>`).join('');}
 R.agency=(m)=>{
   const s=agencyState;const G='background:#a7c68a;color:#2f3d1c';
   const rowsAll=agencyStudents();const per=30;
   const pages=Math.max(1,Math.ceil(rowsAll.length/per));if(s.page>=pages)s.page=pages-1;if(s.page<0)s.page=0;
   const pg=rowsAll.slice(s.page*per,s.page*per+per);window._agencyPage=pg;
-  const agOpts=['<option value="">::UHAK ID (전체)::</option>'].concat((DICT.uhak||[]).filter(o=>o.v).map(o=>`<option value="${esc(o.v)}" ${s.agency===o.v?'selected':''}>${esc(o.t)}</option>`)).join('');
+  const agOpts='<option value="">::UHAK ID (전체)::</option>'+agencyOptsHtml(s.agency);
   const yrOpts=['2024','2025','2026','2027','2028'].map(y=>`<option ${s.year===y?'selected':''}>${y}</option>`).join('');
   const moOpts=['<option value="">ALL MONTH</option>'].concat(Array.from({length:12},(_,i)=>{const mm=String(i+1).padStart(2,'0');return `<option value="${mm}" ${s.month===mm?'selected':''}>${i+1}월</option>`;})).join('');
   const HDR=['NO','NAME','AGE','SEX','CENTER','COURSE','PERIOD','DORM','APPLY DATE','DEPARTURE','PAY DATE','INVOICE','LOA','FILE','PROCESS','Edit','Score'];
@@ -1343,7 +1353,7 @@ R.agency=(m)=>{
     <b style="color:var(--accent-ink)">📝 APPLICATION (등록신청)</b>
     <div class="card pad" style="margin-top:10px">
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-        ${F('유학원(UHAK ID)',`<select id="apUhak" class="rs-ctrl" style="width:100%"><option value="">::선택::</option>${(DICT.uhak||[]).filter(o=>o.v).map(o=>`<option value="${esc(o.v)}" ${agencyState.agency===o.v?'selected':''}>${esc(o.t)}</option>`).join('')}</select>`)}
+        ${F('유학원(UHAK ID)',`<select id="apUhak" class="rs-ctrl" style="width:100%"><option value="">::선택::</option>${agencyOptsHtml(agencyState.agency)}</select>`)}
         ${F('NAME (영문)',inp('apEn','예: HONG GILDONG'))}
         ${F('이름(한글)',inp('apKor',''))}
         ${F('성별',`<select id="apSex" class="rs-ctrl" style="width:100%"><option value="M">남 (MALE)</option><option value="F">여 (FEMALE)</option></select>`)}
@@ -1360,6 +1370,7 @@ R.agency=(m)=>{
         <button class="btn" id="agApplyReset">초기화</button>
         <button class="btn primary" id="agApplySubmit">＋ 등록신청</button>
       </div>
+      <div id="apConfirm" style="margin-top:10px"></div>
       <div class="note" style="margin-top:8px">레거시 <span class="mono">APPLICATION(등록신청)</span> — 신청 시 관리자 승인 대기(now_status=waiting)로 등재됩니다.</div>
     </div>`;
   const myInfo=`<div class="card pad"><b style="color:var(--accent-ink)">ℹ️ MY INFORMATION</b>
@@ -1414,10 +1425,35 @@ function wireAgency(root){
   root.querySelectorAll('.ag-score').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];toast('SCORE',(row&&row[2]||'')+' · 성적 입력(데모)',true);});
   root.querySelectorAll('.ag-flight').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];if(row)openFlightReg(row);});
   const sub=root.querySelector('#agApplySubmit');
-  if(sub)sub.onclick=()=>{const en=(root.querySelector('#apEn').value||'').trim();
+  if(sub)sub.onclick=()=>{
+    const val=id=>{const el=root.querySelector('#'+id);return el?(el.value||'').trim():'';};
+    const uhak=val('apUhak'),en=val('apEn'),kor=val('apKor'),sex=val('apSex'),age=val('apAge'),
+      nat=val('apNat'),campus=val('apCampus'),course=val('apCourse'),week=val('apWeek'),
+      start=val('apStart'),depart=val('apDepart'),dorm=val('apDorm');
     if(!en){toast('입력 필요','NAME(영문)을 입력하세요',false);return;}
-    if(window.adminAuthLog)try{window.adminAuthLog('agency_application',{name:en},'create');}catch(_){}
-    toast('등록신청 완료',en+' · 승인 대기(waiting) 등재됨',true);agencyState.tab='list';renderMain();};
+    if(!uhak){toast('입력 필요','유학원(UHAK ID)을 선택하세요',false);return;}
+    if(!depart){toast('입력 필요','출발일을 입력하세요',false);return;}
+    const box=root.querySelector('#apConfirm');
+    box.innerHTML=`<div style="background:var(--accent-weak);border:1px solid var(--accent);border-radius:8px;padding:11px 13px;font-size:13px">
+      <b>등록신청 하시겠습니까?</b> — <b>${esc(en)}</b> (${esc(campus||'-')} · ${esc(course||'-')}${week?' · '+esc(week)+'주':''} · 출발 ${esc(depart)})<br>
+      <span style="color:var(--dim);font-size:12px">신청 시 <b>승인 대기(waiting)</b> 상태로 STUDENT LIST에 즉시 등재됩니다.</span>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:9px"><button class="btn" id="apNo">취소</button><button class="btn primary" id="apYes">확인·등록</button></div></div>`;
+    box.querySelector('#apNo').onclick=()=>{box.innerHTML='';};
+    box.querySelector('#apYes').onclick=()=>{
+      // 종료일 = 시작일 + 기간(주)*7 - 1일
+      let end='';const wk=parseInt(week)||0;
+      if(/^\d{4}-\d\d-\d\d$/.test(start)&&wk>0){const d=new Date(start+'T00:00:00');d.setDate(d.getDate()+wk*7-1);end=_ymd(d);}
+      const today=_ymd(new Date());
+      // studentsFull 스키마: 0 AGENCY,1 NAT,2 EN,3 KOR,4 AGE,5 SEX,6 등록일,7 출발일,8 시작일,9 종료일,10 기간,11 상태,12 코스,13 객실,14 CAMPUS,15 항공,16 항공PREV
+      const row=[uhak,(nat||'').toLowerCase(),en,kor||en,age,sex||'M',today,depart,start,end,week,'waiting',course,dorm,(campus||'').toUpperCase(),'',''];
+      if(REAL&&REAL.studentsFull&&REAL.studentsFull.rows)REAL.studentsFull.rows.unshift(row);
+      if(window.adminAuthLog)try{window.adminAuthLog('agency_application',{name:en,uhak:uhak,campus:campus,depart:depart},'create');}catch(_){}
+      // 새 학생이 보이도록 필터 정렬: 해당 유학원 + 등록연도
+      agencyState.agency=uhak;agencyState.year=today.slice(0,4);agencyState.month='';agencyState.q=en;agencyState.tab='list';agencyState.page=0;
+      renderMain();
+      toast('등록신청 완료',`${en} · 승인 대기(waiting) 등재 · ${uhak} — 목록에서 확인하세요`,true);
+    };
+  };
   const rs=root.querySelector('#agApplyReset');if(rs)rs.onclick=()=>root.querySelectorAll('.agency-main input,.agency-main select').forEach(x=>{if(x.type!=='button')x.value=(x.tagName==='SELECT'?x.options[0].value:'');});
 }
 function sessionUser(){try{return (JSON.parse(sessionStorage.getItem('smeag_admin_session')||'null')||{}).username;}catch(e){return null;}}
