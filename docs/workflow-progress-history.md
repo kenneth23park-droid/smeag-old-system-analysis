@@ -209,3 +209,5 @@
 - **2026-07-17** 배치도 십자선(룰러) 개선: 휠클릭 없이 **📏 룰러 토글 버튼**(헤더)으로 표시/숨김. 컨트롤러 전역노출(window.__xhRuler), 재렌더 후 버튼 상태 동기화, ON 시 강조. 휠클릭/Esc 토글 병행 유지. 배포·검증 완료.
 
 - **2026-07-17** 메뉴 실작동 보강: R.spec 이 데이터 없으면 명세(골격) 폴백만 뜨던 19개 메뉴 중 14개를 파생 데이터 계층(specDerived)으로 실제 작동시킴 — studentsFull/deposits/기존테이블/roomstat로 계산(Graduate 7,344·변경환불홀딩 2,061·POPULATION2·STDNT STATUS·MC Report2·REGISTER STATS 42·DAY IN&OUT·VISIT캘린더·FARM리포트·Deposit(test)/Pre-paid·Group Students). DORM STATUS는 배치도 재사용. 나머지 5개(게시판3·DAYOFF·외부포털4종)는 데이터 미크롤/외부라 사유 명확화. 무오류.
+
+- **2026-07-17** Group Students(student_group_payment.php)를 레거시와 동일하게 구현: Supabase legacy.student_group_info(12행) + student_info.group_id 카운트를 추출해 REAL.groups 임베드. R.groups 전용화면(#·Group Name·Country·#of Students(View)·Status·Added by·Created·Action(EDIT)) + Group Name 검색·EXCEL·Add New Group·(View)학생명단·EDIT/추가 모달(확인 플로우). 국적그룹 파생은 제거. 배포·검증 완료.

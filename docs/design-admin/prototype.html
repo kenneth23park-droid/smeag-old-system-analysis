@@ -702,11 +702,7 @@ function specDerived(url){
       const by={};t.rows.forEach(r=>{const d=(''+(r[di]||'')).slice(0,10);if(!/^\d{4}-\d\d-\d\d$/.test(d))return;(by[d]=by[d]||[]).push(r[ai]||'');});
       const rows=Object.keys(by).sort().reverse().map(d=>[d,by[d].length,by[d].filter(Boolean).slice(0,6).join(', ')]);
       return {cols:['VISIT DATE','방문건수','에이전시(샘플)'],rows};}
-    case 'student_group_payment.php':{ // Group Students — studentsFull에 유학원이 비어 국적별 그룹으로 파생
-      if(!SF)return null;const g={};SF.forEach(r=>{const n=(r[1]||'etc').toUpperCase();(g[n]=g[n]||[]).push(r);});
-      const rows=Object.keys(g).map(n=>{const arr=g[n];return [n,arr.length,_mode(arr.map(x=>_campNorm(x[14])))];})
-        .sort((x,y)=>y[1]-x[1]).map((r,i)=>[i+1,r[0],r[1].toLocaleString(),r[2]]);
-      return {cols:['#','국적 그룹','학생수','대표 캠퍼스'],rows};}
+    // student_group_payment.php 는 R.groups(레거시 student_group_info 실데이터)로 별도 렌더
   }
   return null;}
 const _specCache={};
@@ -1145,6 +1141,7 @@ R.cashmng=()=>{
 
 R.spec=(m)=>{
   if(m.u==='room_stat2.php')return R.roomstat(m); // DORM STATUS = 배치도(영문판) 재사용 → 실 캘린더
+  if(m.u==='student_group_payment.php')return R.groups(m); // Group Students = 레거시 student_group_info 실화면
   const d=specData(m.u);
   if(d)return `
   <div class="ph"><h1>${m.t}</h1><span class="sub">${m.note||'MySQL 비교검증'}</span><span class="url">${m.u}</span>
@@ -1174,6 +1171,100 @@ function specReason(u){
   if(/scheduler_index/.test(u))
     return '🗓 매니저 휴무(DAYOFF) 월/주/일 캘린더입니다. 스케줄러 테이블 미크롤로 데이터가 없습니다. 스케줄 데이터 연동 시 캘린더로 대체됩니다.';
   return '이 화면은 임베드 데이터로 파생 불가하여 골격만 표시합니다(핵심 화면은 실데이터 렌더 적용).';
+}
+
+// ─── Group Students (레거시 student_group_payment.php · student_group_info) ───
+let groupQ='';
+R.groups=(m)=>{
+  const G=(REAL&&REAL.groups)||[];
+  const q=(groupQ||'').trim().toLowerCase();
+  const list=q?G.filter(x=>(''+(x.name||'')).toLowerCase().includes(q)):G;
+  const tot=G.reduce((a,b)=>a+(+b.count||0),0);
+  const rows=list.map(x=>`<tr>
+    <td class="mono">${x.id}</td>
+    <td><b>${esc(x.name)}</b></td>
+    <td>${esc(x.country)}</td>
+    <td class="mono">${(+x.count>0)?`${x.count} <a href="#" class="grp-view" data-id="${x.id}">(View)</a>`:'0'}</td>
+    <td>${x.status?`<span class="pill good">${esc(x.status)}</span>`:'<span class="pill neutral">—</span>'}</td>
+    <td>${esc(x.by)}</td>
+    <td class="mono">${esc(x.created)}</td>
+    <td><button class="btn grp-edit" data-id="${x.id}">EDIT</button></td></tr>`).join('');
+  return `
+  <div class="ph"><h1>Group Students</h1><span class="sub">Admin · STUDENT MANAGEMENT · DEPOSIT MANAGE</span><span class="url">student_group_payment.php</span>
+    <span class="actions" style="margin-left:auto">
+      <input id="grpSearch" class="rs-ctrl" type="search" placeholder="Group Name" value="${esc(groupQ)}" style="min-width:170px">
+      <button class="btn" id="grpSearchBtn">SEARCH</button>
+      <button class="btn" id="grpExcel">📊 EXCEL</button>
+      <button class="btn primary" id="grpAdd">＋ Add New Group</button>
+    </span></div>
+  <div class="chips" style="margin-bottom:10px">${REAL&&REAL.groups?REALBADGE:''}<span class="chip">전체 <b>${G.length}</b> 그룹</span><span class="chip">학생 배정 <b>${tot}</b>명</span>${q?`<span class="chip">검색 <b>${list.length}</b>건</span>`:''}</div>
+  <div class="twrap"><table class="grid">
+    <thead><tr><th>#</th><th>Group Name</th><th>Country</th><th># of Students</th><th>Status</th><th>Added by</th><th>Created</th><th>Action</th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:18px">검색 결과 없음</td></tr>`}</tbody></table></div>
+  <div class="banner">${REAL&&REAL.groups?'<b>실 MySQL</b> ':''}레거시 <span class="mono">student_group_payment.php</span> · <span class="mono">select * from student_group_info limit 0, 50</span> — 그룹결제·엑셀·그룹편집(EDIT)·학생명단(View)</div>`;};
+
+function wireGroups(root){
+  const q=root.querySelector('#grpSearch');
+  const run=()=>{groupQ=q.value;renderMain();};
+  if(q){const sb=root.querySelector('#grpSearchBtn');if(sb)sb.onclick=run;
+    q.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();run();}});}
+  const ex=root.querySelector('#grpExcel');
+  if(ex)ex.onclick=()=>{const G=(REAL&&REAL.groups)||[];
+    toXls(['#','Group Name','Country','# of Students','Status','Added by','Created'],
+      G.map(x=>[x.id,x.name,x.country,x.count,x.status||'',x.by||'',x.created||'']),'SMEAG_Group_Students.xls',[]);
+    toast('엑셀 내보내기 완료',G.length+' 그룹',true);};
+  const add=root.querySelector('#grpAdd');if(add)add.onclick=()=>openGroupEdit(null);
+  root.querySelectorAll('.grp-edit').forEach(b=>b.onclick=()=>openGroupEdit(+b.dataset.id));
+  root.querySelectorAll('.grp-view').forEach(a=>a.onclick=(e)=>{e.preventDefault();openGroupView(+a.dataset.id);});
+}
+function openGroupView(id){
+  const g=((REAL&&REAL.groups)||[]).find(x=>+x.id===+id);if(!g)return;
+  const rows=(g.members||[]).map((mm,i)=>`<tr><td class="mono">${i+1}</td><td>${esc(mm.name||'—')}</td><td class="mono">${esc(mm.nat||'')}</td><td>${esc(mm.en||'')}</td></tr>`).join('');
+  const ov=el('div','modal-ov');ov.id='grpModal';
+  ov.innerHTML=`<div class="modal"><div class="modal-h"><b>${esc(g.name)} · 학생 ${g.count}명 (${esc(g.country)})</b><button class="modal-x" id="gvX">✕</button></div>
+    <div class="modal-body"><div class="twrap"><table class="grid"><thead><tr><th>#</th><th>이름</th><th>국적</th><th>NAME(EN)</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="4" style="padding:16px;color:var(--dim);text-align:center">배정 학생 없음</td></tr>'}</tbody></table></div></div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#gvX').onclick=()=>ov.remove();ov.onclick=(e)=>{if(e.target===ov)ov.remove();};
+  if(window.adminAuthLog)try{window.adminAuthLog('group_view',{g_id:id,name:g.name},'read');}catch(_){}
+}
+function openGroupEdit(id){
+  const G=(REAL&&REAL.groups)||(REAL&&(REAL.groups=[]))||[];
+  const g=id!=null?G.find(x=>+x.id===+id):null;const isNew=!g;
+  const cur=g||{id:(G.reduce((a,b)=>Math.max(a,+b.id||0),0)+1),name:'',country:'Korea',status:'active',by:'admin',created:new Date().toISOString().slice(0,10),count:0,members:[]};
+  const COUNTRIES=['Korea','Vietnam','China','Japan','Russia','Saudi Arabia','Taiwan','Thailand','ETC'];
+  const ov=el('div','modal-ov');ov.id='grpEditModal';
+  ov.innerHTML=`<div class="modal" style="max-width:440px"><div class="modal-h"><b>${isNew?'＋ Add New Group':'EDIT · '+esc(cur.name)}</b><button class="modal-x" id="geX">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>Group Name</label><input id="geName" value="${esc(cur.name)}" placeholder="그룹명"></div>
+      <div class="field"><label>Country</label><select id="geCountry">${COUNTRIES.map(c=>`<option ${c===cur.country?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="field"><label>Status</label><select id="geStatus">${['active',''].map(s=>`<option value="${s}" ${s===(cur.status||'')?'selected':''}>${s||'(none)'}</option>`).join('')}</select></div>
+      <div id="geConfirm" style="margin-top:6px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn" id="geCancel">취소</button>
+        <button class="btn primary" id="geSave">${isNew?'추가':'저장'}</button>
+      </div>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelector('#geX').onclick=close;ov.querySelector('#geCancel').onclick=close;ov.onclick=(e)=>{if(e.target===ov)close();};
+  ov.querySelector('#geSave').onclick=()=>{
+    const name=ov.querySelector('#geName').value.trim();
+    if(!name){toast('입력 필요','그룹명을 입력하세요',false);return;}
+    const box=ov.querySelector('#geConfirm');
+    box.innerHTML=`<div class="cbx-confirm" style="background:var(--accent-weak);border:1px solid var(--accent);border-radius:8px;padding:10px 12px;font-size:13px">
+      <b>${isNew?'새 그룹을 추가':'변경사항을 저장'}하시겠습니까?</b>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+        <button class="btn" id="geNo">취소</button><button class="btn primary" id="geYes">확인</button></div></div>`;
+    box.querySelector('#geNo').onclick=()=>{box.innerHTML='';};
+    box.querySelector('#geYes').onclick=()=>{
+      cur.name=name;cur.country=ov.querySelector('#geCountry').value;cur.status=ov.querySelector('#geStatus').value;
+      if(isNew)G.push(cur);
+      if(window.adminAuthLog)try{window.adminAuthLog(isNew?'group_add':'group_edit',{g_id:cur.id,name:cur.name},isNew?'create':'update');}catch(_){}
+      close();renderMain();
+      toast(isNew?'그룹 추가됨':'그룹 저장됨',`${cur.name} · ${cur.country}`,true);
+    };
+  };
 }
 
 // ─── 상태/네비게이션 ───
@@ -1251,6 +1342,8 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   // 일반 메뉴 실데이터 페이지네이션(#specBody) + EXCEL
   const sb=m.querySelector('#specBody');
   if(sb){const url=sb.dataset.key,d=specData(url);if(d)paintPaged(sb,d.cols,d.rows,url);}
+  if(curMenu&&curMenu.u==='student_group_payment.php')wireGroups(m); // Group Students 화면 배선
+
   m.querySelectorAll('[data-specexcel]').forEach(b=>b.addEventListener('click',()=>{
     const d=specData(b.dataset.specexcel);if(!d){toast('내보낼 데이터 없음','',false);return;}
     const cap=20000,rows=d.rows.length>cap?d.rows.slice(0,cap):d.rows;
