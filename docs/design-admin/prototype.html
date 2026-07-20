@@ -408,6 +408,7 @@
   .smi-first{margin-left:auto;margin-right:12px;font-size:12px;color:var(--dim);font-weight:600}
   .smi-link{color:var(--female);font-weight:700;font-size:11.5px;text-decoration:underline;margin-right:2px}
   .smi-hl{display:inline-block;background:#fde047;color:#3a2f00;font-weight:800;font-size:11px;padding:1px 7px;border-radius:4px;margin-left:4px}
+  .smi-locked{background:var(--surface-2)!important;color:var(--dim)!important;cursor:not-allowed}
   .smi-body{overflow:auto;padding:14px 16px}
   .smi-t{width:100%;border-collapse:collapse;font-size:12.5px}
   .smi-t th{background:var(--surface-2);text-align:left;padding:7px 11px;font-weight:700;color:var(--dim);width:15%;border:1px solid var(--border);white-space:nowrap;vertical-align:middle}
@@ -1453,6 +1454,15 @@ function wireAgency(root){
     if(window.adminAuthLog)try{window.adminAuthLog('agency_student_edit',{name:row&&row[2]},'update');}catch(_){}});
   root.querySelectorAll('.ag-score').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];toast('SCORE',(row&&row[2]||'')+' · 성적 입력(데모)',true);});
   root.querySelectorAll('.ag-flight').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];if(row)openFlightReg(row);});
+  // 등록신청 폼: 여권 생년월일 → 나이 자동계산·잠금(출발일 기준, 없으면 오늘 기준)
+  const apDob=root.querySelector('#apDob'),apAge=root.querySelector('#apAge'),apDep=root.querySelector('#apDepart');
+  function apAgeCalc(){if(!apDob||!apAge)return;const dob=apDob.value;
+    const aDep=fullYears(dob,apDep&&apDep.value),aToday=fullYears(dob,_ymd(new Date()));
+    if(dob&&(aDep!=null||aToday!=null)){apAge.value=(aDep!=null?aDep:aToday);apAge.disabled=true;apAge.classList.add('smi-locked');apAge.title=`출발일 기준 만 ${aDep!=null?aDep:'-'}세 / 오늘 기준 만 ${aToday!=null?aToday:'-'}세`;}
+    else{apAge.disabled=false;apAge.classList.remove('smi-locked');apAge.title='';}}
+  if(apDob){apDob.addEventListener('input',apAgeCalc);}
+  if(apDep){apDep.addEventListener('input',apAgeCalc);}
+  apAgeCalc();
   const sub=root.querySelector('#agApplySubmit');
   if(sub)sub.onclick=()=>{
     const val=id=>{const el=root.querySelector('#'+id);return el?(el.value||'').trim():'';};
@@ -2051,7 +2061,7 @@ function openStudentEdit(row,act){
       ${sec('STUDENT INFORMATION')}
       ${rw('NAME',ipt(g(3,row[2])),'NAME(eng)',ipt(g(2)))}
       ${rw('Apply Date<br><i>주의! 꼭 필요시만 수정</i>',ipt(g(6),'date'),'Group/University',sel(['Select a Group','Manage Group'],'')+' <button class="btn xs">Manage Group</button>')}
-      ${rw('AGE<br><i>Need For Group Class!</i>',ipt(g(4))+' age','SEX',`${radio('smiSex','MALE',!sexF)} &nbsp;${radio('smiSex','FEMALE',sexF)}`)}
+      ${rw('AGE<br><i>생년월일 등록시 자동계산(수정불가)</i>',`<input id="smiAgeInput" class="smi-i" style="max-width:90px" value="${g(4)}"> age`,'SEX',`${radio('smiSex','MALE',!sexF)} &nbsp;${radio('smiSex','FEMALE',sexF)}`)}
       ${rw('BIRTHDAY (여권 생년월일)<br><i>(citizen number) ※Enter the required · 출발일 기준 만나이 자동계산</i>',`<input id="smiBirth" class="smi-i" type="date" value="${g(17)}"><span id="smiAge" class="smi-chk"></span>`,'PASSPORT NUMBER',`<input id="smiPass" class="smi-i" value="0" autocomplete="off"><span id="smiPassChk" class="smi-chk"></span>`)}
       ${rw('DEPARTURE DATE',ipt(g(7),'date')+' <button class="btn xs">PERIOD CALC</button>','PICKUP SCHEDULE<br><i>(AIRLINE INFO)</i>',`<div class="smi-fl"><input id="smiFlight" class="smi-i smi-pick" placeholder="예 PR489 01:15am(8day) — 등록 가능" value="${esc(flight)}"><button class="btn xs" id="smiFlightLive" title="편명 실시간 조회">🔄 실시간</button></div>${flightPrev?`<div class="smi-prev">변경전: <b>${esc(flightPrev)}</b></div>`:''}<div id="smiFlightMsg" class="smi-flmsg"></div>`)}
       ${rw('PERIOD<br><i>입/퇴실일 변경시 기숙사 재설정 필수</i>',`${ipt(g(8),'date')} ~ ${ipt(g(9),'date')} &nbsp;(<b>${wk}</b> weeks)`,'PICKUP DATE<br><i>(픽업일)</i>',`<input class="smi-i smi-pick" type=date value="${esc(pick)}">`)}
@@ -2091,13 +2101,21 @@ function openStudentEdit(row,act){
   ov.querySelector('#smiClose').onclick=close;ov.querySelector('#smiCancel').onclick=close;
   ov.onclick=e=>{if(e.target===ov)close();};
   // 여권 생년월일 → 출발일 기준 만나이 라이브 표시 + row[17] 저장
-  const birthEl=ov.querySelector('#smiBirth'),ageEl=ov.querySelector('#smiAge');
+  const birthEl=ov.querySelector('#smiBirth'),ageEl=ov.querySelector('#smiAge'),ageInput=ov.querySelector('#smiAgeInput');
   const depEl2=()=>row[7]||'';
   const chkAge=()=>{const dob=birthEl.value;row[17]=dob;
-    const a=fullYears(dob,depEl2());
-    if(a==null){ageEl.textContent=dob?'출발일 미정 — 계산 불가':'';ageEl.className='smi-chk';return;}
-    if(a<18){ageEl.innerHTML=`<span class="age-minor">만 ${a}세 · 미성년(보호자 확인)</span>`;}
-    else{ageEl.textContent=`만 ${a}세`;ageEl.className='smi-chk ok';}};
+    const aDep=fullYears(dob,depEl2()), aToday=fullYears(dob,_ymd(new Date()));
+    if(aDep==null&&aToday==null){                       // 생년월일 없음 → 수동 입력 허용
+      ageEl.textContent=dob?'출발일 미정 — 계산 불가':'';ageEl.className='smi-chk';
+      if(ageInput){ageInput.disabled=false;ageInput.classList.remove('smi-locked');}
+      return;}
+    const main=(aDep!=null?aDep:aToday);                // AGE칸 = 출발일 기준(없으면 오늘 기준)
+    if(ageInput){ageInput.value=main;ageInput.disabled=true;ageInput.classList.add('smi-locked');row[4]=String(main);}
+    const parts=[];
+    parts.push(aDep!=null?`출발일 기준 <b>만 ${aDep}세</b>`:'출발일 미정');
+    if(aToday!=null)parts.push(`오늘(생일) 기준 <b>만 ${aToday}세</b>`);
+    if(main<18)ageEl.innerHTML=`<span class="age-minor">${parts.join(' · ')} · 미성년(보호자 확인)</span>`;
+    else{ageEl.innerHTML=parts.join(' · ');ageEl.className='smi-chk ok';}};
   if(birthEl){birthEl.addEventListener('input',chkAge);chkAge();}
   // 여권정보 검사
   const passEl=ov.querySelector('#smiPass'),passChk=ov.querySelector('#smiPassChk');
