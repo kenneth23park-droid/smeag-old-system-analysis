@@ -1106,39 +1106,39 @@ R.roomstat=()=>{
   roomstatCtx={months,dateLabels,groups,daysBefore}; // 엑셀 export 컨텍스트
 
   return `
-  <div class="ph"><h1>기숙사 현황 (배치도)</h1><span class="sub">room_stat3.php · 방배치 캘린더</span>
+  <div class="ph"><h1>${T('기숙사 현황 (배치도)','Dormitory Status (Batch)')}</h1><span class="sub">room_stat3.php · ${T('방배치 캘린더','room layout calendar')}</span>
     <span class="actions dorm-actions" style="margin-left:auto">
-      <button class="btn" id="rsRuler" title="십자 안내선(룰러) 표시/숨김 · 휠클릭/Esc 로도 토글">📏 룰러</button>
+      <button class="btn" id="rsRuler" title="${T('십자 안내선(룰러) 표시/숨김 · 휠클릭/Esc 로도 토글','Ruler (crosshair) show/hide · also toggled by wheel-click/Esc')}">📏 ${T('룰러','Ruler')}</button>
       <button class="btn" data-excel="1">📊 1MONTH EXCEL(TOTAL)</button>
       <button class="btn" data-excel="2">📊 2MONTH EXCEL(TOTAL)</button>
       <button class="btn">⚠ ROOM ERROR CHECK</button>
     </span></div>
   <div class="dorm-bar">
     <div class="legend" style="margin:0">
-      <span><i style="background:var(--male)"></i> 남자 (MALE)</span>
-      <span><i style="background:var(--female)"></i> 여자 (FEMALE)</span>
-      <span><i style="background:#ca8a04"></i> 공용 (FAMILY)</span>
+      <span><i style="background:var(--male)"></i> ${T('남자 (MALE)','MALE')}</span>
+      <span><i style="background:var(--female)"></i> ${T('여자 (FEMALE)','FEMALE')}</span>
+      <span><i style="background:#ca8a04"></i> ${T('공용 (FAMILY)','FAMILY')}</span>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <select id="rsCenter" class="rs-ctrl" title="센터">${['','ENCANTO','CAPITAL'].map(v=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${v?v+' CENTER':'::센터를 선택하세요::'}</option>`).join('')}</select>
-      <select id="rsGender" class="rs-ctrl" title="성별">${[['','::성별을 선택하세요::'],['MALE','남 (MALE)'],['FEMALE','여 (FEMALE)'],['FAMILY','공용 (FAMILY)'],['ALL','전체 성별']].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
-      <select id="rsPer" class="rs-ctrl" title="방구분(인실)">${[['','::방구분을 선택하세요::'],['1','1인실'],['2','2인실'],['3','3인실'],['4','4인실'],['5','5인실'],['ALL','방구분 전체']].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
-      <select id="rsSort" class="rs-ctrl" title="인실 정렬"><option value="">인실 정렬</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>인실 ↑ 적은순</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>인실 ↓ 많은순</option></select>
-      <input id="rsMonth" class="rs-ctrl" type="month" value="${roomCenter.y}-${pad(roomCenter.m)}" min="2020-01" max="2032-12" title="연/월 이동(캘린더) — 아무 년/월이나 선택" style="cursor:pointer">
-      <span class="rs-search"><input id="rsSearch" class="rs-ctrl" type="search" placeholder="🔍 방번호 · 회원 검색" value="${esc(roomFilter.q||'')}" autocomplete="off" style="min-width:210px"><span id="rsSearchCnt" class="rs-cnt"></span></span>
+      <select id="rsCenter" class="rs-ctrl" title="${T('센터','Center')}">${['','ENCANTO','CAPITAL'].map(v=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${v?v+' CENTER':T('::센터를 선택하세요::','::Select center::')}</option>`).join('')}</select>
+      <select id="rsGender" class="rs-ctrl" title="${T('성별','Gender')}">${[['',T('::성별을 선택하세요::','::Select gender::')],['MALE',T('남 (MALE)','MALE')],['FEMALE',T('여 (FEMALE)','FEMALE')],['FAMILY',T('공용 (FAMILY)','FAMILY')],['ALL',T('전체 성별','All gender')]].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
+      <select id="rsPer" class="rs-ctrl" title="${T('방구분(인실)','Room type')}">${[['',T('::방구분을 선택하세요::','::Select room type::')],['1',T('1인실','1-person')],['2',T('2인실','2-person')],['3',T('3인실','3-person')],['4',T('4인실','4-person')],['5',T('5인실','5-person')],['ALL',T('방구분 전체','All types')]].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
+      <select id="rsSort" class="rs-ctrl" title="${T('인실 정렬','Sort by room type')}"><option value="">${T('인실 정렬','Room-type sort')}</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>${T('인실 ↑ 적은순','Type ↑ fewest')}</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>${T('인실 ↓ 많은순','Type ↓ most')}</option></select>
+      <input id="rsMonth" class="rs-ctrl" type="month" value="${roomCenter.y}-${pad(roomCenter.m)}" min="2020-01" max="2032-12" title="${T('연/월 이동(캘린더) — 아무 년/월이나 선택','Year/month picker')}" style="cursor:pointer">
+      <span class="rs-search"><input id="rsSearch" class="rs-ctrl" type="search" placeholder="${T('🔍 방번호 · 회원 검색','🔍 Room · member search')}" value="${esc(roomFilter.q||'')}" autocomplete="off" style="min-width:210px"><span id="rsSearchCnt" class="rs-cnt"></span></span>
     </div>
-    <div class="month-jump" title="선택월이 중앙으로 정렬됩니다 (±6개월)">${sel}</div>
+    <div class="month-jump" title="${T('선택월이 중앙으로 정렬됩니다 (±6개월)','Selected month centered (±6 months)')}">${sel}</div>
   </div>
   ${rsReady?`<div class="state-legend" style="margin-bottom:12px">
-    <span><i style="background:var(--female)">X</i> 입실 (CHECK-IN)</span>
-    <span><i style="background:var(--return)">X</i> 퇴실 (CHECK-OUT)</span>
-    <span><i style="background:var(--good)">X</i> 예약 (RESERVE)</span>
-    <span><i style="background:var(--surface-2);color:var(--faint);border:1px solid var(--border)">X</i> 재실 (STAY)</span>
-    <span><i style="background:var(--surface);border:1px solid var(--border)"></i> 빈방 (VACANT)</span>
+    <span><i style="background:var(--female)">X</i> ${T('입실 (CHECK-IN)','CHECK-IN')}</span>
+    <span><i style="background:var(--return)">X</i> ${T('퇴실 (CHECK-OUT)','CHECK-OUT')}</span>
+    <span><i style="background:var(--good)">X</i> ${T('예약 (RESERVE)','RESERVE')}</span>
+    <span><i style="background:var(--surface-2);color:var(--faint);border:1px solid var(--border)">X</i> ${T('재실 (STAY)','STAY')}</span>
+    <span><i style="background:var(--surface);border:1px solid var(--border)"></i> ${T('빈방 (VACANT)','VACANT')}</span>
   </div>
   <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}"><table class="gantt" style="width:${INFOW+TOTAL*CELLW}px">${colg}${head}${body}</table></div>`
-  :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>센터 · 성별 · 방구분을 선택하세요</b><div class="rs-ph-sub">상단에서 <b>센터</b>(ENCANTO·CAPITAL) · <b>성별</b> · <b>방구분</b> <b>3가지를 모두 선택</b>하면 배치도가 표시됩니다.<br>초기엔 전체를 불러오지 않아 빠릅니다 · '전체 성별'·'방구분 전체'도 선택으로 인정 · 연월/검색 병행 가능.</div></div>`}
-  <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬되며 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b> · content-visibility. ${REAL&&REAL.roomstat?`<b>실 MySQL 예약데이터</b> (reserve_info+room_list+student_info 조인 · ${REAL.roomstat.from}~${REAL.roomstat.to})`:'표시 데이터는 가상 샘플(실제 개인정보 아님)'}.</div>`;};
+  :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>${T('센터 · 성별 · 방구분을 선택하세요','Select Center · Gender · Room type')}</b><div class="rs-ph-sub">${T('상단에서 <b>센터</b>(ENCANTO·CAPITAL) · <b>성별</b> · <b>방구분</b> <b>3가지를 모두 선택</b>하면 배치도가 표시됩니다.<br>초기엔 전체를 불러오지 않아 빠릅니다 · 전체 성별·방구분 전체도 선택으로 인정 · 연월/검색 병행 가능.','Select all <b>3</b> — <b>Center</b>(ENCANTO·CAPITAL) · <b>Gender</b> · <b>Room type</b> — to show the batch calendar.<br>Nothing is loaded initially for speed · All gender / All types also count · year-month & search supported.')}</div></div>`}
+  <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}${T('레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬 · 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b>.','Legacy <span class="mono">room_stat3.php</span> room×date calendar — shows <b>±6 months</b> around selected month, click a month to <b>center</b> it · horizontal scroll · <b>frozen header</b> · <b>cell click → check-in/out·assign·move</b>.')} ${REAL&&REAL.roomstat?T(`<b>실 MySQL 예약데이터</b> (${REAL.roomstat.from}~${REAL.roomstat.to})`,`<b>Real MySQL reservations</b> (${REAL.roomstat.from}~${REAL.roomstat.to})`):T('가상 샘플','sample data')}.</div>`;};
 
 R.changelog=()=>{let rows='';const mg=['kenneth','katie','anna','joon','doris'];
   if(REAL&&REAL.changelog&&REAL.changelog.length){rows=REAL.changelog.map(c=>
@@ -1603,6 +1603,7 @@ const MENU_EN={
   'GYM 리포트':'GYM Report','FARM 리포트':'FARM Report','기숙사현황 (배치도)':'Dormitory Status (Batch)',
   '주간 픽업 리스트':'Weekly Pickup List','기숙사이동관리':'Room Move Mgmt','일별 입실&퇴실':'Daily Check-in/out'};
 function mlabel(m){return LANG==='en'?(MENU_EN[m.t]||m.t):m.t;}
+function T(ko,en){return LANG==='en'?en:ko;} // 화면 문구 언어 전환
 function renderCats(){const c=document.getElementById('cats');c.innerHTML='';
   const lb=document.getElementById('langBtn');if(lb)lb.textContent=LANG==='en'?'EN':'한';
   CATS.forEach(ct=>{
@@ -2216,7 +2217,8 @@ document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();cl
     let lx=e.clientX+16;if(lx+tip.offsetWidth>innerWidth-8)lx=e.clientX-tip.offsetWidth-16;
     tip.style.left=lx+'px';tip.style.top=(e.clientY+18)+'px';}
   function syncBtn(){const b=document.getElementById('rsRuler');if(!b)return;
-    b.classList.toggle('on',on);b.textContent=on?'📏 룰러 ON':'📏 룰러';}
+    const L=(typeof T==='function');b.classList.toggle('on',on);
+    b.textContent=on?('📏 '+(L?T('룰러 ON','Ruler ON'):'룰러 ON')):('📏 '+(L?T('룰러','Ruler'):'룰러'));}
   function set(s){on=s;
     document.querySelectorAll('.twrap.dorm-scroll').forEach(t=>t.style.cursor=on?'crosshair':'');
     hint.style.display=on?'block':'none';

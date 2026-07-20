@@ -232,3 +232,5 @@
 - **2026-07-20** ① 리스트 행 아무 곳이나 클릭 시 작업 팝업(버튼/링크 제외) — STUDENT LIST·수강등록관리·AGENCY PAGE. ② 메뉴 기본 영어화: langBtn(EN/한) 토글, MENU_EN 매핑(대시보드→Dashboard·수강등록관리→Course Registration·기숙사현황→Dormitory Status(Batch) 등), 기본 en·localStorage 저장, m.t 기반 페이지 제목도 연동. Playwright 검증 무오류.
 
 - **2026-07-20** 만나이 기준일 개선: 기준일=출발일과 오늘 중 나중(ageRef). 미래출발→출발일 기준, 출발일 경과→오늘 기준(그 사이 생일 지났으면 +1 자동). manAge/manAgeCell·상세폼 chkAge·등록폼 apAgeCalc 모두 적용, 적용 만나이·기준 표기·미성년 블링크 유지. Playwright 경계 검증 무오류.
+
+- **2026-07-20** 화면 문구 영어화 시작: T(ko,en) 헬퍼 추가, 작업팝업(Edit/Move/Extend/Consult/Brief)·배치도 화면(제목·룰러·센터/성별/방구분 필터·범례·상태범례·placeholder·note) 언어 연동(EN 기본, 한 토글). Playwright EN/KO 검증 무오류.
