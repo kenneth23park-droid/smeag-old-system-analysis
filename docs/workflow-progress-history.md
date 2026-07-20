@@ -228,3 +228,5 @@
 - **2026-07-20** 생년월일 입력 시 나이 자동계산+AGE칸 잠금(수정불가): 상세폼(openStudentEdit smiAgeInput)·등록폼(apAge) 모두, 여권 생년월일 입력하면 출발일 기준(없으면 오늘 기준) 만나이로 자동채움·disabled, 삭제 시 재편집. 출발일 기준 + 오늘(생일) 기준 두 나이 동시 표시(미성년 블링크). Playwright 검증 무오류.
 
 - **2026-07-20** 리스트에서 학생 이름 클릭 시 작업 팝업(수정·변경·연장·상담·약식) 표시: openStudentActions 신설, STUDENT LIST/수강등록관리(.std-name)·AGENCY PAGE STUDENT LIST(.std-name-ag) 이름 클릭 → 5버튼 팝업 → 수정/연장/상담/약식=상세폼, 변경=ROOM REPLACEMENT. Playwright 검증 무오류.
+
+- **2026-07-20** ① 리스트 행 아무 곳이나 클릭 시 작업 팝업(버튼/링크 제외) — STUDENT LIST·수강등록관리·AGENCY PAGE. ② 메뉴 기본 영어화: langBtn(EN/한) 토글, MENU_EN 매핑(대시보드→Dashboard·수강등록관리→Course Registration·기숙사현황→Dormitory Status(Batch) 등), 기본 en·localStorage 저장, m.t 기반 페이지 제목도 연동. Playwright 검증 무오류.

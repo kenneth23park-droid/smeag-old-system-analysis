@@ -409,8 +409,9 @@
   .smi-link{color:var(--female);font-weight:700;font-size:11.5px;text-decoration:underline;margin-right:2px}
   .smi-hl{display:inline-block;background:#fde047;color:#3a2f00;font-weight:800;font-size:11px;padding:1px 7px;border-radius:4px;margin-left:4px}
   .smi-locked{background:var(--surface-2)!important;color:var(--dim)!important;cursor:not-allowed}
-  .std-name,.std-name-ag{cursor:pointer;color:var(--accent-ink);font-weight:700;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
-  .std-name:hover,.std-name-ag:hover{color:var(--accent);background:var(--accent-weak)}
+  .std-name,.std-name-ag{color:var(--accent-ink);font-weight:700}
+  tr.std-row{cursor:pointer}
+  tr.std-row:hover>td{background:var(--accent-weak)}
   .smi-body{overflow:auto;padding:14px 16px}
   .smi-t{width:100%;border-collapse:collapse;font-size:12.5px}
   .smi-t th{background:var(--surface-2);text-align:left;padding:7px 11px;font-weight:700;color:var(--dim);width:15%;border:1px solid var(--border);white-space:nowrap;vertical-align:middle}
@@ -463,6 +464,7 @@
         <option value="5">CAPITAL</option>
       </select>
     </div>
+    <button class="theme-btn" id="langBtn" title="메뉴 언어 전환 (EN/한글)">EN</button>
     <button class="theme-btn" id="fsBtn" title="전체화면 (주소창까지 숨김)">⛶</button>
     <button class="theme-btn" id="themeBtn" title="테마 전환">◐</button>
     <div class="who"><span class="av">K</span><span>kenneth</span></div>
@@ -676,7 +678,7 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   const pg=f.slice(s.page*s.per,s.page*s.per+s.per);
   window._stdPage=pg;  // 액션 상세폼에서 전체 행 참조
   const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">수정</button><button class="btn xs" data-sact="move">변경</button><button class="btn xs" data-sact="extend">연장</button><button class="btn xs" data-sact="counsel">상담</button><button class="btn xs" data-sact="brief">약식</button></td>`;
-  const tb=pg.map((r,i)=>`<tr><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="작업 메뉴 열기">${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700">${esc(r[7])||'—'}</td>`:''}<td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
+  const tb=pg.map((r,i)=>`<tr data-i="${i}" class="std-row" title="클릭 → 작업 메뉴(수정·변경·연장·상담·약식)"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}">${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700">${esc(r[7])||'—'}</td>`:''}<td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -938,7 +940,7 @@ R.roommove=(m)=>{
   const rt=(REAL&&REAL.tables&&REAL.tables[m.u])||{cols:[],rows:[]};
   const [thu,wed]=pickupWeek();
   return `
-  <div class="ph"><h1>${m.t}</h1><span class="sub">기숙사 이동 관리 · 방변경(ROOM MOVE LIST)</span><span class="url">${m.u}</span>
+  <div class="ph"><h1>${mlabel(m)}</h1><span class="sub">기숙사 이동 관리 · 방변경(ROOM MOVE LIST)</span><span class="url">${m.u}</span>
     <span class="actions" style="margin-left:auto"><button class="btn primary" data-specexcel="${m.u}">📊 EXCEL</button></span></div>
   <div class="filters">
     <div class="field"><label>기간 FROM (목)</label><input id="rmFrom" type="date" value="${thu}"></div>
@@ -962,7 +964,7 @@ R.dailyio=(m)=>{
   const dow=x=>['일','월','화','수','목','금','토'][new Date(x).getDay()];
   const sumIn=show.reduce((a,r)=>a+(+r[1]||0),0),sumOut=show.reduce((a,r)=>a+(+r[2]||0),0);
   return `
-  <div class="ph"><h1>${m.t}</h1><span class="sub">일별 입실·퇴실 집계 (reserve_info)</span><span class="url">${m.u}</span>
+  <div class="ph"><h1>${mlabel(m)}</h1><span class="sub">일별 입실·퇴실 집계 (reserve_info)</span><span class="url">${m.u}</span>
     <span class="actions" style="margin-left:auto"><button class="btn primary" data-tblexcel="${m.u}">📊 EXCEL</button></span></div>
   <div class="filters">
     <div class="field"><label>기간 FROM (목)</label><input id="ioFrom" type="date" value="${thu}"></div>
@@ -1212,13 +1214,13 @@ R.spec=(m)=>{
   if(/student_present2/.test(m.u))return R.agency(m); // 외부 에이전시 포털 = AGENCY PAGE 재현
   const d=specData(m.u);
   if(d)return `
-  <div class="ph"><h1>${m.t}</h1><span class="sub">${m.note||'MySQL 비교검증'}</span><span class="url">${m.u}</span>
+  <div class="ph"><h1>${mlabel(m)}</h1><span class="sub">${m.note||'MySQL 비교검증'}</span><span class="url">${m.u}</span>
     <span class="actions" style="margin-left:auto"><button class="btn" data-specexcel="${m.u}">📊 EXCEL</button>${m.inv?'<button class="btn primary" data-guard="invoice">🧾 INVOICE 발행</button>':''}</span></div>
   <div class="chips" style="margin-bottom:10px">${REALBADGE}<span class="chip">전체 <b>${d.rows.length.toLocaleString()}</b>건</span>${m.tag?`<span class="chip">규모 ${m.tag}</span>`:''}</div>
   <div id="specBody" data-key="${m.u}"></div>
   <div class="banner">MySQL 비교검증용 <b>실데이터</b> (${m.u}) · 페이지네이션 · admin 인증 전용</div>`;
   return `
-  <div class="ph"><h1>${m.t}</h1><span class="sub">화면 명세 (전체 골격)</span><span class="url">${m.u}</span>
+  <div class="ph"><h1>${mlabel(m)}</h1><span class="sub">화면 명세 (전체 골격)</span><span class="url">${m.u}</span>
     ${m.inv?'<span class="actions"><button class="btn primary" data-guard="invoice">🧾 INVOICE 발행</button></span>':''}</div>
   <div class="spec">
     <div class="row">
@@ -1355,9 +1357,9 @@ R.agency=(m)=>{
       <thead><tr>${HDR.map(h=>`<th style="${G}">${h}</th>`).join('')}</tr></thead>
       <tbody>${pg.length?pg.map((r,i)=>{const fw=flightWindow(r);
         const flBtn=`<button class="btn ag-flight" data-i="${i}" title="${fw.canEdit?'항공/픽업 등록 가능 (마감 '+_ymd(fw.deadline)+')':(fw.reason==='no-depart'?'출발일 미정':'마감: 출발 7일 전 지남')}" style="padding:3px 8px;${fw.canEdit?'background:var(--good);color:#fff;border-color:var(--good)':'opacity:.6'}">✈${r[15]?' ✓':''}</button>`;
-        return `<tr>
+        return `<tr data-i="${i}" class="std-row" title="클릭 → 작업 메뉴(수정·변경·연장·상담·약식)">
         <td class="mono">${s.page*per+i+1}</td>
-        <td class="std-name-ag" data-i="${i}" title="작업 메뉴 열기"><b>${esc(r[2]||'')}</b>${(r[3]&&r[3]!==r[2])?`<br><span style="color:var(--dim);font-size:11px">${esc(r[3])}</span>`:''}</td>
+        <td class="std-name-ag" data-i="${i}"><b>${esc(r[2]||'')}</b>${(r[3]&&r[3]!==r[2])?`<br><span style="color:var(--dim);font-size:11px">${esc(r[3])}</span>`:''}</td>
         <td class="num mono">${manAgeCell(r)}</td>
         <td>${(''+(r[5]||'')).toUpperCase()==='F'?'<span class="pill female">여</span>':'<span class="pill male">남</span>'}</td>
         <td>${campusChipName(r[14])}</td>
@@ -1456,7 +1458,10 @@ function wireAgency(root){
     if(window.adminAuthLog)try{window.adminAuthLog('agency_student_edit',{name:row&&row[2]},'update');}catch(_){}});
   root.querySelectorAll('.ag-score').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];toast('SCORE',(row&&row[2]||'')+' · 성적 입력(데모)',true);});
   root.querySelectorAll('.ag-flight').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];if(row)openFlightReg(row);});
-  root.querySelectorAll('.std-name-ag').forEach(el=>el.onclick=()=>{const row=(window._agencyPage||[])[+el.dataset.i];if(row)openStudentActions(row);}); // 이름 클릭 → 작업 팝업
+  // 행 어디를 클릭하든 작업 팝업(버튼/링크 제외)
+  const atbl=root.querySelector('.agency-main table.grid tbody');
+  if(atbl)atbl.addEventListener('click',e=>{if(e.target.closest('a,input,select,textarea,button'))return;
+    const tr=e.target.closest('tr[data-i]');if(tr){const row=(window._agencyPage||[])[+tr.dataset.i];if(row)openStudentActions(row);}});
   // 등록신청 폼: 여권 생년월일 → 나이 자동계산·잠금(출발일 기준, 없으면 오늘 기준)
   const apDob=root.querySelector('#apDob'),apAge=root.querySelector('#apAge'),apDep=root.querySelector('#apDepart');
   function apAgeCalc(){if(!apDob||!apAge)return;const dob=apDob.value;
@@ -1586,13 +1591,22 @@ function openGroupEdit(id){
 // ─── 상태/네비게이션 ───
 let curCat='record', curKey='dash', curMenu=null;
 function closeDropdowns(){document.querySelectorAll('.dropdown.open').forEach(d=>d.classList.remove('open'));}
+// 메뉴 언어 — 기본 영어. 한글 메뉴명 → 영어 매핑(영문 메뉴는 그대로 통과)
+let LANG=(function(){try{return localStorage.getItem('smeag-lang')||'en';}catch(e){return 'en';}})();
+const MENU_EN={
+  '대시보드':'Dashboard','수강등록관리':'Course Registration','AGENCY PAGE (유학원 포털)':'AGENCY PAGE (Portal)',
+  '멀티수강관리':'Multi-Course Mgmt','변경환불홀딩':'Change/Refund/Hold','수금관리':'Collection Mgmt',
+  'GYM 리포트':'GYM Report','FARM 리포트':'FARM Report','기숙사현황 (배치도)':'Dormitory Status (Batch)',
+  '주간 픽업 리스트':'Weekly Pickup List','기숙사이동관리':'Room Move Mgmt','일별 입실&퇴실':'Daily Check-in/out'};
+function mlabel(m){return LANG==='en'?(MENU_EN[m.t]||m.t):m.t;}
 function renderCats(){const c=document.getElementById('cats');c.innerHTML='';
+  const lb=document.getElementById('langBtn');if(lb)lb.textContent=LANG==='en'?'EN':'한';
   CATS.forEach(ct=>{
     const wrap=el('div','catwrap');
     const b=el('button','cat'+(ct.id===curCat?' active':''),`<span class="ic">${ct.icon}</span>${ct.label}<span class="caret">▾</span>`);
     const dd=el('div','dropdown');
     dd.appendChild(el('div','dd-title',SIDE_TITLE[ct.id]));
-    MENU[ct.id].forEach(m=>{const a=el('a',(ct.id===curCat&&m===curMenu?'active':''),`<span class="dot"></span><span>${m.t}</span>${m.tag?`<span class="tag">${m.tag}</span>`:''}`);
+    MENU[ct.id].forEach(m=>{const a=el('a',(ct.id===curCat&&m===curMenu?'active':''),`<span class="dot"></span><span>${mlabel(m)}</span>${m.tag?`<span class="tag">${m.tag}</span>`:''}`);
       a.onclick=(e)=>{e.stopPropagation();curCat=ct.id;curKey=m.k;curMenu=m;closeDropdowns();renderAll();};
       dd.appendChild(a);});
     b.onclick=(e)=>{e.stopPropagation();const wasOpen=dd.classList.contains('open');closeDropdowns();if(!wasOpen)dd.classList.add('open');};
@@ -1646,15 +1660,16 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     // ACTION 버튼(수정/변경/연장/상담/약식) — 이벤트 위임
     const body=m.querySelector('#stdBody');
     body.addEventListener('click',e=>{
-      const nm2=e.target.closest('.std-name');
-      if(nm2){const row=(window._stdPage||[])[+nm2.dataset.i];if(row)openStudentActions(row);return;}  // 이름 클릭 → 작업 팝업
-      const b=e.target.closest('button[data-sact]');if(!b)return;
-      const cell=b.closest('.std-act');const row=(window._stdPage||[])[+cell.dataset.i]||[];
-      const nm=row[2]||row[3]||'',rm=row[13]||'',dp=row[7]||'';const act=b.dataset.sact;
-      const KIND={edit:'update',move:'update',extend:'update',counsel:'read',brief:'read'};
-      if(act==='move'){openRoomReplace(null,rm,nm,dp);}          // 방변경 = ROOM REPLACEMENT
-      else{openStudentEdit(row,act);}                            // 수정/연장/상담/약식 = 레거시 상세폼
-      if(window.adminAuthLog)try{window.adminAuthLog('student_'+act,{name:nm,room:rm},KIND[act]);}catch(_){}
+      const b=e.target.closest('button[data-sact]');
+      if(b){const cell=b.closest('.std-act');const row=(window._stdPage||[])[+cell.dataset.i]||[];
+        const nm=row[2]||row[3]||'',rm=row[13]||'',dp=row[7]||'';const act=b.dataset.sact;
+        const KIND={edit:'update',move:'update',extend:'update',counsel:'read',brief:'read'};
+        if(act==='move')openRoomReplace(null,rm,nm,dp);else openStudentEdit(row,act);
+        if(window.adminAuthLog)try{window.adminAuthLog('student_'+act,{name:nm,room:rm},KIND[act]);}catch(_){}
+        return;}
+      if(e.target.closest('a,input,select,textarea,button'))return;   // 기타 인터랙션 무시
+      const tr=e.target.closest('tr[data-i]');                        // 행 어디를 클릭하든 작업 팝업
+      if(tr){const row=(window._stdPage||[])[+tr.dataset.i];if(row)openStudentActions(row);}
     });
     paintStd();
   }
@@ -1722,6 +1737,10 @@ document.getElementById('themeBtn').addEventListener('click',()=>{
   const r=document.documentElement;const cur=r.getAttribute('data-theme');
   const dark=cur?cur==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
   r.setAttribute('data-theme',dark?'light':'dark');});
+// 메뉴 언어 토글(EN ↔ 한글, 기본 EN)
+document.getElementById('langBtn').addEventListener('click',()=>{
+  LANG=LANG==='en'?'ko':'en';try{localStorage.setItem('smeag-lang',LANG);}catch(e){}
+  renderAll();});
 // 전체화면 토글 (브라우저 주소창까지 숨겨 꽉 찬 화면)
 document.getElementById('fsBtn').addEventListener('click',()=>{
   const el=document.documentElement;
