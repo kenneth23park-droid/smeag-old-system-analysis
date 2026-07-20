@@ -306,6 +306,11 @@
     background:var(--accent);color:#fff;font-size:12px;font-weight:650;padding:6px 13px;border-radius:20px;
     box-shadow:var(--shadow);pointer-events:none}
   #rsRuler.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* 만나이 미성년(만 18세 미만) — 빨강 블링크 */
+  .age-minor{color:var(--female);font-weight:900;animation:ageBlink 1s steps(2,start) infinite}
+  @keyframes ageBlink{50%{opacity:.18}}
+  .age-approx{font-size:9px;color:var(--faint);vertical-align:super;margin-left:1px;font-weight:600}
+  @media(prefers-reduced-motion:reduce){.age-minor{animation:none;text-decoration:underline;text-decoration-color:var(--female)}}
   /* ── AGENCY PAGE (레거시 유학원 포털 재현) ── */
   .agency-hero{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;background:var(--surface)}
   .agency-hero .top{display:flex;align-items:center;gap:12px;padding:16px 18px;background:linear-gradient(120deg,var(--surface),var(--surface-2))}
@@ -570,6 +575,24 @@ function exportPickup(){const s=pickupSorted();if(!s.length){toast('내보낼 �
 let REAL=null; /*__REALDATA__*/
 const campusChipName=(n)=>({ENCANTO:'<span class="cch enc">ENCANTO</span>',CLASSIC:'<span class="cch cla">CLASSIC</span>',CAPITAL:'<span class="cch cap">CAPITAL</span>'}[(n||'').toUpperCase()]||(n||'—'));
 const condPill=(c)=>({normal:'good',holding:'warn',holdinguse:'warn',extend:'install',refund:'return',exchange:'install',out:'neutral',graduated:'neutral'}[(c||'').toLowerCase()]||'neutral');
+// 만나이(출발일 기준) — 여권 생년월일(studentsFull col17) 있으면 정확, 없으면 저장나이(col4) 근사. 18미만=미성년.
+const MINOR_AGE=18; // 유학 보호자 기준
+function fullYears(dobStr,refStr){
+  const dob=/^\d{4}-\d\d-\d\d$/.test(dobStr||'')?new Date(dobStr+'T00:00:00'):null;
+  const ref=/^\d{4}-\d\d-\d\d$/.test(refStr||'')?new Date(refStr+'T00:00:00'):null;
+  if(!dob||!ref)return null;
+  let a=ref.getFullYear()-dob.getFullYear();const m=ref.getMonth()-dob.getMonth();
+  if(m<0||(m===0&&ref.getDate()<dob.getDate()))a--;
+  return a;}
+function manAge(row){                       // row: studentsFull 형식(0..17), col7=출발일, col17=여권생일
+  const ex=fullYears(row[17],row[7]);
+  if(ex!=null&&ex>=0&&ex<120)return {age:ex,exact:true};
+  const a=parseInt(row[4])||0;return (a>0&&a<120)?{age:a,exact:false}:null;}
+function manAgeCell(row){
+  const m=manAge(row);if(!m)return '—';
+  const ap=m.exact?'':'<span class="age-approx" title="여권 생년월일 미입력 — 저장 나이 기준 추정">≈</span>';
+  if(m.age<MINOR_AGE)return `<span class="age-minor" title="미성년(출발일 기준 만 ${m.age}세) — 유학 보호자 확인 필요">${m.age}${ap}</span>`;
+  return `${m.age}${ap}`;}
 const depStatus=(s)=>({N:['미납','warn'],Y:['완납','good'],X:['분납','install'],R:['반환','return']}[(s||'').toUpperCase()]||['-','neutral']);
 const REALBADGE=`<span class="chip on" style="background:var(--good);color:#fff;border:0">● 실데이터(MySQL)</span>`;
 // 픽업 주간: 기준일이 속한 주의 목요일 → 다음주 수요일(목+6일) 자동 산출
@@ -645,7 +668,7 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   const pg=f.slice(s.page*s.per,s.page*s.per+s.per);
   window._stdPage=pg;  // 액션 상세폼에서 전체 행 참조
   const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">수정</button><button class="btn xs" data-sact="move">변경</button><button class="btn xs" data-sact="extend">연장</button><button class="btn xs" data-sact="counsel">상담</button><button class="btn xs" data-sact="brief">약식</button></td>`;
-  const tb=pg.map((r,i)=>`<tr><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td>${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${esc(r[4])}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700">${esc(r[7])||'—'}</td>`:''}<td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
+  const tb=pg.map((r,i)=>`<tr><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td>${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700">${esc(r[7])||'—'}</td>`:''}<td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -1327,7 +1350,7 @@ R.agency=(m)=>{
         return `<tr>
         <td class="mono">${s.page*per+i+1}</td>
         <td><b>${esc(r[2]||'')}</b>${(r[3]&&r[3]!==r[2])?`<br><span style="color:var(--dim);font-size:11px">${esc(r[3])}</span>`:''}</td>
-        <td class="mono">${esc(r[4]||'')}</td>
+        <td class="num mono">${manAgeCell(r)}</td>
         <td>${(''+(r[5]||'')).toUpperCase()==='F'?'<span class="pill female">여</span>':'<span class="pill male">남</span>'}</td>
         <td>${campusChipName(r[14])}</td>
         <td class="mono">${esc(r[12]||'')}</td>
@@ -1357,7 +1380,8 @@ R.agency=(m)=>{
         ${F('NAME (영문)',inp('apEn','예: HONG GILDONG'))}
         ${F('이름(한글)',inp('apKor',''))}
         ${F('성별',`<select id="apSex" class="rs-ctrl" style="width:100%"><option value="M">남 (MALE)</option><option value="F">여 (FEMALE)</option></select>`)}
-        ${F('나이',inp('apAge','','number'))}
+        ${F('여권 생년월일 <span style="color:var(--female)">★</span>',inp('apDob','','date'))}
+        ${F('나이(생년월일 없을 때)',inp('apAge','','number'))}
         ${F('국적',`<select id="apNat" class="rs-ctrl" style="width:100%">${natOpts}</select>`)}
         ${F('캠퍼스(CENTER)',`<select id="apCampus" class="rs-ctrl" style="width:100%"><option>ENCANTO</option><option>CLASSIC</option><option>CAPITAL</option></select>`)}
         ${F('연수코스(COURSE)',`<select id="apCourse" class="rs-ctrl" style="width:100%">${courseOpts}</select>`)}
@@ -1429,7 +1453,7 @@ function wireAgency(root){
     const val=id=>{const el=root.querySelector('#'+id);return el?(el.value||'').trim():'';};
     const uhak=val('apUhak'),en=val('apEn'),kor=val('apKor'),sex=val('apSex'),age=val('apAge'),
       nat=val('apNat'),campus=val('apCampus'),course=val('apCourse'),week=val('apWeek'),
-      start=val('apStart'),depart=val('apDepart'),dorm=val('apDorm');
+      start=val('apStart'),depart=val('apDepart'),dorm=val('apDorm'),dob=val('apDob');
     if(!en){toast('입력 필요','NAME(영문)을 입력하세요',false);return;}
     if(!uhak){toast('입력 필요','유학원(UHAK ID)을 선택하세요',false);return;}
     if(!depart){toast('입력 필요','출발일을 입력하세요',false);return;}
@@ -1444,8 +1468,10 @@ function wireAgency(root){
       let end='';const wk=parseInt(week)||0;
       if(/^\d{4}-\d\d-\d\d$/.test(start)&&wk>0){const d=new Date(start+'T00:00:00');d.setDate(d.getDate()+wk*7-1);end=_ymd(d);}
       const today=_ymd(new Date());
-      // studentsFull 스키마: 0 AGENCY,1 NAT,2 EN,3 KOR,4 AGE,5 SEX,6 등록일,7 출발일,8 시작일,9 종료일,10 기간,11 상태,12 코스,13 객실,14 CAMPUS,15 항공,16 항공PREV
-      const row=[uhak,(nat||'').toLowerCase(),en,kor||en,age,sex||'M',today,depart,start,end,week,'waiting',course,dorm,(campus||'').toUpperCase(),'',''];
+      // 여권 생년월일 있으면 출발일 기준 만나이로 저장나이 보정
+      let age4=age; const byDob=fullYears(dob,depart); if(byDob!=null&&byDob>=0)age4=String(byDob);
+      // studentsFull 스키마: 0 AGENCY,1 NAT,2 EN,3 KOR,4 AGE,5 SEX,6 등록일,7 출발일,8 시작일,9 종료일,10 기간,11 상태,12 코스,13 객실,14 CAMPUS,15 항공,16 항공PREV,17 여권생일
+      const row=[uhak,(nat||'').toLowerCase(),en,kor||en,age4,sex||'M',today,depart,start,end,week,'waiting',course,dorm,(campus||'').toUpperCase(),'','',dob];
       if(REAL&&REAL.studentsFull&&REAL.studentsFull.rows)REAL.studentsFull.rows.unshift(row);
       if(window.adminAuthLog)try{window.adminAuthLog('agency_application',{name:en,uhak:uhak,campus:campus,depart:depart},'create');}catch(_){}
       // 새 학생이 보이도록 필터 정렬: 해당 유학원 + 등록연도
@@ -1927,7 +1953,7 @@ function openRoomReplace(srcCell,room,name,date){
         <div class="rp-t">※ STUDENT INFORMATION</div>
         <table class="rp-info">
           ${info('NAME',esc(S(2,name)))}${info('KOR',esc(S(3,name)))}
-          ${info('AGE',esc(S(4,'-')))}${info('SEX',(S(5)||'').toUpperCase()==='F'?'F':'M')}
+          ${info('AGE',stu?manAgeCell(stu):esc(S(4,'-')))}${info('SEX',(S(5)||'').toUpperCase()==='F'?'F':'M')}
           ${info('DEPARTURE',esc(S(7,date)))}${info('FLIGHT',`<span style="color:var(--female);font-weight:650">${esc(S(15,'-'))}</span>`)}
           ${info('COURSE',esc(course||'-'))}${info('DORM',esc(dorm||'-'))}
           ${info('NATIONALITY',(S(1)||'-').toUpperCase())}${info('CONDITION',esc(S(11,'normal')))}
@@ -2012,7 +2038,7 @@ function openStudentEdit(row,act){
       ${rw('NAME',ipt(g(3,row[2])),'NAME(eng)',ipt(g(2)))}
       ${rw('Apply Date<br><i>주의! 꼭 필요시만 수정</i>',ipt(g(6),'date'),'Group/University',sel(['Select a Group','Manage Group'],'')+' <button class="btn xs">Manage</button>')}
       ${rw('AGE<br><i>Need For Group Class!</i>',ipt(g(4))+' age','SEX',`${radio('smiSex','MALE',!sexF)} &nbsp;${radio('smiSex','FEMALE',sexF)}`)}
-      ${rw('BIRTHDAY<br><i>(citizen no.) ※필수</i>',ipt('','date'),'PASSPORT NUMBER',`<input id="smiPass" class="smi-i" value="0" autocomplete="off"><span id="smiPassChk" class="smi-chk"></span>`)}
+      ${rw('BIRTHDAY (여권 생년월일)<br><i>출발일 기준 만나이 자동계산</i>',`<input id="smiBirth" class="smi-i" type="date" value="${g(17)}"><span id="smiAge" class="smi-chk"></span>`,'PASSPORT NUMBER',`<input id="smiPass" class="smi-i" value="0" autocomplete="off"><span id="smiPassChk" class="smi-chk"></span>`)}
       ${rw('DEPARTURE DATE',ipt(g(7),'date')+' <button class="btn xs">PERIOD CALC</button>','PICKUP SCHEDULE<br><i>(AIRLINE INFO)</i>',`<div class="smi-fl"><input id="smiFlight" class="smi-i smi-pick" placeholder="예 PR489 01:15am(8day) — 등록 가능" value="${esc(flight)}"><button class="btn xs" id="smiFlightLive" title="편명 실시간 조회">🔄 실시간</button></div>${flightPrev?`<div class="smi-prev">변경전: <b>${esc(flightPrev)}</b></div>`:''}<div id="smiFlightMsg" class="smi-flmsg"></div>`)}
       ${rw('PERIOD<br><i>입/퇴실 변경시 기숙사 재설정 필수</i>',`${ipt(g(8),'date')} ~ ${ipt(g(9),'date')} &nbsp;(<b>${wk}</b> weeks)`,'PICKUP DATE<br><i>(픽업일)</i>',`<input class="smi-i smi-pick" type=date value="${esc(pick)}">`)}
       ${rw('Medical History<br><i>(건강상태)</i>',`${radio('smiMed','없음',true)} ${radio('smiMed','있음',false)} <span style="color:var(--dim);font-size:11px">Medical Condition: not specified</span>`,'Parents Agreement<br><i>(부모님 동의서)</i>','<span style="color:var(--dim)">not specified</span>')}
@@ -2039,6 +2065,15 @@ function openStudentEdit(row,act){
   const close=()=>ov.remove();
   ov.querySelector('#smiClose').onclick=close;ov.querySelector('#smiCancel').onclick=close;
   ov.onclick=e=>{if(e.target===ov)close();};
+  // 여권 생년월일 → 출발일 기준 만나이 라이브 표시 + row[17] 저장
+  const birthEl=ov.querySelector('#smiBirth'),ageEl=ov.querySelector('#smiAge');
+  const depEl2=()=>row[7]||'';
+  const chkAge=()=>{const dob=birthEl.value;row[17]=dob;
+    const a=fullYears(dob,depEl2());
+    if(a==null){ageEl.textContent=dob?'출발일 미정 — 계산 불가':'';ageEl.className='smi-chk';return;}
+    if(a<18){ageEl.innerHTML=`<span class="age-minor">만 ${a}세 · 미성년(보호자 확인)</span>`;}
+    else{ageEl.textContent=`만 ${a}세`;ageEl.className='smi-chk ok';}};
+  if(birthEl){birthEl.addEventListener('input',chkAge);chkAge();}
   // 여권정보 검사
   const passEl=ov.querySelector('#smiPass'),passChk=ov.querySelector('#smiPassChk');
   const chkPass=()=>{const r=validatePassport(passEl.value);passChk.textContent=(r.ok?'✓ ':'✗ ')+r.msg;passChk.className='smi-chk '+(r.ok?'ok':'bad');};

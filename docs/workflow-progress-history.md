@@ -220,3 +220,5 @@
 - **2026-07-17** AGENCY 등록화면(APPLICATION 등록신청) 실연결: 제출→"등록신청 하시겠습니까?" 확인→studentsFull에 실제 학생행 추가(상태 waiting, 종료일=시작+기간주 자동계산)→STUDENT LIST에 즉시 표시(해당 유학원+이름검색으로 확인). 유학원(UHAK ID) 드롭다운을 DICT.uhak(불일치) 대신 실 studentsFull uhak_id 값·건수순으로 생성해 검색/등록 모두 실데이터 연결.
 
 - **2026-07-20** 레거시 관리자 로그인 계정을 Supabase(app.admin_users)에 등록: gnuboard cms.g4_member level>=8 관리자 7명(cebusme·cebusme00·cebusme2[최고관리자]·Joon·katie[lv10]·cebusme1[lv9]·fumi[lv8]). 레거시 비번은 MySQL PASSWORD() 해시(복호화 불가) → 초기 비번=아이디·must_change=true(최초 로그인 시 변경 강제). mb_name/mb_level/source 컬럼 보강. app.admin_login RPC 인증 검증 통과. admin_auth.sql에 멱등 등록 블록 반영.
+
+- **2026-07-20** 출발일 기준 만나이 + 미성년(만18미만) 빨강 블링크: 여권 생년월일(studentsFull col17)+출발일(col7)로 만나이 계산, 없으면 저장나이(col4) 근사(≈배지). 적용 섹션 — 수강등록관리/STUDENT LIST, AGENCY PAGE STUDENT LIST, ROOM REPLACEMENT. 여권 생년월일 입력칸 추가(AGENCY 등록신청 apDob, 상세폼 smiBirth 라이브계산·row[17] 저장). prefers-reduced-motion 대응. 데이터 확인: 학생 생년월일 미저장(s_age만) → DOB 입력 시 정확, 기존건 근사. Playwright 단위·렌더 검증 무오류.
