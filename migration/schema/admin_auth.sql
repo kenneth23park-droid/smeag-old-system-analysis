@@ -30,6 +30,21 @@ values
   ('manager', crypt('manager', gen_salt('bf')), true)
 on conflict (username) do nothing;
 
+-- 1-b) 레거시 관리자 계정 등록 (gnuboard cms.g4_member, level>=8)
+--   레거시 비밀번호는 MySQL PASSWORD() 해시(복호화 불가) → 표준 이관: 초기 비번=아이디,
+--   최초 로그인 시 변경 강제(must_change=true). 기존 계정은 건드리지 않음(멱등).
+--   표시/추적용 컬럼(mb_name·mb_level·source) 보강.
+alter table app.admin_users add column if not exists mb_name text;
+alter table app.admin_users add column if not exists mb_level int;
+alter table app.admin_users add column if not exists source  text;
+
+insert into app.admin_users (username, pw_hash, must_change, mb_name, mb_level, source)
+select mb_id, crypt(mb_id, gen_salt('bf')), true, mb_name, mb_level, 'legacy_g4_member'
+from cms.g4_member
+where mb_level >= 8            -- 핵심 관리자(레벨10 최고관리자 포함). 필요 시 >=7 로 확장.
+on conflict (username) do nothing;
+-- 등록됨(2026-07-20): cebusme/cebusme00/cebusme2(최고관리자)/Joon/katie(lv10), cebusme1(lv9), fumi(lv8)
+
 -- ────────────────────────────────────────────────────────────────
 -- 2) 사용로그 테이블
 -- ────────────────────────────────────────────────────────────────

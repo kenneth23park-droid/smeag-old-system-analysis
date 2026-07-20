@@ -218,3 +218,5 @@
 - **2026-07-17** AGENCY PAGE 항공/픽업 등록에 마감 규칙 적용: 출발일 7일 전까지 등록 가능, 지나면 입력·저장 비활성 + 안내메세지("등록은 출발일 기준 일주일 전입니다"). STUDENT LIST FILE열에 ✈ 버튼(등록가능=녹색·완료=✓), openFlightReg 모달(출발일·마감일·항공편/도착/픽업 입력, 마감일 당일까지 편집 허용, 출발일 미정 시 비활성). 마감일 표시는 로컬(KST) 기준으로 계산해 UTC 밀림 방지. Playwright 검증(OPEN/CLOSED/미정/경계일) 무오류.
 
 - **2026-07-17** AGENCY 등록화면(APPLICATION 등록신청) 실연결: 제출→"등록신청 하시겠습니까?" 확인→studentsFull에 실제 학생행 추가(상태 waiting, 종료일=시작+기간주 자동계산)→STUDENT LIST에 즉시 표시(해당 유학원+이름검색으로 확인). 유학원(UHAK ID) 드롭다운을 DICT.uhak(불일치) 대신 실 studentsFull uhak_id 값·건수순으로 생성해 검색/등록 모두 실데이터 연결.
+
+- **2026-07-20** 레거시 관리자 로그인 계정을 Supabase(app.admin_users)에 등록: gnuboard cms.g4_member level>=8 관리자 7명(cebusme·cebusme00·cebusme2[최고관리자]·Joon·katie[lv10]·cebusme1[lv9]·fumi[lv8]). 레거시 비번은 MySQL PASSWORD() 해시(복호화 불가) → 초기 비번=아이디·must_change=true(최초 로그인 시 변경 강제). mb_name/mb_level/source 컬럼 보강. app.admin_login RPC 인증 검증 통과. admin_auth.sql에 멱등 등록 블록 반영.
