@@ -310,6 +310,7 @@
   .age-minor{color:var(--female);font-weight:900;animation:ageBlink 1s steps(2,start) infinite}
   @keyframes ageBlink{50%{opacity:.18}}
   .age-approx{font-size:9px;color:var(--faint);vertical-align:super;margin-left:1px;font-weight:600}
+  .age-dob{display:block;font-size:9.5px;color:var(--dim);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:1px}
   @media(prefers-reduced-motion:reduce){.age-minor{animation:none;text-decoration:underline;text-decoration-color:var(--female)}}
   /* ── AGENCY PAGE (레거시 유학원 포털 재현) ── */
   .agency-hero{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;background:var(--surface)}
@@ -590,9 +591,11 @@ function manAge(row){                       // row: studentsFull 형식(0..17), 
   const a=parseInt(row[4])||0;return (a>0&&a<120)?{age:a,exact:false}:null;}
 function manAgeCell(row){
   const m=manAge(row);if(!m)return '—';
+  const dob=row[17];
+  const dobHtml=(dob&&/^\d{4}-\d\d-\d\d$/.test(dob))?`<span class="age-dob" title="여권 생년월일">${esc(dob)}</span>`:'';
   const ap=m.exact?'':'<span class="age-approx" title="여권 생년월일 미입력 — 저장 나이 기준 추정">≈</span>';
-  if(m.age<MINOR_AGE)return `<span class="age-minor" title="미성년(출발일 기준 만 ${m.age}세) — 유학 보호자 확인 필요">${m.age}${ap}</span>`;
-  return `${m.age}${ap}`;}
+  const num=(m.age<MINOR_AGE)?`<span class="age-minor" title="미성년(출발일 기준 만 ${m.age}세) — 유학 보호자 확인 필요">만 ${m.age}${ap}</span>`:`만 ${m.age}${ap}`;
+  return dobHtml?`${num}${dobHtml}`:num;}
 const depStatus=(s)=>({N:['미납','warn'],Y:['완납','good'],X:['분납','install'],R:['반환','return']}[(s||'').toUpperCase()]||['-','neutral']);
 const REALBADGE=`<span class="chip on" style="background:var(--good);color:#fff;border:0">● 실데이터(MySQL)</span>`;
 // 픽업 주간: 기준일이 속한 주의 목요일 → 다음주 수요일(목+6일) 자동 산출
