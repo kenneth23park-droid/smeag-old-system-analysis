@@ -406,6 +406,8 @@
   .modal.smi .modal-h{border-bottom:1px solid var(--border)}
   .smi-badge{margin-left:10px;font-size:11px;font-weight:750;padding:2px 9px;border-radius:20px;background:var(--accent-weak);color:var(--accent-ink)}
   .smi-first{margin-left:auto;margin-right:12px;font-size:12px;color:var(--dim);font-weight:600}
+  .smi-link{color:var(--female);font-weight:700;font-size:11.5px;text-decoration:underline;margin-right:2px}
+  .smi-hl{display:inline-block;background:#fde047;color:#3a2f00;font-weight:800;font-size:11px;padding:1px 7px;border-radius:4px;margin-left:4px}
   .smi-body{overflow:auto;padding:14px 16px}
   .smi-t{width:100%;border-collapse:collapse;font-size:12.5px}
   .smi-t th{background:var(--surface-2);text-align:left;padding:7px 11px;font-weight:700;color:var(--dim);width:15%;border:1px solid var(--border);white-space:nowrap;vertical-align:middle}
@@ -2028,41 +2030,61 @@ function openStudentEdit(row,act){
   const natR=NATS.map(([v,l])=>radio('smiNat',l, nat===v||(v==='etc'&&!NATS.slice(0,8).some(x=>x[0]===nat)))).join(' ');
   const sel=(opts,cur)=>`<select class="smi-i">${opts.map(o=>`<option${o===cur?' selected':''}>${o}</option>`).join('')}</select>`;
   const mc=['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN'].map((o,i)=>radio('smiMc',o,i===0)).join(' ');
+  const link=(t)=>`<a class="smi-link" href="#" onclick="return false">${t}</a>`;
+  const COUNTRY=[['kor','KOR'],['chi','CHN'],['jap','JAP'],['twa','TWA'],['vtn','VTN'],['tha','THA'],['rus','RUS'],['sa','SA'],['mgl','MGL'],['om','OM'],['etc','ETC']];
+  const ctryR=COUNTRY.map(([v,l])=>radio('smiCtry',l, nat===v||(v==='etc'&&!COUNTRY.slice(0,10).some(x=>x[0]===nat)))).join(' ');
+  // 비용(주차 기반 산정)
+  const regist=100, c1fee=tuiWk, c2fee=220, etcFee=0, prePay=450;
+  const tuition=tuiWk*wk, dormTot=dormFee*wk, grand=regist+tuition+dormTot+etcFee-prePay;
+  const comRate=0.35, comAmt=Math.round((grand-regist)*0.19); const netAmt=grand-comAmt;
+  // 인보이스 발행 이력(발행 시 write-layer 기록 — 현재는 구조/현재값 표시)
+  const invRows=`<tr><td class="mono">1th</td><td>${link('AGENCY')} ${link('STUDENT')}</td><td class="mono">${g(6)||'—'}</td><td class="mono">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>`;
   const ov=el('div','modal-ov');ov.id='smiModal';
   ov.innerHTML=`<div class="modal smi">
     <div class="modal-h"><b>STUDENT MANAGEMENT INFORMATION</b><span class="smi-badge">${actLbl}</span>
-      <span class="smi-first">First Applier : ${g(0)}</span><button class="modal-x" id="smiClose">✕</button></div>
+      <span class="smi-first">First Applier : ${g(2)||g(3)} (${g(0)})</span><button class="modal-x" id="smiClose">✕</button></div>
     <div class="smi-body"><table class="smi-t">
       ${sec('AGENCY INFORMATION')}
-      ${rw('AGENCY ID',ipt(g(0))+' <button class="btn xs">계좌변경</button>','ACCOUNT',ipt(g(0)+' USD ACCOUNT'))}
-      ${rw('BANK NAME',ipt('CHINABANK USD ACCOUNT'),'NATIONALITY',`<div class="smi-rg">${natR}</div>`)}
+      ${rw('AGENCY ID',ipt(g(0))+' <button class="btn xs">계좌변경</button>','COUNTRY',`<div class="smi-rg">${ctryR}</div>`)}
+      ${rw('BANK NAME',ipt('CHINABANK USD ACCOUNT'),'ACCOUNT',ipt('5687-0010-16 (swift: CHBKPHMM) SME-AG'))}
       ${rw('CONSULTANT<br><i>(수속담당자)</i>',ipt(''),'OFFICE PHONE<br><i>(담당자연락처)</i>',ipt(''))}
       ${sec('STUDENT INFORMATION')}
       ${rw('NAME',ipt(g(3,row[2])),'NAME(eng)',ipt(g(2)))}
-      ${rw('Apply Date<br><i>주의! 꼭 필요시만 수정</i>',ipt(g(6),'date'),'Group/University',sel(['Select a Group','Manage Group'],'')+' <button class="btn xs">Manage</button>')}
+      ${rw('Apply Date<br><i>주의! 꼭 필요시만 수정</i>',ipt(g(6),'date'),'Group/University',sel(['Select a Group','Manage Group'],'')+' <button class="btn xs">Manage Group</button>')}
       ${rw('AGE<br><i>Need For Group Class!</i>',ipt(g(4))+' age','SEX',`${radio('smiSex','MALE',!sexF)} &nbsp;${radio('smiSex','FEMALE',sexF)}`)}
-      ${rw('BIRTHDAY (여권 생년월일)<br><i>출발일 기준 만나이 자동계산</i>',`<input id="smiBirth" class="smi-i" type="date" value="${g(17)}"><span id="smiAge" class="smi-chk"></span>`,'PASSPORT NUMBER',`<input id="smiPass" class="smi-i" value="0" autocomplete="off"><span id="smiPassChk" class="smi-chk"></span>`)}
+      ${rw('BIRTHDAY (여권 생년월일)<br><i>(citizen number) ※Enter the required · 출발일 기준 만나이 자동계산</i>',`<input id="smiBirth" class="smi-i" type="date" value="${g(17)}"><span id="smiAge" class="smi-chk"></span>`,'PASSPORT NUMBER',`<input id="smiPass" class="smi-i" value="0" autocomplete="off"><span id="smiPassChk" class="smi-chk"></span>`)}
       ${rw('DEPARTURE DATE',ipt(g(7),'date')+' <button class="btn xs">PERIOD CALC</button>','PICKUP SCHEDULE<br><i>(AIRLINE INFO)</i>',`<div class="smi-fl"><input id="smiFlight" class="smi-i smi-pick" placeholder="예 PR489 01:15am(8day) — 등록 가능" value="${esc(flight)}"><button class="btn xs" id="smiFlightLive" title="편명 실시간 조회">🔄 실시간</button></div>${flightPrev?`<div class="smi-prev">변경전: <b>${esc(flightPrev)}</b></div>`:''}<div id="smiFlightMsg" class="smi-flmsg"></div>`)}
-      ${rw('PERIOD<br><i>입/퇴실 변경시 기숙사 재설정 필수</i>',`${ipt(g(8),'date')} ~ ${ipt(g(9),'date')} &nbsp;(<b>${wk}</b> weeks)`,'PICKUP DATE<br><i>(픽업일)</i>',`<input class="smi-i smi-pick" type=date value="${esc(pick)}">`)}
+      ${rw('PERIOD<br><i>입/퇴실일 변경시 기숙사 재설정 필수</i>',`${ipt(g(8),'date')} ~ ${ipt(g(9),'date')} &nbsp;(<b>${wk}</b> weeks)`,'PICKUP DATE<br><i>(픽업일)</i>',`<input class="smi-i smi-pick" type=date value="${esc(pick)}">`)}
       ${rw('Medical History<br><i>(건강상태)</i>',`${radio('smiMed','없음',true)} ${radio('smiMed','있음',false)} <span style="color:var(--dim);font-size:11px">Medical Condition: not specified</span>`,'Parents Agreement<br><i>(부모님 동의서)</i>','<span style="color:var(--dim)">not specified</span>')}
       ${rw('AGENCY COMMENT',`<textarea class="smi-ta" rows=2></textarea>`,null)}
       ${sec('COURSE / DORMITORY')}
-      ${rw('ROOM',sel(['1room','2room','3room','4room'],'1room'),'PRE PAY<br><i>(선불금)</i>',sel(['::PRE PAY(입교전 납부내역)::'],''))}
+      ${rw('ROOM',sel(['1room','2room','3room','4room'],'2room'),'PRE PAY<br><i>(선불금)</i>',sel(['::PRE PAY(입교전 납부내역)::'],''))}
       ${rw('DORMITORY',`<span class="mono">${g(13)}</span>`,'DORMITORY FEE',`${dormFee} $ / weeks`)}
-      ${rw('CAMPUS CHOICE',sel(['CAPITAL','ENCANTO','CLASSIC'],g(14)),'INVOICE FORMAT',`${radio('smiInv','GENERAL',true)} ${radio('smiInv','GAC1',false)} ${radio('smiInv','GAC2',false)}`)}
+      ${rw('CAMPUS CHOICE',sel(['CAPITAL','ENCANTO','CLASSIC'],g(14))+` <span class="smi-hl">${g(14)}</span>`,'INVOICE FORMAT',`${radio('smiInv','GENERAL',true)} ${radio('smiInv','GAC1',false)} ${radio('smiInv','GAC2',false)}`)}
       ${rw('MULTI COURSE CHOICE',`<div class="smi-rg">${mc}</div>`,null)}
-      ${rw('COURSE CHOICE',ipt(g(12))+' '+sel([wk+'주'],wk+'주'),'COURSE TUITION FEE',`${tuiWk} $ / weeks`)}
+      ${rw('COURSE CHOICE',ipt(g(12))+' '+sel([wk+'주'],wk+'주'),'COURSE TUITION FEE',`${c1fee} $ / weeks`)}
+      ${rw('COURSE CHOICE',ipt('(supporter)familycamp-parents')+' '+sel(['3weeks'],'3weeks'),'COURSE TUITION FEE',`${c2fee} $ / weeks`)}
       ${rw('COURSE MODULE<br><i>(Only for IELTS)</i>',`${radio('smiMod','GENERAL',false)} ${radio('smiMod','ACADEMIC',false)}`,null)}
       ${sec('DORMITORY CONDITION — Nationality can not change')}
       <tr class="smi-dc"><th>ROOM NUMBER</th><th>PERSONNEL</th><th>ROOM NAME</th><th>DORMITORY FEE</th><th>PERIOD</th><th>CHECK</th></tr>
       <tr class="smi-dc"><td class="mono">${esc(num)}</td><td>1 bed, ${sexF?'F':'M'}</td><td>${g(14)}</td><td class="mono">${dormFee}$ × ${wk}wk = ${(dormFee*wk).toLocaleString()}$</td><td class="mono">${g(8)} ~ ${g(9)}</td><td><span class="pill good">OK</span></td></tr>
-      <tr class="smi-dc"><td colspan="3" style="text-align:right;font-weight:800">TOTAL</td><td class="mono"><b>${(dormFee*wk).toLocaleString()} $</b></td><td colspan="2"><button class="btn xs">DORMITORY DELETE</button></td></tr>
+      <tr class="smi-dc"><td colspan="3" style="text-align:right;font-weight:800">TOTAL</td><td class="mono"><b>${dormTot.toLocaleString()} $</b></td><td colspan="2"><button class="btn xs" id="smiDormDel">DORMITORY DELETE</button></td></tr>
       ${sec('DETAIL COST')}
-      ${rw('REGIST FEE','<b>100 $</b> &nbsp;Admission Fee','TUITION FEE',`<b>${(tuiWk*wk).toLocaleString()} $</b> &nbsp;${wk} weeks-${g(12)}`)}
-      ${rw('DORMITORY FEE',`<b>${(dormFee*wk).toLocaleString()} $</b> &nbsp;${wk} weeks`,'PICKUP FEE','<b>0 $</b>')}
-      ${rw('TOTAL',`<b style="color:var(--accent-ink);font-size:15px">${total.toLocaleString()} $</b>`,null)}
+      ${rw('REGIST FEE',`<b>${regist} $</b> &nbsp;Admission Fee`,'TUITION FEE',`<b>${tuition.toLocaleString()} $</b> &nbsp;${wk} weeks-${g(12)}`)}
+      ${rw('DORMITORY FEE',`<b>${dormTot.toLocaleString()} $</b> &nbsp;${wk} weeks`,'ETC FEE',`${ipt(String(etcFee))} $`)}
+      ${rw('PRE PAY<br><i>(커미션제외)</i>',`${ipt(String(prePay))} $ <span style="color:var(--dim);font-size:11px">tuition/dorm 조정분</span>`,'TOTAL',`<b style="color:var(--accent-ink);font-size:15px">${grand.toLocaleString()} $</b>`)}
+      ${sec('PAY INFORMATION')}
+      ${rw('PAY CHECK<br><i>(납부확인)</i>',`${sel(['NOT(미납)','PAID(완납)','INSTALL(분납)'],'NOT(미납)')} ${sel(['ACCOUNT(계좌수금)','CENTER(센터수금)'],'ACCOUNT(계좌수금)')}`,'ETC DOC · View',`${ipt(g(6),'date')} &nbsp;${link('[LOA]')} ${link('[RECEIPT]')}`)}
+      ${rw('STUDENT CONDITION',sel(['NOMAL(정상)','EXTEND(연장)','REFUND(환불)','HOLDING(홀딩)','OUT(퇴교)'], (row[11]||'').toLowerCase()==='normal'?'NOMAL(정상)':'NOMAL(정상)'),'AMOUNT<br><i>(REFUND & CANCEL)</i>',`${ipt('0')} won($)`)}
+      ${rw('STAFF COMMENT<br><i>[ONLY ENGLISH!]</i>',`<textarea class="smi-ta" rows=2></textarea>`,null)}
+      ${sec('COMMISSION INFO')}
+      ${rw('COMMISSION',sel(['7월 (현재) / 35% / 담당자 Joon(cebusme)'],'7월 (현재) / 35% / 담당자 Joon(cebusme)')+` <span style="color:var(--good);font-size:11px">COMMISSION(EXCLUDE APPLY FEE): ${comAmt.toLocaleString()}</span>`,'ETC COMMISSION',`${ipt('0')} $ <span style="color:var(--dim);font-size:11px">program 조정분</span>`)}
+      <tr class="smi-dc"><th>INVOICE</th><th>AGENCY / STUDENT</th><th>DATE</th><th>TOTAL · COM · NET</th></tr>
+      ${invRows}
+      <tr class="smi-dc"><td style="font-weight:800;color:var(--good)">FINANCIAL</td><td colspan="3" class="mono" style="color:var(--good);font-weight:800">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>
+      ${rw('INVOICE PUBLISH',`<label class="smi-r"><input type="checkbox" id="smiNewInv"> NEW INVOICE PUBLISH</label> <span style="color:var(--dim);font-size:11px">발행 시 멱등키로 중복발행 차단 · write-layer 기록</span>`,null)}
     </table></div>
-    <div class="modal-foot"><button class="btn" id="smiCancel">닫기</button><button class="btn primary" id="smiSave">💾 ${actLbl} 저장</button></div>
+    <div class="modal-foot"><button class="btn" id="smiCancel">LIST</button><button class="btn primary" id="smiSave">SUBMIT</button></div>
   </div>`;
   document.body.appendChild(ov);
   const close=()=>ov.remove();
