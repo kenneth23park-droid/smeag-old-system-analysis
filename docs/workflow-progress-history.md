@@ -234,3 +234,5 @@
 - **2026-07-20** 만나이 기준일 개선: 기준일=출발일과 오늘 중 나중(ageRef). 미래출발→출발일 기준, 출발일 경과→오늘 기준(그 사이 생일 지났으면 +1 자동). manAge/manAgeCell·상세폼 chkAge·등록폼 apAgeCalc 모두 적용, 적용 만나이·기준 표기·미성년 블링크 유지. Playwright 경계 검증 무오류.
 
 - **2026-07-20** 화면 문구 영어화 시작: T(ko,en) 헬퍼 추가, 작업팝업(Edit/Move/Extend/Consult/Brief)·배치도 화면(제목·룰러·센터/성별/방구분 필터·범례·상태범례·placeholder·note) 언어 연동(EN 기본, 한 토글). Playwright EN/KO 검증 무오류.
+
+- **2026-07-20** 인보이스 중복발행 방지(4중 방어) 구현·적용: ①UI 즉시 잠금+스피너 ②클릭당 멱등키 ③Supabase app.invoice_issue UNIQUE(idem_key / target_key,seq) + app.invoice_publish RPC(중복 시 기존 발행건 반환) ④중복 시 "이미 발행되었습니다" 메시지박스(인보이스번호·발행일시·발행자) + 감사로그. 상세폼 NEW INVOICE PUBLISH도 동일 경로. DB 검증(3회 호출→1건), Playwright 검증(연타/완료후 재클릭) 무오류. 용어: TOCTOU 경쟁상태·중복제출·비멱등연산·이중발행.

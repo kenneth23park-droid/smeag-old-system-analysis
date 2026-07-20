@@ -505,3 +505,67 @@ commit;
 --   4) 에러 조회:
 --      select * from app.db_error_log where error_id = <응답의 error_id>;
 -- ════════════════════════════════════════════════════════════════
+
+-- ════════════════════════════════════════════════════════════════
+-- 인보이스 발행 멱등 계층 (중복발행/이중기표 방지)
+--   방어 순서: ①UI 잠금 ②멱등키 ③UNIQUE 제약(TOCTOU 최종 방어) ④예외→중복안내
+--   재실행 안전(멱등 DDL).
+-- ════════════════════════════════════════════════════════════════
+create table if not exists app.invoice_issue (
+  id         bigserial primary key,
+  target_key text        not null,                    -- 발행 대상(학생/화면 컨텍스트)
+  seq        int         not null default 1,
+  idem_key   text        not null,                    -- 클릭 1회 = 멱등키 1개
+  invoice_no text,
+  amount     numeric,
+  issued_by  text,
+  detail     jsonb       not null default '{}'::jsonb,
+  issued_at  timestamptz not null default now()
+);
+comment on table app.invoice_issue is
+  '인보이스 발행 원장. idem_key/target_key UNIQUE 로 중복발행(이중기표) 차단. TOCTOU 방어의 최종 계층.';
+create unique index if not exists uq_invoice_idem   on app.invoice_issue (idem_key);
+create unique index if not exists uq_invoice_target on app.invoice_issue (target_key, seq);
+create index        if not exists ix_invoice_issued on app.invoice_issue (issued_at desc);
+
+-- 발행 RPC — 중복이면 에러가 아니라 기존 발행건 정보를 돌려준다(사용자에겐 안내 메시지)
+create or replace function app.invoice_publish(
+  p_target text, p_idem text, p_by text default null,
+  p_amount numeric default null, p_detail jsonb default '{}'::jsonb)
+returns jsonb
+language plpgsql security definer set search_path = app, public, extensions
+as $$
+declare v_rec app.invoice_issue%rowtype;
+begin
+  -- 1차: 이미 발행된 대상인지 확인(빠른 경로)
+  select * into v_rec from app.invoice_issue
+   where target_key = p_target or idem_key = p_idem order by seq limit 1;
+  if found then
+    return jsonb_build_object('ok',false,'duplicate',true,'invoice_no',v_rec.invoice_no,
+      'issued_at',v_rec.issued_at,'issued_by',v_rec.issued_by,'message','이미 발행되었습니다.');
+  end if;
+  -- 2차: UNIQUE 제약이 최종 방어(동시요청은 여기서 걸림)
+  begin
+    insert into app.invoice_issue(target_key,seq,idem_key,invoice_no,amount,issued_by,detail)
+    values (p_target,1,p_idem,'(pending)',p_amount,p_by,coalesce(p_detail,'{}'::jsonb))
+    returning * into v_rec;
+    update app.invoice_issue
+       set invoice_no = 'INV-'||to_char(issued_at,'YYYYMMDD')||'-'||lpad(id::text,6,'0')
+     where id = v_rec.id returning * into v_rec;
+  exception when unique_violation then
+    select * into v_rec from app.invoice_issue
+     where target_key = p_target or idem_key = p_idem order by seq limit 1;
+    return jsonb_build_object('ok',false,'duplicate',true,'invoice_no',v_rec.invoice_no,
+      'issued_at',v_rec.issued_at,'issued_by',v_rec.issued_by,'message','이미 발행되었습니다.');
+  end;
+  return jsonb_build_object('ok',true,'duplicate',false,'invoice_no',v_rec.invoice_no,
+    'issued_at',v_rec.issued_at,'message','인보이스가 발행되었습니다.');
+end $$;
+
+alter table app.invoice_issue enable row level security;
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname='app' and tablename='invoice_issue' and policyname='svc_all') then
+    create policy svc_all on app.invoice_issue for all to service_role using (true) with check (true);
+  end if;
+end $$;
+grant execute on function app.invoice_publish(text,text,text,numeric,jsonb) to anon, authenticated, service_role;

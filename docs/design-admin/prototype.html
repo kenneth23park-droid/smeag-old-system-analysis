@@ -1727,7 +1727,67 @@ function applyHash(){const [cat,idx]=location.hash.replace('#','').split('.');
 
 // ─── 중복실행 방지(idempotency) 데모 ───
 const running={};
+// ─── 공용 메시지 박스 ───
+function msgBox(title,html,kind){
+  const ov=el('div','modal-ov');ov.id='msgBox';
+  const col=kind==='bad'?'var(--female)':(kind==='warn'?'var(--warn)':'var(--accent-ink)');
+  ov.innerHTML=`<div class="modal" style="max-width:430px">
+    <div class="modal-h"><b style="color:${col}">${esc(title)}</b><button class="modal-x" id="mbX">✕</button></div>
+    <div class="modal-body">${html}
+      <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn primary" id="mbOk">${T('확인','OK')}</button></div>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelector('#mbX').onclick=close;ov.querySelector('#mbOk').onclick=close;ov.onclick=e=>{if(e.target===ov)close();};
+  return ov;}
+
+// ─── 인보이스 발행 (중복발행 방지: ①UI잠금 ②멱등키 ③UNIQUE제약 ④중복안내) ───
+const _invIssued=new Map();   // target → 발행건 (실연동 시 app.invoice_issue 가 원장)
+const _invFlight=new Set();
+function invTarget(btn){return (btn&&btn.dataset.invTarget)||('menu:'+((curMenu&&curMenu.u)||curKey));}
+async function invoiceRPC(target,idem,by,amount){
+  if(DBCFG.url&&DBCFG.anonKey&&window.fetch){        // 실 RPC: app.invoice_publish
+    try{const r=await fetch(DBCFG.url+'/rest/v1/rpc/invoice_publish',{method:'POST',
+        headers:{'Content-Type':'application/json',apikey:DBCFG.anonKey,Authorization:'Bearer '+DBCFG.anonKey},
+        body:JSON.stringify({p_target:target,p_idem:idem,p_by:by,p_amount:amount,p_detail:{}})});
+      if(r.ok)return await r.json();}catch(e){}
+  }
+  await new Promise(r=>setTimeout(r,700));           // 네트워크 유휴구간(TOCTOU 창) 재현
+  const ex=_invIssued.get(target);
+  if(ex)return {ok:false,duplicate:true,invoice_no:ex.invoice_no,issued_at:ex.issued_at,issued_by:ex.issued_by,message:'이미 발행되었습니다.'};
+  const no='INV-'+_ymd(new Date()).replace(/-/g,'')+'-'+String(_invIssued.size+1).padStart(6,'0');
+  const rec={invoice_no:no,issued_at:new Date().toISOString(),issued_by:by};
+  _invIssued.set(target,rec);
+  return {ok:true,duplicate:false,invoice_no:no,issued_at:rec.issued_at,message:'인보이스가 발행되었습니다.'};}
+async function publishInvoice(btn,opts){
+  opts=opts||{};const target=opts.target||invTarget(btn);
+  if(_invFlight.has(target)){                        // ① 진행 중 재클릭 차단
+    msgBox(T('발행 진행 중','Publishing…'),`<div style="font-size:13.5px">${T('이미 발행 요청이 <b>진행 중</b>입니다. 잠시만 기다려 주세요.','A publish request is <b>already in progress</b>. Please wait.')}</div>`,'warn');return;}
+  _invFlight.add(target);
+  const orig=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> '+T('발행 중…','Publishing…');}
+  const idem='inv:'+target+':'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); // ② 멱등키
+  try{
+    const res=await invoiceRPC(target,idem,(typeof sessionUser==='function'&&sessionUser())||'admin',opts.amount||null);
+    if(res&&res.duplicate){                          // ④ 중복 → 메시지 박스
+      msgBox(T('이미 발행되었습니다','Already published'),
+        `<div style="font-size:13.5px;line-height:1.7">${T('이 건은 <b>이미 인보이스가 발행</b>되었습니다. 중복 발행이 차단되었습니다.','This invoice has <b>already been published</b>. Duplicate publishing was blocked.')}
+          <div style="margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+            <div><b>${T('인보이스 번호','Invoice No')}</b> · <span class="mono">${esc(res.invoice_no||'-')}</span></div>
+            <div><b>${T('발행일시','Issued at')}</b> · <span class="mono">${esc(String(res.issued_at||'').replace('T',' ').slice(0,19))}</span></div>
+            ${res.issued_by?`<div><b>${T('발행자','Issued by')}</b> · ${esc(res.issued_by)}</div>`:''}
+          </div>
+          <div style="margin-top:9px;color:var(--dim);font-size:12px">${T('재발행이 필요하면 기존 인보이스를 취소한 뒤 진행하세요.','To reissue, cancel the existing invoice first.')}</div></div>`,'warn');
+      if(window.adminAuthLog)try{window.adminAuthLog('invoice_duplicate_blocked',{target:target,invoice_no:res.invoice_no},'read');}catch(_){}
+    }else{
+      toast(T('인보이스 발행 완료','Invoice published'),`${res.invoice_no} · ${T('중복 없이 1건 처리','1 record, no duplicates')}`,true);
+      if(window.adminAuthLog)try{window.adminAuthLog('invoice_publish',{target:target,invoice_no:res.invoice_no,idem:idem},'create');}catch(_){}
+    }
+  }catch(e){msgBox(T('발행 실패','Publish failed'),`<div style="font-size:13.5px">${esc(e.message||'error')}</div>`,'bad');}
+  finally{_invFlight.delete(target);if(btn){btn.disabled=false;btn.innerHTML=orig;}}}
+
 function guard(btn){const kind=btn.dataset.guard;
+  if(kind==='invoice'){publishInvoice(btn);return;}   // 인보이스는 멱등 발행 경로로
   if(running[kind]){toast('이미 실행 중입니다',`${kind==='invoice'?'인보이스 발행':'저장'}이 진행 중입니다. 중복 요청이 차단되었습니다 (멱등키 재사용 → 중복 레코드 미생성).`,false);return;}
   running[kind]=true;const orig=btn.innerHTML;btn.disabled=true;btn.innerHTML=`<span class="spin"></span> 처리 중…`;
   setTimeout(()=>{running[kind]=false;btn.disabled=false;btn.innerHTML=orig;
@@ -2186,7 +2246,11 @@ function openStudentEdit(row,act){
     else{flMsg.innerHTML=`편명 <b>${esc(c)}</b> 실시간 조회 준비됨 — <b>무료 API 키 설정 시</b> 실제 출·도착시각 회신(AviationStack 프록시). 현재는 저장값 사용.`;flMsg.className='smi-flmsg';}
     if(window.adminAuthLog)try{window.adminAuthLog('flight_live_lookup',{flight:c},'read');}catch(_){}
   };
-  ov.querySelector('#smiSave').onclick=()=>{
+  ov.querySelector('#smiSave').onclick=async(ev)=>{
+    const newInv=ov.querySelector('#smiNewInv');
+    if(newInv&&newInv.checked){                      // NEW INVOICE PUBLISH → 멱등 발행(중복 차단)
+      await publishInvoice(ev.currentTarget,{target:'student:'+((row[2]||row[3]||'')+'|'+(row[7]||'')),amount:grand});
+      return;}                                       // 발행 결과(성공/중복 안내) 확인 후 사용자가 닫도록 모달 유지
     if(window.adminAuthLog)try{window.adminAuthLog('student_'+act+'_save',{name:row[2]||row[3],room:row[13]},'update');}catch(_){}
     toast(`${actLbl} 저장 완료`,`${row[2]||row[3]||'학생'} · ${row[13]||''} (멱등 처리)`,true);close();};
 }
