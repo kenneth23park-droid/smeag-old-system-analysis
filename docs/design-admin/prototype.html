@@ -592,8 +592,12 @@ function fullYears(dobStr,refStr){
   let a=ref.getFullYear()-dob.getFullYear();const m=ref.getMonth()-dob.getMonth();
   if(m<0||(m===0&&ref.getDate()<dob.getDate()))a--;
   return a;}
+// 나이 기준일 = 출발일과 오늘 중 나중(출발일이 지났으면 오늘로 계산 → 생일 지났으면 +1)
+function ageRef(dep){const today=_ymd(new Date());
+  if(!/^\d{4}-\d\d-\d\d$/.test(dep||''))return today;
+  return dep>=today?dep:today;}
 function manAge(row){                       // row: studentsFull 형식(0..17), col7=출발일, col17=여권생일
-  const ex=fullYears(row[17],row[7]);
+  const ex=fullYears(row[17],ageRef(row[7]));
   if(ex!=null&&ex>=0&&ex<120)return {age:ex,exact:true};
   const a=parseInt(row[4])||0;return (a>0&&a<120)?{age:a,exact:false}:null;}
 function manAgeCell(row){
@@ -601,7 +605,7 @@ function manAgeCell(row){
   const dob=row[17];
   const dobHtml=(dob&&/^\d{4}-\d\d-\d\d$/.test(dob))?`<span class="age-dob" title="여권 생년월일">${esc(dob)}</span>`:'';
   const ap=m.exact?'':'<span class="age-approx" title="여권 생년월일 미입력 — 저장 나이 기준 추정">≈</span>';
-  const num=(m.age<MINOR_AGE)?`<span class="age-minor" title="미성년(출발일 기준 만 ${m.age}세) — 유학 보호자 확인 필요">만 ${m.age}${ap}</span>`:`만 ${m.age}${ap}`;
+  const num=(m.age<MINOR_AGE)?`<span class="age-minor" title="미성년(만 ${m.age}세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요">만 ${m.age}${ap}</span>`:`만 ${m.age}${ap}`;
   return dobHtml?`${num}${dobHtml}`:num;}
 const depStatus=(s)=>({N:['미납','warn'],Y:['완납','good'],X:['분납','install'],R:['반환','return']}[(s||'').toUpperCase()]||['-','neutral']);
 const REALBADGE=`<span class="chip on" style="background:var(--good);color:#fff;border:0">● 실데이터(MySQL)</span>`;
@@ -1465,8 +1469,8 @@ function wireAgency(root){
   // 등록신청 폼: 여권 생년월일 → 나이 자동계산·잠금(출발일 기준, 없으면 오늘 기준)
   const apDob=root.querySelector('#apDob'),apAge=root.querySelector('#apAge'),apDep=root.querySelector('#apDepart');
   function apAgeCalc(){if(!apDob||!apAge)return;const dob=apDob.value;
-    const aDep=fullYears(dob,apDep&&apDep.value),aToday=fullYears(dob,_ymd(new Date()));
-    if(dob&&(aDep!=null||aToday!=null)){apAge.value=(aDep!=null?aDep:aToday);apAge.disabled=true;apAge.classList.add('smi-locked');apAge.title=`출발일 기준 만 ${aDep!=null?aDep:'-'}세 / 오늘 기준 만 ${aToday!=null?aToday:'-'}세`;}
+    const dep=apDep&&apDep.value;const aRef=fullYears(dob,ageRef(dep)),aToday=fullYears(dob,_ymd(new Date()));
+    if(dob&&(aRef!=null||aToday!=null)){apAge.value=(aRef!=null?aRef:aToday);apAge.disabled=true;apAge.classList.add('smi-locked');apAge.title=`적용 만 ${aRef!=null?aRef:'-'}세 (출발일·오늘 중 나중) / 오늘 만 ${aToday!=null?aToday:'-'}세`;}
     else{apAge.disabled=false;apAge.classList.remove('smi-locked');apAge.title='';}}
   if(apDob){apDob.addEventListener('input',apAgeCalc);}
   if(apDep){apDep.addEventListener('input',apAgeCalc);}
@@ -2150,16 +2154,18 @@ function openStudentEdit(row,act){
   const birthEl=ov.querySelector('#smiBirth'),ageEl=ov.querySelector('#smiAge'),ageInput=ov.querySelector('#smiAgeInput');
   const depEl2=()=>row[7]||'';
   const chkAge=()=>{const dob=birthEl.value;row[17]=dob;
-    const aDep=fullYears(dob,depEl2()), aToday=fullYears(dob,_ymd(new Date()));
-    if(aDep==null&&aToday==null){                       // 생년월일 없음 → 수동 입력 허용
-      ageEl.textContent=dob?'출발일 미정 — 계산 불가':'';ageEl.className='smi-chk';
+    const dep=depEl2(), ref=ageRef(dep), today=_ymd(new Date());
+    const aRef=fullYears(dob,ref), aToday=fullYears(dob,today);
+    if(aRef==null&&aToday==null){                       // 생년월일 없음 → 수동 입력 허용
+      ageEl.textContent=dob?'기준일 없음 — 계산 불가':'';ageEl.className='smi-chk';
       if(ageInput){ageInput.disabled=false;ageInput.classList.remove('smi-locked');}
       return;}
-    const main=(aDep!=null?aDep:aToday);                // AGE칸 = 출발일 기준(없으면 오늘 기준)
+    const main=(aRef!=null?aRef:aToday);                // AGE칸 = 출발일·오늘 중 나중 기준
     if(ageInput){ageInput.value=main;ageInput.disabled=true;ageInput.classList.add('smi-locked');row[4]=String(main);}
-    const parts=[];
-    parts.push(aDep!=null?`출발일 기준 <b>만 ${aDep}세</b>`:'출발일 미정');
-    if(aToday!=null)parts.push(`오늘(생일) 기준 <b>만 ${aToday}세</b>`);
+    const past=/^\d{4}-\d\d-\d\d$/.test(dep)&&dep<today;
+    const basis=past?`현재일 기준(출발 ${dep} 경과)`:(/^\d{4}-\d\d-\d\d$/.test(dep)?`출발일 ${dep} 기준`:'현재일 기준');
+    const parts=[`적용 <b>만 ${main}세</b> · ${basis}`];
+    if(aToday!=null&&aToday!==main)parts.push(`오늘 만 ${aToday}세`);
     if(main<18)ageEl.innerHTML=`<span class="age-minor">${parts.join(' · ')} · 미성년(보호자 확인)</span>`;
     else{ageEl.innerHTML=parts.join(' · ');ageEl.className='smi-chk ok';}};
   if(birthEl){birthEl.addEventListener('input',chkAge);chkAge();}
