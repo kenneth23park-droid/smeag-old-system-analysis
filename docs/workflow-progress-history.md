@@ -226,3 +226,5 @@
 - **2026-07-20** 수강등록관리 상세폼(openStudentEdit)을 레거시 student_modify.php 전체와 동일하게 확장: AGENCY INFO(COUNTRY 라디오·BANK·ACCOUNT·CONSULTANT·OFFICE PHONE), STUDENT INFO(NAME/eng·Apply·Group·AGE·SEX·BIRTHDAY(만나이)·PASSPORT·DEPARTURE·PICKUP항공·PERIOD·Medical·Parents·AGENCY COMMENT·ROOM·PRE PAY·DORMITORY·CAMPUS(하이라이트)·INVOICE FORMAT·MULTI COURSE·COURSE CHOICE 2행·MODULE), DORMITORY CONDITION 표, DETAIL COST(REGIST·TUITION·DORMITORY·ETC FEE·PRE PAY·TOTAL), PAY INFORMATION(PAY CHECK·ETC DOC·LOA/RECEIPT·STUDENT CONDITION·AMOUNT·STAFF COMMENT), COMMISSION INFO(COMMISSION·ETC COMMISSION·INVOICE 이력·FINANCIAL·NEW INVOICE PUBLISH), SUBMIT/LIST. Playwright 7섹션 렌더 검증 무오류.
 
 - **2026-07-20** 생년월일 입력 시 나이 자동계산+AGE칸 잠금(수정불가): 상세폼(openStudentEdit smiAgeInput)·등록폼(apAge) 모두, 여권 생년월일 입력하면 출발일 기준(없으면 오늘 기준) 만나이로 자동채움·disabled, 삭제 시 재편집. 출발일 기준 + 오늘(생일) 기준 두 나이 동시 표시(미성년 블링크). Playwright 검증 무오류.
+
+- **2026-07-20** 리스트에서 학생 이름 클릭 시 작업 팝업(수정·변경·연장·상담·약식) 표시: openStudentActions 신설, STUDENT LIST/수강등록관리(.std-name)·AGENCY PAGE STUDENT LIST(.std-name-ag) 이름 클릭 → 5버튼 팝업 → 수정/연장/상담/약식=상세폼, 변경=ROOM REPLACEMENT. Playwright 검증 무오류.
