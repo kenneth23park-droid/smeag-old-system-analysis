@@ -2052,12 +2052,13 @@ function validatePassport(v){
 // ─── 학생 작업 메뉴 팝업(수정·변경·연장·상담·약식) — 리스트에서 학생 클릭 시 ───
 function openStudentActions(row){
   row=row||[];const name=row[2]||row[3]||'학생';
-  const ACTS=[['수정','edit','var(--accent)'],['변경','move','var(--return)'],['연장','extend','var(--good)'],['상담','counsel','#0ea5e9'],['약식','brief','var(--neutral)']];
+  const EN=(typeof LANG!=='undefined'&&LANG==='en');
+  const ACTS=[[EN?'Edit':'수정','edit','var(--accent)'],[EN?'Move':'변경','move','var(--return)'],[EN?'Extend':'연장','extend','var(--good)'],[EN?'Consult':'상담','counsel','#0ea5e9'],[EN?'Brief':'약식','brief','var(--neutral)']];
   const ov=el('div','modal-ov');ov.id='stdActModal';
   ov.innerHTML=`<div class="modal" style="max-width:380px">
     <div class="modal-h"><b>${esc(name)}</b><span style="color:var(--dim);font-size:12px;margin-left:8px">${esc((row[14]||'').toUpperCase())} ${esc(row[13]||'')}</span><button class="modal-x" id="saX">✕</button></div>
     <div class="modal-body">
-      <div style="color:var(--dim);font-size:12px;margin-bottom:12px">작업을 선택하세요</div>
+      <div style="color:var(--dim);font-size:12px;margin-bottom:12px">${EN?'Select an action':'작업을 선택하세요'}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${ACTS.map(([l,a,c])=>`<button class="btn sa-act" data-act="${a}" style="border-color:${c};color:${c};font-weight:800;min-width:66px;padding:9px 12px">${l}</button>`).join('')}
       </div></div></div>`;
