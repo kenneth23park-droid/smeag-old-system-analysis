@@ -409,9 +409,15 @@
   .smi-link{color:var(--female);font-weight:700;font-size:11.5px;text-decoration:underline;margin-right:2px}
   .smi-hl{display:inline-block;background:#fde047;color:#3a2f00;font-weight:800;font-size:11px;padding:1px 7px;border-radius:4px;margin-left:4px}
   .smi-locked{background:var(--surface-2)!important;color:var(--dim)!important;cursor:not-allowed}
+  /* 이름 컬럼: 폭 제한(말줄임) + 선택·복사 가능. 전체 이름은 title 툴팁 */
   .std-name,.std-name-ag{color:var(--accent-ink);font-weight:700}
-  tr.std-row{cursor:pointer}
-  tr.std-row:hover>td{background:var(--accent-weak)}
+  #stdBody table.grid td.std-name{max-width:170px}
+  #stdBody table.grid td.std-kor{max-width:104px;color:var(--dim)}
+  #stdBody table.grid td.std-name,#stdBody table.grid td.std-kor{
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    user-select:text;-webkit-user-select:text;cursor:text}
+  #stdBody table.grid td,#stdBody table.grid th{padding-left:5px;padding-right:5px}
+  #stdBody .std-act .btn.xs{padding:2px 5px;font-size:10.5px}
   .smi-body{overflow:auto;padding:14px 16px}
   .smi-t{width:100%;border-collapse:collapse;font-size:12.5px}
   .smi-t th{background:var(--surface-2);text-align:left;padding:7px 11px;font-weight:700;color:var(--dim);width:15%;border:1px solid var(--border);white-space:nowrap;vertical-align:middle}
@@ -682,7 +688,7 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   const pg=f.slice(s.page*s.per,s.page*s.per+s.per);
   window._stdPage=pg;  // 액션 상세폼에서 전체 행 참조
   const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">수정</button><button class="btn xs" data-sact="move">변경</button><button class="btn xs" data-sact="extend">연장</button><button class="btn xs" data-sact="counsel">상담</button><button class="btn xs" data-sact="brief">약식</button></td>`;
-  const tb=pg.map((r,i)=>`<tr data-i="${i}" class="std-row" title="클릭 → 작업 메뉴(수정·변경·연장·상담·약식)"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}">${esc(r[2])}</td><td>${esc(r[3])||'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700">${esc(r[7])||'—'}</td>`:''}<td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
+  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" title="${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700">${esc(r[7])||'—'}</td>`:''}<td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -1462,10 +1468,7 @@ function wireAgency(root){
     if(window.adminAuthLog)try{window.adminAuthLog('agency_student_edit',{name:row&&row[2]},'update');}catch(_){}});
   root.querySelectorAll('.ag-score').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];toast('SCORE',(row&&row[2]||'')+' · 성적 입력(데모)',true);});
   root.querySelectorAll('.ag-flight').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];if(row)openFlightReg(row);});
-  // 행 어디를 클릭하든 작업 팝업(버튼/링크 제외)
-  const atbl=root.querySelector('.agency-main table.grid tbody');
-  if(atbl)atbl.addEventListener('click',e=>{if(e.target.closest('a,input,select,textarea,button'))return;
-    const tr=e.target.closest('tr[data-i]');if(tr){const row=(window._agencyPage||[])[+tr.dataset.i];if(row)openStudentActions(row);}});
+  // 행 클릭 팝업 없음 — 오른쪽 Edit/Score/✈ 버튼으로만 진행, 이름은 선택·복사 가능
   // 등록신청 폼: 여권 생년월일 → 나이 자동계산·잠금(출발일 기준, 없으면 오늘 기준)
   const apDob=root.querySelector('#apDob'),apAge=root.querySelector('#apAge'),apDep=root.querySelector('#apDepart');
   function apAgeCalc(){if(!apDob||!apAge)return;const dob=apDob.value;
@@ -1730,9 +1733,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
         if(act==='move')openRoomReplace(null,rm,nm,dp);else openStudentEdit(row,act);
         if(window.adminAuthLog)try{window.adminAuthLog('student_'+act,{name:nm,room:rm},KIND[act]);}catch(_){}
         return;}
-      if(e.target.closest('a,input,select,textarea,button'))return;   // 기타 인터랙션 무시
-      const tr=e.target.closest('tr[data-i]');                        // 행 어디를 클릭하든 작업 팝업
-      if(tr){const row=(window._stdPage||[])[+tr.dataset.i];if(row)openStudentActions(row);}
+      // 행 클릭 팝업 없음 — 오른쪽 ACTION 버튼(수정·변경·연장·상담·약식)으로만 진행, 이름은 선택·복사 가능
     });
     paintStd();
   }
