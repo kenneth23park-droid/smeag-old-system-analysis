@@ -418,6 +418,24 @@
     user-select:text;-webkit-user-select:text;cursor:text}
   #stdBody table.grid td,#stdBody table.grid th{padding-left:5px;padding-right:5px}
   #stdBody .std-act .btn.xs{padding:2px 5px;font-size:10.5px}
+
+  /* ══ 레거시 표 타이포 조건 반영 (실측: Tahoma,굴림 · 11px · #222 · 행 30px · 가운데정렬) ══ */
+  #stdBody table.grid,#specBody table.grid,.agency-main table.grid{
+    font-family:Tahoma,"굴림",Gulim,"돋움",Dotum,sans-serif;font-size:11px}
+  #stdBody table.grid td,#specBody table.grid td,.agency-main table.grid td{
+    font-size:11px;font-weight:400;height:30px;padding-top:0;padding-bottom:0;
+    text-align:center;vertical-align:middle}
+  #stdBody table.grid th,#specBody table.grid th,.agency-main table.grid th{
+    font-size:11px;font-weight:400;letter-spacing:0;text-align:center;
+    font-family:Tahoma,"굴림",Gulim,"돋움",Dotum,sans-serif}
+  /* 날짜/숫자 셀도 레거시처럼 동일 서체(자릿수 정렬만 유지) */
+  #stdBody table.grid td.mono,#specBody table.grid td.mono,.agency-main table.grid td.mono{
+    font-family:Tahoma,"굴림",Gulim,"돋움",Dotum,sans-serif;font-variant-numeric:tabular-nums}
+  /* 첫 컬럼(AGENCY)만 좌측 정렬 — 레거시와 동일 */
+  #stdBody table.grid td:first-child,#stdBody table.grid th:first-child{text-align:left}
+  /* 이름 강조 해제(레거시는 본문과 동일) — 폭 제한·복사 기능은 유지 */
+  #stdBody table.grid td.std-name{font-weight:400;color:var(--text)}
+  #stdBody .std-act .btn.xs{font-size:10px;padding:1px 4px}
   .smi-body{overflow:auto;padding:14px 16px}
   .smi-t{width:100%;border-collapse:collapse;font-size:12.5px}
   .smi-t th{background:var(--surface-2);text-align:left;padding:7px 11px;font-weight:700;color:var(--dim);width:15%;border:1px solid var(--border);white-space:nowrap;vertical-align:middle}
