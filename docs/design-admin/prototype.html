@@ -411,12 +411,16 @@
   .smi-locked{background:var(--surface-2)!important;color:var(--dim)!important;cursor:not-allowed}
   /* 이름 컬럼: 폭 제한(말줄임) + 선택·복사 가능. 전체 이름은 title 툴팁 */
   .std-name,.std-name-ag{color:var(--accent-ink);font-weight:700}
-  #stdBody table.grid td.std-name{max-width:170px}
-  #stdBody table.grid td.std-kor{max-width:104px;color:var(--dim)}
+  #stdBody table.grid td.std-name{max-width:150px}
+  #stdBody table.grid td.std-kor{max-width:88px;color:var(--dim)}
+  /* 화면이 짧거나 확대(zoom) 상태여도 행이 항상 보이도록 최소 높이 확보
+     (.main.freeze 규칙의 min-height:0 을 이기도록 동일 특이도로 재지정) */
+  #stdBody .twrap{min-height:280px}
+  .main.freeze #stdBody .twrap{min-height:280px}
   #stdBody table.grid td.std-name,#stdBody table.grid td.std-kor{
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     user-select:text;-webkit-user-select:text;cursor:text}
-  #stdBody table.grid td,#stdBody table.grid th{padding-left:5px;padding-right:5px}
+  #stdBody table.grid td,#stdBody table.grid th{padding-left:3px;padding-right:3px}
   #stdBody .std-act .btn.xs{padding:2px 5px;font-size:10.5px}
 
   /* ══ 레거시 표 타이포 조건 반영 (실측: Tahoma,굴림 · 11px · #222 · 행 30px · 가운데정렬) ══ */
@@ -624,6 +628,8 @@ function manAge(row){                       // row: studentsFull 형식(0..17), 
   const ex=fullYears(row[17],ageRef(row[7]));
   if(ex!=null&&ex>=0&&ex<120)return {age:ex,exact:true};
   const a=parseInt(row[4])||0;return (a>0&&a<120)?{age:a,exact:false}:null;}
+// 리스트 날짜 축약: 2026-07-02 → 26-07-02 (전체 날짜는 셀 title 툴팁)
+function d8(s){s=(''+(s||'')).trim();return /^\d{4}-\d\d-\d\d/.test(s)?esc(s.slice(2,10)):(esc(s)||'—');}
 function manAgeCell(row){
   const m=manAge(row);if(!m)return '—';
   const dob=row[17];
@@ -706,7 +712,7 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   const pg=f.slice(s.page*s.per,s.page*s.per+s.per);
   window._stdPage=pg;  // 액션 상세폼에서 전체 행 참조
   const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">수정</button><button class="btn xs" data-sact="move">변경</button><button class="btn xs" data-sact="extend">연장</button><button class="btn xs" data-sact="counsel">상담</button><button class="btn xs" data-sact="brief">약식</button></td>`;
-  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" title="${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono">${esc(r[6])||'—'}</td><td class="mono">${esc(r[7])||'—'}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700">${esc(r[7])||'—'}</td>`:''}<td class="mono">${esc(r[8])||'—'}</td><td class="mono">${esc(r[9])||'—'}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
+  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" title="${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td><td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
