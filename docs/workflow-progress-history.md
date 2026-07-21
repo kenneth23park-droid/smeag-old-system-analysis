@@ -236,3 +236,5 @@
 - **2026-07-20** 화면 문구 영어화 시작: T(ko,en) 헬퍼 추가, 작업팝업(Edit/Move/Extend/Consult/Brief)·배치도 화면(제목·룰러·센터/성별/방구분 필터·범례·상태범례·placeholder·note) 언어 연동(EN 기본, 한 토글). Playwright EN/KO 검증 무오류.
 
 - **2026-07-20** 인보이스 중복발행 방지(4중 방어) 구현·적용: ①UI 즉시 잠금+스피너 ②클릭당 멱등키 ③Supabase app.invoice_issue UNIQUE(idem_key / target_key,seq) + app.invoice_publish RPC(중복 시 기존 발행건 반환) ④중복 시 "이미 발행되었습니다" 메시지박스(인보이스번호·발행일시·발행자) + 감사로그. 상세폼 NEW INVOICE PUBLISH도 동일 경로. DB 검증(3회 호출→1건), Playwright 검증(연타/완료후 재클릭) 무오류. 용어: TOCTOU 경쟁상태·중복제출·비멱등연산·이중발행.
+
+- **2026-07-21** ① 비밀번호 변경 강제 화면 비활성(로그인 즉시 진입) + Supabase must_change 전 계정 해제. ② 로그인 폴백 계정목록에 레거시 관리자 7명 추가(데스크톱·모바일) — anon 키 없이도 실 관리자 아이디로 로그인 가능. ③ 전 메뉴 영어화: 런타임 번역 계층(I18N_EN 사전 294항목 + 동적 패턴 규칙 + MutationObserver로 모달까지 자동 적용). 전 메뉴 순회 검증 결과 UI 잔여 한글 4건(학생명 등 데이터는 미번역 유지). 무오류 배포.

@@ -1604,6 +1604,64 @@ const MENU_EN={
   '주간 픽업 리스트':'Weekly Pickup List','기숙사이동관리':'Room Move Mgmt','일별 입실&퇴실':'Daily Check-in/out'};
 function mlabel(m){return LANG==='en'?(MENU_EN[m.t]||m.t):m.t;}
 function T(ko,en){return LANG==='en'?en:ko;} // 화면 문구 언어 전환
+
+// ─── 런타임 번역 계층 — 렌더된 화면의 한글 UI 문구를 영어로 치환(LANG='en') ───
+//   · 정확일치 사전(I18N_EN) + 동적 패턴 규칙. 학생명 등 데이터는 사전에 없어 그대로 유지.
+const I18N_EN=/*__I18N__*/{"(FROM 변경 시 TO 자동) · legacy": "(FROM change auto-updates TO) · legacy", "(출발 4일전)에 마감 → 그 시점 데이터로 날짜·시간 자동 정렬 · 신입(In) 빨강 강조.": "Closes at (4 days before Departure) → data at that point auto-sorts by date/time · New arrivals (In) highlighted in red.", "/ 1 · 전체": "/ 1 · All", "/ 149 · 전체": "/ 149 · All", "/ 177 · 전체": "/ 177 · All", "/ 200 · 전체": "/ 200 · All", "/ 23 · 결과": "/ 23 · Results", "/ 23 · 전체": "/ 23 · All", "/ 243 · 결과": "/ 243 · Results", "/ 243 · 전체": "/ 243 · All", "/ 42 · 전체": "/ 42 · All", "/ 56 · 전체": "/ 56 · All", "/ 6 · 전체": "/ 6 · All", "2025~2027 · 최근순": "2025~2027 · Latest first", "2인실 룸메이트 배정": "2-person room roommate assignment", "552,177건 · 감사로그": "552,177 records · audit log", "5일 표시 (선택 기간)": "Show 5 days (selected period)", "6주 남자1인실 외부기숙사": "6-week Male 1-person room External dormitory", "7/21 대기": "7/21 Waiting", "7/22 대기": "7/22 Waiting", "7/23 대기": "7/23 Waiting", "7/24 대기": "7/24 Waiting", "7/26 대기": "7/26 Waiting", "7/27 대기": "7/27 Waiting", "::UHAK ID (전체)::": "::UHAK ID (All)::", "=미납 ·": "=UNPAID ·", "=반환 — 기존 문서의 “X=예외”는 정정됨": "=RETURN — the existing doc's \"X=exception\" has been corrected", "=분납(INSTALL) ·": "=INSTALL ·", "=완납 ·": "=PAID ·", "APPLICATION(등록신청)": "APPLICATION(Registration)", "Admission Date (입학가능일)": "Admission Date (earliest available date)", "BACK-UP LOG (방변경 audit)": "BACK-UP LOG (Room change audit)", "CHI[중국]": "CHI[China]", "COURSE(연수코스)": "COURSE(Training Course)", "D-4 이후 신규 도착": "New arrivals after D-4", "E203 → E205 이동": "E203 → E205 Move", "ETC[기타]": "ETC[Other]", "EXCHANGE[변경]": "EXCHANGE[Move]", "EXTEND[연장]": "EXTEND[Extend]", "GRADUATED[졸업]": "GRADUATED[Graduated]", "HOLDINGUSE[홀딩사용]": "HOLDINGUSE[Holding Use]", "HOLDING[홀딩]": "HOLDING[Holding]", "In 신입": "In New", "JAP[일본]": "JAP[Japan]", "KOR[한국]": "KOR[Korea]", "MGL[몽고]": "MGL[Mongolia]", "MySQL 비교검증": "MySQL comparison verification", "MySQL 비교검증용": "For MySQL comparison verification", "NORMAL[정상]": "NORMAL[Normal]", "OM[오만]": "OM[Oman]", "OUT[퇴교]": "OUT[Withdrawal]", "REFUND[환불]": "REFUND[Refund]", "RUS[러시아]": "RUS[Russia]", "Record · 종합 현황": "Record · Overview", "SMEAG GLOBAL EDUCATION · 유학원 포털": "SMEAG GLOBAL EDUCATION · Agency Portal", "THA[태국]": "THA[Thailand]", "TWA[대만]": "TWA[Taiwan]", "VTN[베트남]": "VTN[Vietnam]", "· 기간 기본": "· Period default", "· 유학원(UHAK ID)·연도·월·이름 검색 · 실 MySQL": "· Agency(UHAK ID)·Year·Month·Name search · Real MySQL", "— 그룹결제·엑셀·그룹편집(EDIT)·학생명단(View)": "— Group payment·Excel·Group edit(EDIT)·Student list(View)", "“이미 실행 중입니다”": "\"Already running\"", "● 실데이터(MySQL)": "● Real data(MySQL)", "가동률": "Occupancy rate", "객실": "Room", "검색": "Search", "결제상태": "Payment status", "결제상태 코드 실측:": "Payment status code (actual):", "공지: 취소자리 대기 접수 중 · 배정 문의는 담당 매니저": "Notice: Accepting waitlist for cancelled slots · Contact your manager for assignment inquiries", "관리": "Manage", "구분": "Type", "국적": "Nationality", "국적 분포": "Nationality distribution", "국적×캠퍼스(ENCANTO/CLASSIC/CAPITAL/TOTAL) 교차표": "Nationality×Campus(ENCANTO/CLASSIC/CAPITAL/TOTAL) cross table", "규모 1,127실": "Scale 1,127 rooms", "규모 8,308": "Scale 8,308", "규모 90,533": "Scale 90,533", "그룹": "Group", "금": "Fri", "기간": "Period", "기간 FROM (목)": "Period FROM (Thu)", "기간 TO (수)": "Period TO (Wed)", "기간 기본값:": "Period default:", "기간 시작(등록/출발)": "Period start(Apply/Departure)", "기간 시작(목)": "Period start(Thu)", "기간 신규입실": "Period New check-in", "기간 종료": "Period end", "기간 종료(다음주 수)": "Period end(next Wed)", "기간 퇴실": "Period check-out", "기본(직접선택)": "Default(manual selection)", "기숙사 이동 관리 · 방변경(ROOM MOVE LIST)": "Dormitory move management · Room change(ROOM MOVE LIST)", "기숙사 재실": "Dormitory stay", "기숙형 캠퍼스": "Residential campus", "기타": "Other", "나이": "Age", "남": "Male", "남 (M)": "Male (M)", "납부취소": "Payment Cancel", "누적": "Cumulative", "대시보드": "Dashboard", "데이터": "Data", "데이터 컬럼 (크롤 실측)": "Data Columns (Crawled/Actual)", "도착 일수": "Days to Arrival", "등록/수강 · 목→다음주 수 · 최근순": "Registration/Enrollment · Thu→Next Wed · Latest first", "등록신청(APPLICATION)": "Registration Application(APPLICATION)", "등록월": "Registration Month", "등록일": "Apply Date", "등록조회(STUDENT LIST)": "Registration Lookup(STUDENT LIST)", "레거시": "Legacy", "레거시 URL": "Legacy URL", "로 차단하고, 멱등키로 중복 레코드 생성을 막습니다.": "blocks with this, and the idempotency key prevents duplicate record creation.", "리스트 프리셋": "List Preset", "만 1": "Age 1", "만 10": "Age 10", "만 11": "Age 11", "만 12": "Age 12", "만 13": "Age 13", "만 15": "Age 15", "만 16": "Age 16", "만 17": "Age 17", "만 19": "Age 19", "만 20": "Age 20", "만 21": "Age 21", "만 22": "Age 22", "만 23": "Age 23", "만 26": "Age 26", "만 28": "Age 28", "만 30": "Age 30", "만 31": "Age 31", "만 35": "Age 35", "만 37": "Age 37", "만 39": "Age 39", "만 4": "Age 4", "만 40": "Age 40", "만 41": "Age 41", "만 42": "Age 42", "만 43": "Age 43", "만 44": "Age 44", "만 46": "Age 46", "만 47": "Age 47", "만 5": "Age 5", "만 51": "Age 51", "만 56": "Age 56", "만 6": "Age 6", "만 7": "Age 7", "만 8": "Age 8", "만 9": "Age 9", "매니저": "Manager", "매니저 FEI": "Manager FEI", "매니저 휴무 월/주/일 캘린더": "Manager Off-Duty Monthly/Weekly/Daily Calendar", "목": "Thu", "목 3 · 금 3 · 토 44": "Thu 3 · Fri 3 · Sat 44", "미납(N)": "UNPAID(N)", "미납(UNPAID)": "UNPAID(UNPAID)", "미성년(만 10세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 10 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 11세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 11 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 12세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 12 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 13세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 13 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 15세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 15 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 16세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 16 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 17세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 17 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 1세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 1 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 4세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 4 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 5세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 5 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 6세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 6 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 7세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 7 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 8세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 8 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "미성년(만 9세 · 출발일·오늘 중 나중 기준) — 유학 보호자 확인 필요": "Minor(age 9 · based on later of Departure/Today) — Study-abroad guardian confirmation required", "반환(RETURN)": "RETURN(RETURN)", "방문건수": "Visit Count", "방번호": "Room Number", "방번호(ROOM)": "Room Number(ROOM)", "변경": "Move", "변경/환불/홀딩 워크플로 — INVOICE 발행 포함": "Move/Refund/Hold Workflow — includes INVOICE Publish", "변경될객실": "Room After Move", "변경전객실": "Room Before Move", "변경환불홀딩 영문 변형": "Move/Refund/Hold — English Variant", "보류": "Hold", "분납(INSTALL)": "INSTALL(INSTALL)", "분납(X) 342 · 반환(R) 12": "INSTALL(X) 342 · RETURN(R) 12", "상담": "Consult", "상세": "Details", "상태": "Status", "상태(condition)": "Status(condition)", "성별": "Gender", "성별: 남": "Gender: Male", "수강 등록 관리 · STUDENT MANAGEMENT": "Course Registration Management · STUDENT MANAGEMENT", "수강등록관리": "Course Registration", "수강등록관리 — 학생별": "Course Registration — by Student", "수정": "Edit", "수정/변경/연장/상담/약식": "Edit/Move/Extend/Consult/Brief", "순증": "Net Increase", "스파르타 캠퍼스": "Sparta Campus", "시내 캠퍼스": "Downtown Campus", "시작일": "Start Date", "신규 승격 화면": "New Promotion Screen", "신규 입실 C-Hotel 3F": "New Check-in C-Hotel 3F", "신규등록": "New Registration", "신규등록 통계(fsearch)": "New Registration Stats(fsearch)", "신규입실": "New Check-in", "신입 In": "New In", "신입(In)만": "New(In) Only", "실 MySQL": "Real MySQL", "실데이터": "Real Data", "약식": "Brief", "에이전시 항공편 등록은": "Agency flight registration is", "에이전시(샘플)": "Agency (sample)", "여": "F", "여 (F)": "Female (F)", "여권 생년월일 미입력 — 저장 나이 기준 추정": "Passport date of birth not entered — estimated based on saved age", "연수코스": "Course", "연장": "Extend", "영문/한글 이름": "English/Korean name", "예 18": "e.g. 18", "예 40": "e.g. 40", "예 519 / E218": "e.g. 519 / E218", "예 ESL / IELTS": "e.g. ESL / IELTS", "예치금 관리": "Deposit management", "오늘 신규": "Today's new", "오늘 입/퇴실": "Today's CHECK-IN/CHECK-OUT", "완납(PAID)": "PAID(PAID)", "요일": "Day of week", "월 캘린더(SUN~SAT)": "Monthly calendar (SUN~SAT)", "유학원": "Agency", "유학원 포털 재현 — 학생": "Agency portal reproduction — Student", "유학원명": "Agency name", "이동": "Move", "이름": "Name", "이름 검색": "Search name", "이름(영문)": "Name (English)", "이번주 목→다음주 수": "This week Thu → Next week Wed", "이번주 목요일 → 다음주 수요일": "This week Thursday → Next week Wednesday", "인구통계 변형뷰": "Demographics variant view", "인보이스 발행 (중복방지 데모)": "Invoice publish (duplicate prevention demo)", "인실": "Room Type", "일별 입실·퇴실 집계 (reserve_info)": "Daily CHECK-IN·CHECK-OUT aggregate (reserve_info)", "일별 입퇴실 영문 매트릭스": "Daily check-in/check-out English matrix", "자동 설정 · 페이지네이션 · MySQL 비교검증용 실데이터": "Auto config · pagination · real data for MySQL comparison validation", "재실 변동": "STAY changes", "재학생": "Current student", "재현(임베드 실데이터)": "Reproduction (embedded real data)", "전기·수도 요금 계산 (search_condition S/C/E)": "Electricity·water fee calculation (search_condition S/C/E)", "전역(campus_id) 적용": "Global (campus_id) applied", "전체": "All", "전체 학생 명단": "Full student list", "종료일": "End date", "주간 픽업 리스트": "Weekly pickup list", "즉시": "Immediately", "처리일": "Processed date", "처리일자": "Processing date", "체크아웃": "Check-out", "총 도착": "Total arrivals", "최근 방변경 로그": "Recent room change log", "출발일": "Departure", "취소": "Cancel", "캠퍼스": "Campus", "캠퍼스 필터": "Campus filter", "캠퍼스:": "Campus:", "캠퍼스×성별×인실": "Campus × Gender × Room Type", "캠퍼스별 재실률": "STAY rate by campus", "코스×주차 매트릭스": "Course × Week Matrix", "클릭 → 작업 메뉴(수정·변경·연장·상담·약식)": "Click → Task menu (Edit·Move·Extend·Consult·Brief)", "토": "Sat", "통계/매트릭스·캘린더·배치도형 화면 — 표준 테이블 아님.": "Statistics/matrix·calendar·batch(room layout)-type screen — not a standard table.", "퇴실": "CHECK-OUT", "퇴실 처리": "Check-out processing", "페이지": "Page", "표시": "Display", "픽업": "Pickup", "픽업 주간 시작(목)": "Pickup week start (Thu)", "픽업 주간 종료(수)": "Pickup week end (Wed)", "학생 ID#": "Student ID#", "학생 배정": "Student assignment", "한 번 발행하면 처리 중 재클릭은": "Once published, re-clicking while processing is", "합계": "Total", "항공 도착 · 날짜/시간순 자동 정렬": "Flight arrivals · auto-sorted by date/time", "항공/픽업 등록 가능 (마감 2026-12-07)": "Flight/pickup registration available (deadline 2026-12-07)", "항공/픽업 등록 가능 (마감 2026-12-12)": "Flight/pickup registration available (deadline 2026-12-12)", "항공/픽업 등록 가능 (마감 2026-12-13)": "Flight/pickup registration available (deadline 2026-12-13)", "항공/픽업 등록 가능 (마감 2026-12-14)": "Flight/pickup registration available (deadline 2026-12-14)", "항공/픽업 등록 가능 (마감 2026-12-20)": "Flight/pickup registration available (deadline 2026-12-20)", "현금 입출금 (cash_payments)": "Cash in/out (cash_payments)", "홀딩사용 6": "HOLDING use 6", "홀딩사용 입실": "HOLDING use CHECK-IN", "화면 명세 (전체 골격)": "Screen spec (full skeleton)", "💾 저장": "💾 Save", "📅 2026-01-01 (목) · 3명 도착": "📅 2026-01-01 (Thu) · 3 arrivals", "📅 2026-01-02 (금) · 3명 도착": "📅 2026-01-02 (Fri) · 3 arrivals", "📅 2026-01-03 (토) · 44명 도착": "📅 2026-01-03 (Sat) · 44 arrivals", "📊 엑셀로 export": "📊 Export to Excel", "🛬 픽업 주간 (목→다음주 수)": "🛬 Pickup week (Thu→Next week Wed)", "🧾 INVOICE 발행": "🧾 INVOICE publish", "🧾 신규 등록 신청": "🧾 New registration application", "🧾 인보이스 발행": "🧾 Invoice publish"};
+const MON_EN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const I18N_RULES=[
+  [/^\/\s*([\d,]+)\s*·\s*전체$/,'/ $1 · All'],
+  [/^\/\s*([\d,]+)\s*·\s*결과$/,'/ $1 · Results'],
+  [/^(\d{4})\s*년\s*(\d{1,2})\s*월$/,'$1-$2'],
+  [/^페이지\s*([\d,]+)\s*\/\s*([\d,]+)$/,'Page $1 / $2'],
+  [/^전체\s*([\d,]+)\s*건$/,'Total $1'],
+  [/^([\d,]+)\s*건$/,'$1'],
+  [/^([\d,]+)\s*명$/,'$1'],
+  [/^(\d+)\s*인실$/,'$1-person'],
+  [/^(\d+)\s*주$/,'$1 wk'],
+  [/^(\d+)일\s*표시(.*)$/,'$1 days shown$2'],
+  [/^(\d{1,2})월$/,(m,a)=>MON_EN[+a-1]||m],
+  [/^전체$/,'All'],[/^결과$/,'Results'],[/^표시$/,'Show'],[/^이동$/,'Go'],
+  // 숫자와 분리된 단위 텍스트 노드(예: <b>12,150</b>건)
+  [/^건$/,' records'],[/^명$/,' persons'],[/^실$/,' rooms'],[/^개월$/,' months'],[/^주$/,' wk'],[/^일$/,' days'],
+  [/^\/\s*([\d,]+)실$/,'/ $1 rooms'],
+  [/^(\d+)-(\d+)주$/,'$1-$2 wk'],[/^(\d+)주\+$/,'$1 wk+'],
+  [/^\(([\w\-\.]+\.php)\)\s*·\s*페이지네이션\s*·\s*admin 인증 전용$/,'($1) · pagination · admin auth only'],
+  [/^MySQL 비교검증용\s*$/,'MySQL cross-check '],
+];
+// 사전 보완(긴 안내문 등)
+Object.assign(I18N_EN,{
+ '📋 게시판(gnuboard4 bbs) 화면입니다. 게시글 테이블은 이관 대상에서 제외(미크롤)되어 표시할 데이터가 없습니다. 게시판 연동 시 실제 글목록으로 대체됩니다.':
+   '📋 Bulletin board (gnuboard4 bbs). Post tables were excluded from migration (not crawled), so there is no data to show. It will be replaced by the real post list once the board is connected.',
+ '🗓 매니저 휴무(DAYOFF) 월/주/일 캘린더입니다. 스케줄러 테이블 미크롤로 데이터가 없습니다. 스케줄 데이터 연동 시 캘린더로 대체됩니다.':
+   '🗓 Manager day-off calendar (month/week/day). The scheduler table was not crawled, so there is no data. It will be replaced by a calendar once schedule data is connected.',
+ '이 화면은 임베드 데이터로 파생 불가하여 골격만 표시합니다(핵심 화면은 실데이터 렌더 적용).':
+   'This screen cannot be derived from the embedded data, so only the skeleton is shown (core screens render real data).',
+ '기준.':'basis.',
+});
+function i18nStr(t){
+  if(t==null)return null;const s=(''+t).trim();
+  if(!s||!/[가-힣]/.test(s))return null;
+  if(I18N_EN[s])return (''+t).replace(s,I18N_EN[s]);
+  for(let i=0;i<I18N_RULES.length;i++){const r=I18N_RULES[i];
+    if(r[0].test(s))return s.replace(r[0],r[1]);}
+  return null;}
+function i18nApply(root){
+  if(typeof LANG==='undefined'||LANG!=='en')return;
+  root=root||document.body;if(!root||root.nodeType!==1)return;
+  try{
+    const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+    const list=[];let n;while(n=w.nextNode())list.push(n);
+    list.forEach(x=>{const r=i18nStr(x.nodeValue);if(r!=null)x.nodeValue=r;});
+    root.querySelectorAll('[placeholder]').forEach(e=>{const r=i18nStr(e.getAttribute('placeholder'));if(r!=null)e.setAttribute('placeholder',r);});
+    root.querySelectorAll('[title]').forEach(e=>{const r=i18nStr(e.getAttribute('title'));if(r!=null)e.setAttribute('title',r);});
+  }catch(e){}}
+// 모달·팝업 등 나중에 추가되는 노드도 자동 번역
+(function(){try{
+  new MutationObserver(muts=>{if(LANG!=='en')return;
+    muts.forEach(mu=>mu.addedNodes&&mu.addedNodes.forEach(nd=>{if(nd.nodeType===1)i18nApply(nd);}));
+  }).observe(document.body,{childList:true,subtree:true});
+}catch(e){}})();
 function renderCats(){const c=document.getElementById('cats');c.innerHTML='';
   const lb=document.getElementById('langBtn');if(lb)lb.textContent=LANG==='en'?'EN':'한';
   CATS.forEach(ct=>{
@@ -1721,7 +1779,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     tw.scrollLeft=Math.max(0,ms-((tw.clientWidth-iw-mw)/2));} // 선택월을 가시영역 중앙으로
   try{history.replaceState(null,'','#'+curCat+'.'+MENU[curCat].indexOf(curMenu));}catch(e){}
   window.scrollTo(0,0);}
-function renderAll(){if(!curMenu)curMenu=MENU[curCat][0];renderCats();renderMain();}
+function renderAll(){if(!curMenu)curMenu=MENU[curCat][0];renderCats();renderMain();i18nApply(document.body);}
 function applyHash(){const [cat,idx]=location.hash.replace('#','').split('.');
   if(cat&&MENU[cat]){curCat=cat;curMenu=MENU[cat][+idx]||MENU[cat][0];curKey=curMenu.k;}}
 
@@ -2395,7 +2453,9 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
   "use strict";
 
   // ── 설정 ────────────────────────────────────────────────────────────
-  var USERS = ["admin1","admin2","master","manager"];
+  // 데모 4계정 + 레거시 관리자 7명(Supabase app.admin_users 와 동일 · 초기 비번=아이디)
+  var USERS = ["admin1","admin2","master","manager",
+               "cebusme","cebusme00","cebusme2","Joon","katie","cebusme1","fumi"];
   var SS_KEY = "adminAuthSession";      // sessionStorage: 현재 세션
   var LS_PW  = "adminAuthPwStore";      // localStorage: {user: {hash, must_change}} (폴백)
   var LS_LOG = "adminAuthLog";          // localStorage: [{username,action,detail,at}]
@@ -2527,8 +2587,7 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     var ok  = weakHash(pw) === rec.hash;
     logLocal(user, ok ? "login" : "login_fail", ok ? {must_change:rec.must_change} : {reason:"bad_credentials"});
     if(!ok){ showMsg(loginMsg,"아이디 또는 비밀번호가 올바르지 않습니다."); return; }
-    if(rec.must_change){ showChange(user, pw); return; }
-    enter(user);
+    enter(user);   // 비밀번호 변경 강제 화면 비활성 — 로그인 즉시 진입
   }
 
   loginForm.addEventListener("submit", function(ev){
@@ -2541,8 +2600,7 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     if(supaReady()){
       rpc("admin_login", { p_user:user, p_pw:pw }).then(function(res){
         if(!res || res.ok !== true){ showMsg(loginMsg, (res&&res.message)||"로그인 실패"); return; }
-        if(res.must_change){ showChange(user, pw); return; }
-        enter(user);
+        enter(user);   // 비밀번호 변경 강제 화면 비활성 — 로그인 즉시 진입
       })["catch"](function(){
         // Supabase 오류 → 폴백으로 재시도
         doLoginFallback(user, pw);
