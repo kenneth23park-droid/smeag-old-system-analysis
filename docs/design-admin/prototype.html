@@ -345,6 +345,8 @@
   .gantt td.name{color:#c15b1e;font-size:12.5px;text-overflow:ellipsis}
   .gantt td.rs-name{cursor:pointer}
   .gantt td.rs-name:hover{text-decoration:underline;color:var(--accent)}
+  .gantt td.rs-room{cursor:pointer}
+  .gantt td.rs-room:hover{background:var(--accent-weak)}
   .gantt td.cx{color:var(--faint)}
   .gantt td.cin{background:var(--female);color:#fff}   /* 입실(S) = 빨강 (레거시) */
   .gantt td.cout{background:var(--return);color:#fff}  /* 퇴실(E) = 보라 (레거시) */
@@ -1146,8 +1148,8 @@ R.roomstat=()=>{
       const h=r.beds.length*27;
       body+=`<tbody class="room-block" style="contain-intrinsic-size:auto ${h}px">`;
       r.beds.forEach((bed,bi)=>{
-        body+=`<tr><td class="info rno c1">${bi===0?`<span class="bldg">${esc(bldg)}</span>${r.no}`:''}</td>`
-            +`<td class="info c2"><span class="per ${r.gender}">${r.per}</span></td>`
+        body+=`<tr><td class="info rno c1${bi===0?' rs-room':''}" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="${bi===0?'클릭 → ROOM REPLACEMENT':''}">${bi===0?`<span class="bldg">${esc(bldg)}</span>${r.no}`:''}</td>`
+            +`<td class="info c2 rs-room" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
             +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" title="${bed.name?esc(bed.name)+' — 클릭 → 학생정보':''}">${bed.name||''}</td>`
             +dcells(bed.pat)+`</tr>`;
       });
@@ -2366,9 +2368,15 @@ function openStudentEdit(row,act){
 }
 document.addEventListener('click',(e)=>{
   if(!e.target.closest('.catwrap'))closeDropdowns();
-  const rsn=e.target.closest('.gantt td.rs-name');    // 배치도 학생 이름 클릭 → 상세정보
-  if(rsn){e.stopPropagation();closeCellPop();const st=findStudent(rsn.dataset.name||rsn.textContent);
-    if(st)openStudentEdit(st,'edit');else toast('학생 정보 없음',(rsn.dataset.name||'')+' — studentsFull 매칭 실패',false);return;}
+  const rsBtn=e.target.closest('.gantt td.rs-name, .gantt td.rs-room'); // 이름/방 클릭 → ROOM REPLACEMENT
+  if(rsBtn){e.stopPropagation();closeCellPop();
+    const blk=rsBtn.closest('tbody.room-block');
+    let name=rsBtn.dataset.name||'';
+    if(!name&&blk){const nc=blk.querySelector('.rs-name');name=nc?(nc.dataset.name||nc.textContent):'';}
+    let room=rsBtn.dataset.room||(blk?((blk.querySelector('.rno')||{}).textContent||''):'');
+    room=(''+room).replace(/\s+/g,' ').trim();
+    const st=findStudent(name);const date=st?((st[7]||st[8])||''):'';
+    openRoomReplace(null,room,name,date);return;}
   const cell=e.target.closest('.gantt td.dcell');
   if(cell){e.stopPropagation();openCellPop(cell,e);return;}
   if(!e.target.closest('#cellpop'))closeCellPop();
