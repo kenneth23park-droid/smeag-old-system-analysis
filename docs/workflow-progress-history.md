@@ -266,3 +266,5 @@
 - **2026-07-22** 배치도 휠(가운데) 버튼 드래그 패닝: .twrap.dorm-scroll 에서 가운데 버튼 누른 채 드래그하면 상하좌우 이동(scrollLeft/scrollTop). 브라우저 기본 autoscroll(auxclick) 차단, panning 중 grabbing 커서. 휠클릭 룰러 토글은 제거(룰러는 상단 버튼 유지). 검증: 가로180·세로120 이동.
 
 - **2026-07-22** 배치도 이름 셀에서 '/'로 묶인 다중 학생을 개별 클릭 가능화: 각 이름을 .rs-nameseg(data-name)로 분리, 클릭 시 해당 학생의 STUDENT INFORMATION(infoOnly) 표시. 핸들러에서 클릭한 segment 우선. 검증: 1·2번째 이름 각각 정확한 학생 표시.
+
+- **2026-07-22** 배치도 Name 컬럼 폭 조절: 툴바에 이름폭 드롭다운(좁게160/보통230/넓게320/아주넓게460), roomFilter.nameW→INFOW·colgroup 반영, localStorage 저장. 검증: 160/230/460 정확 반영.
