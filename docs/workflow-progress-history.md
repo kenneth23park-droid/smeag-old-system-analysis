@@ -254,3 +254,5 @@
 - **2026-07-22** 배치도(기숙사현황) 학생 이름 클릭 → 상세정보: 좌측 이름 셀에 .rs-name(data-name) 부여, document 클릭 핸들러에서 셀 팝업보다 우선 처리 → findStudent 로 studentsFull 조회 후 openStudentEdit. 실학생 매칭 정상(비학생 홀드는 '학생 정보 없음' 안내), 날짜 셀 클릭은 기존대로 ROOM REPLACEMENT/팝업 유지.
 
 - **2026-07-22** 배치도 방구분에 Temporary(임시방) 옵션 추가: rsPer 에 TEMP 추가, 선택 시 센터·성별 무관 TEMPORARY 카테고리 전체 표시(임시방 15실). 검증 정상.
+
+- **2026-07-22** ① Vercel Basic Auth 미들웨어(deploy/middleware.js, admin/smeagadmin) 제거 → 사이트 직접 접근(200). ② 로그인 계정 5개로 정리(admin·master·admin1·admin2·manager, 비번=아이디), Supabase에 admin 계정 추가. ③ 로그인 게이트 비활성 — 데스크톱·모바일 모두 아이디/비번 없이 즉시 실행(기본 admin 세션 자동). ⚠ PII 임베드 상태에서 접근 보호가 사라짐(주의 고지).

@@ -2509,9 +2509,8 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
   "use strict";
 
   // ── 설정 ────────────────────────────────────────────────────────────
-  // 데모 4계정 + 레거시 관리자 7명(Supabase app.admin_users 와 동일 · 초기 비번=아이디)
-  var USERS = ["admin1","admin2","master","manager",
-               "cebusme","cebusme00","cebusme2","Joon","katie","cebusme1","fumi"];
+  // 로그인 계정(비밀번호 = 아이디)
+  var USERS = ["admin","master","admin1","admin2","manager"];
   var SS_KEY = "adminAuthSession";      // sessionStorage: 현재 세션
   var LS_PW  = "adminAuthPwStore";      // localStorage: {user: {hash, must_change}} (폴백)
   var LS_LOG = "adminAuthLog";          // localStorage: [{username,action,detail,at}]
@@ -2728,16 +2727,12 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     showLogin();
   });
 
-  // ── 초기화: 세션 있으면 통과, 없으면 로그인 오버레이 ─────────────────
+  // ── 초기화: 로그인 없이 바로 실행(게이트 비활성) ─────────────────
   (function init(){
     var s = session();
-    if(s && USERS.indexOf(s.username) >= 0){
-      overlay.classList.add("adminAuth-hidden");
-      barWho.textContent = s.username;
-      bar.classList.add("adminAuth-show");
-    } else {
-      showLogin();
-    }
+    var user = (s && USERS.indexOf(s.username) >= 0) ? s.username : "admin";
+    if(!s) setSession(user);            // 기본 관리자 세션 자동 발급
+    enter(user);                        // 로그인 화면 없이 즉시 진입
   })();
 
 })();

@@ -1780,7 +1780,7 @@ window.M_table = (function(){
 
 /* ================= 경량 로그인 게이트(데스크톱 클라이언트 폴백과 동일 정책) ================= */
 (function(){
-  const ACCTS=['admin1','admin2','master','manager','cebusme','cebusme00','cebusme2','Joon','katie','cebusme1','fumi'];
+  const ACCTS=['admin','master','admin1','admin2','manager'];
   const SS='smeag_admin_session', LS='smeag_admin_pw', LSLOG='smeag_admin_log';
   function sess(){try{return JSON.parse(sessionStorage.getItem(SS)||'null');}catch(e){return null;}}
   function pwStore(){try{return JSON.parse(localStorage.getItem(LS)||'{}');}catch(e){return {};}}
@@ -1791,7 +1791,9 @@ window.M_table = (function(){
   function showGate(){gate.classList.add('on');}
   function hideGate(){gate.classList.remove('on');}
   function boot(){buildTabs();selectTab('home');}
-  if(sess()){hideGate();boot();}else{showGate();}
+  // 로그인 없이 바로 실행(게이트 비활성)
+  if(!sess())sessionStorage.setItem(SS,JSON.stringify({username:'admin',since:new Date().toISOString()}));
+  hideGate();boot();
   document.getElementById('mvGateForm').addEventListener('submit',function(ev){ev.preventDefault();
     const u=(document.getElementById('mvGateUser').value||'').trim().toLowerCase();
     const p=document.getElementById('mvGatePass').value||'';
