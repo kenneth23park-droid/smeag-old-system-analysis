@@ -268,3 +268,10 @@
 - **2026-07-22** 배치도 이름 셀에서 '/'로 묶인 다중 학생을 개별 클릭 가능화: 각 이름을 .rs-nameseg(data-name)로 분리, 클릭 시 해당 학생의 STUDENT INFORMATION(infoOnly) 표시. 핸들러에서 클릭한 segment 우선. 검증: 1·2번째 이름 각각 정확한 학생 표시.
 
 - **2026-07-22** 배치도 Name 컬럼 폭 조절: 툴바에 이름폭 드롭다운(좁게160/보통230/넓게320/아주넓게460), roomFilter.nameW→INFOW·colgroup 반영, localStorage 저장. 검증: 160/230/460 정확 반영.
+
+- **2026-07-23** 레거시 캡처 기반 남은 메뉴 대거 구현(파랄렐+오케스트레이션, BMAD·LangGraph 프레이밍):
+  ① Supabase 7테이블 실추출(회원2053·포인트·방문·유학원커미션4004·코스71·등록금100·유학원방문) → REAL.tables.
+  ② 상단 카테고리 3개 신설: Member's(회원/포인트/접속자)·Agency(AGENCY LIST/COMMISSION/방문)·Financial(등록금·인보이스/COURSE/TUITION).
+  ③ 부서별 권한(RBAC): DEPTS 5부서 + PERMS 매트릭스 화면(부서×카테고리 체크박스, localStorage) + 상단 부서선택기 + 사이드바 필터 + 접근가드.
+  ④ 인보이스: 멱등 발행(기존 4중 방어) + PDF 생성(openPdf 인쇄→PDF, 외부라이브러리 없음) — financial 화면 학생별 발행/PDF 버튼.
+  ⑤ 워크플로 3에이전트 병렬(perms·agencylist·financial) + 적대적 QA 후 조립. Playwright 검증: 7카테고리·신규화면·인보이스발행·PDF팝업·부서전환 필터 무오류.

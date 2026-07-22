@@ -26,3 +26,4 @@ deploy/.vercel/
 계정목록_*.csv
 docs/design-admin/prototype.mobile.realdata.html
 /node_modules
+docs/QA_REPORT_*.html

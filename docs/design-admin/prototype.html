@@ -495,6 +495,66 @@
   @media (max-width:880px){
     .cats{display:none} .kpis{grid-template-columns:repeat(2,1fr)} .grid2{grid-template-columns:1fr}
   }
+
+/* ===== 신규 전용화면(perms/agency/financial) CSS ===== */
+/* perms */
+.permcur{margin-bottom:12px}
+.permcur .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
+.permcur .curname{font-size:18px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.permcur .curcats{margin-top:8px;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.permcur .curcats .dim{color:var(--dim);font-size:12px;margin-right:2px}
+.permcur .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border:1px solid var(--border);border-radius:999px;font-size:12px;background:var(--bg)}
+.permcur .chip.on{border-color:var(--good);color:var(--good);background:color-mix(in srgb,var(--good) 10%,transparent)}
+
+#permNote{margin-bottom:12px}
+#permNote b{margin-right:6px}
+
+table.permx{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;min-width:640px}
+.permx th,.permx td{padding:9px 10px;border-bottom:1px solid var(--border);text-align:center;vertical-align:middle}
+.permx thead th{position:sticky;top:0;z-index:2;background:var(--surface);border-bottom:2px solid var(--border);white-space:nowrap}
+.permx thead th.chd{min-width:74px}
+.permx thead th.chd .ci{display:block;font-size:16px;line-height:1.1}
+.permx thead th.chd .cl{display:block;font-size:11px;color:var(--dim);letter-spacing:.02em;margin-top:2px}
+.permx thead th.chd .lk{display:block;font-size:9px;opacity:.6;margin-top:1px}
+.permx thead th.chd.base{background:color-mix(in srgb,var(--accent） 6%,var(--surface))}
+.permx th.dname{text-align:left;white-space:nowrap;font-weight:600;color:var(--text)}
+.permx tbody th.dname{cursor:pointer;position:sticky;left:0;background:var(--surface);z-index:1}
+.permx tbody th.dname:hover{color:var(--accent)}
+.permx tbody tr:hover td{background:color-mix(in srgb,var(--accent) 4%,transparent)}
+.permx tbody tr.cur th.dname{background:color-mix(in srgb,var(--good) 12%,var(--surface));box-shadow:inset 3px 0 0 var(--good)}
+.permx tbody tr.cur td{background:color-mix(in srgb,var(--good) 6%,transparent)}
+.permx tbody tr:last-child th,.permx tbody tr:last-child td{border-bottom:0}
+.permx .pill{margin-left:4px}
+
+.permx .cell{width:74px}
+.permx .cell.lock{background:color-mix(in srgb,var(--dim) 6%,transparent)}
+.permx .chk{display:inline-flex;cursor:pointer}
+.permx .chk input{position:absolute;opacity:0;width:0;height:0}
+.permx .chk .box{width:20px;height:20px;border:1.5px solid var(--border);border-radius:5px;display:inline-block;position:relative;transition:.12s;background:var(--bg)}
+.permx .chk:hover .box{border-color:var(--accent)}
+.permx .chk input:checked+.box{background:var(--good);border-color:var(--good)}
+.permx .chk input:checked+.box:after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.permx .chk input:disabled+.box{opacity:.55;cursor:not-allowed}
+.permx .chk input:disabled{cursor:not-allowed}
+.permx .cell.lock .chk{cursor:not-allowed}
+/* agencylist */
+.agl-wrap .rs-ctrl{min-width:200px}
+.agl-wrap table.grid tbody tr{cursor:pointer}
+.agl-wrap table.grid tbody tr:hover{background:var(--surface-2)}
+.agl-wrap td.num{text-align:right;font-variant-numeric:tabular-nums}
+.agl-wrap .agl-code{font-family:var(--mono,ui-monospace,monospace);font-size:12px;color:var(--dim)}
+.agl-wrap .agl-sum{font-size:11px;color:var(--dim);margin-left:6px}
+.agl-wrap .agl-empty{text-align:center;color:var(--dim);padding:22px}
+.agl-wrap .agl-rank{color:var(--faint);font-variant-numeric:tabular-nums}
+/* financial */
+.fin-kpi-sum .v{color:var(--good)}
+.fin-tbl td.fin-money{font-variant-numeric:tabular-nums;font-weight:750;white-space:nowrap}
+.fin-tbl td.fin-week{font-variant-numeric:tabular-nums}
+.fin-tbl .btn.xs.fin-inv{color:var(--accent-ink);border-color:var(--accent)}
+.fin-tbl .btn.xs.fin-pdf{color:#0369a1;border-color:#0ea5e9}
+.fin-tbl tbody tr:hover{background:var(--surface-2)}
+.fin-empty{color:var(--dim);text-align:center;padding:26px;font-weight:700}
+#finMore{min-width:180px}
 </style>
 
 <div class="app">
@@ -511,6 +571,7 @@
         <option value="5">CAPITAL</option>
       </select>
     </div>
+    <select id="deptSel" class="theme-btn" title="부서 선택(권한)" style="width:auto;padding:0 6px"></select>
     <button class="theme-btn" id="langBtn" title="메뉴 언어 전환 (EN/한글)">EN</button>
     <button class="theme-btn" id="fsBtn" title="전체화면 (주소창까지 숨김)">⛶</button>
     <button class="theme-btn" id="themeBtn" title="테마 전환">◐</button>
@@ -525,12 +586,31 @@
 // ─── 메뉴 모델 (크롤 실측 반영) ───
 const CATS=[
   {id:'record',icon:'⌂',label:'Record'},
+  {id:'member',icon:'🧑‍💼',label:"Member's"},
+  {id:'agency',icon:'🌐',label:'Agency'},
   {id:'student',icon:'👤',label:"Student's"},
   {id:'dorm',icon:'🏠',label:'Dormitory'},
+  {id:'financial',icon:'📑',label:'Financial'},
   {id:'cash',icon:'💳',label:'Cash Cards'},
 ];
 const MENU={
-  record:[{k:'dash',t:'대시보드',u:'(신규 승격)',tag:'HOME'}],
+  record:[{k:'dash',t:'대시보드',u:'(신규 승격)',tag:'HOME'},
+    {k:'perms',t:'권한설정 (부서별)',u:'admin_perms',note:'부서별 메뉴 접근권한 설정'}],
+  member:[
+    {k:'spec',t:'회원관리',u:'member_list.php',cols:['ID','이름','레벨','이메일','가입일','최근접속']},
+    {k:'spec',t:'포인트관리',u:'point_list.php',cols:['회원ID','내용','포인트','일자']},
+    {k:'spec',t:'접속자현황',u:'visit_list.php',cols:['일자','방문수']},
+  ],
+  agency:[
+    {k:'agencylist',t:'AGENCY LIST',u:'uhak_agency_list.php',note:'유학원 목록(dict_options)'},
+    {k:'spec',t:'COMMISSION',u:'uhak_agency_commission.php',cols:['NO','UHAK','구분','%','금액','담당','확인일','상태','학생']},
+    {k:'spec',t:'유학원 방문(VISIT)',u:'uhak_day_info.php',cols:['#','방문일','유학원','연락처','시간','내용','상태']},
+  ],
+  financial:[
+    {k:'financial',t:'등록금·인보이스',u:'student_tution_fee_list3.php',note:'학생 등록금+인보이스 발행+PDF'},
+    {k:'spec',t:'COURSE LIST',u:'course_list.php',cols:['#','코스명','COURSE(EN)','정원','학비','캠퍼스','상태']},
+    {k:'spec',t:'TUITION FEE',u:'tution_fee.php',cols:['#','COURSE','WEEK','AGENCY(JP)','STUDENT(JP)']},
+  ],
   student:[
     {k:'stdlist',t:'STUDENT LIST',u:'student.php'},
     {k:'enroll',t:'수강등록관리',u:'student_list.php',tag:'90,533'},
@@ -580,7 +660,7 @@ const MENU={
     {k:'spec',t:'Pre-paid Info',u:'student_payment-2.php',cols:['Deposit #','NAT','eNAME','CAMPUS','STATUS','DEPOSIT','UNIT','DATE']},
   ],
 };
-const SIDE_TITLE={record:'RECORD',student:"STUDENT'S",dorm:'DORMITORY',cash:'CASH CARDS'};
+const SIDE_TITLE={record:'RECORD',member:"MEMBER'S",agency:'AGENCY',student:"STUDENT'S",dorm:'DORMITORY',financial:'FINANCIAL',cash:'CASH CARDS'};
 
 // ─── 샘플(가상) 데이터 — 실제 개인정보 아님 ───
 const F=['Aria','Noah','Mei','Yuki','Ivan','Linh','Omar','Sofia','Kenji','Nadia','Tariq','Elena'];
@@ -1657,6 +1737,422 @@ function openGroupEdit(id){
   };
 }
 
+/* ===== 신규 전용화면 렌더러(워크플로 산출) ===== */
+/* ===== R.perms ===== */
+// ── helpers (guarded so the screen also renders in isolation) ──
+function _pT(ko,en){return (typeof T==='function')?T(ko,en):en;}
+function _pEsc(s){return (typeof esc==='function')?esc(s):String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function _pToast(t,m,ok){if(typeof toast==='function')toast(t,m,ok);}
+var _PERM_CATS_FB=[
+  {id:'record',icon:'⌂',label:'Record'},
+  {id:'member',icon:'👥',label:'Members'},
+  {id:'agency',icon:'🏢',label:'Agency'},
+  {id:'student',icon:'👤',label:"Student's"},
+  {id:'dorm',icon:'🏠',label:'Dormitory'},
+  {id:'financial',icon:'💰',label:'Financial'},
+  {id:'cash',icon:'💳',label:'Cash Cards'}
+];
+function _permBoot(){
+  if(!window.__PERMFB){
+    var d=[
+      {id:'director',name:_pT('원장 (Director)','Director'),cats:['record','member','agency','student','dorm','financial','cash']},
+      {id:'academic',name:_pT('교무 (Academic)','Academic'),cats:['record','student']},
+      {id:'dorm',name:_pT('기숙사 (Dormitory)','Dormitory'),cats:['record','dorm','student']},
+      {id:'finance',name:_pT('재무 (Finance)','Finance'),cats:['record','financial','cash']},
+      {id:'agency',name:_pT('유학원 (Agency)','Agency'),cats:['record','agency','student']},
+      {id:'front',name:_pT('프론트 (Front Desk)','Front Desk'),cats:['record','student','dorm']}
+    ];
+    var p={};d.forEach(function(x){p[x.id]=x.cats.slice();});
+    window.__PERMFB={depts:d,perms:p,cur:d[0].id};
+  }
+}
+function _permState(){
+  _permBoot();
+  var cats=(typeof CATS!=='undefined'&&CATS&&CATS.length)?CATS:_PERM_CATS_FB;
+  var depts=(typeof DEPTS!=='undefined'&&DEPTS)?DEPTS:window.__PERMFB.depts;
+  var perms=(typeof PERMS!=='undefined'&&PERMS)?PERMS:window.__PERMFB.perms;
+  return {cats:cats,depts:depts,perms:perms};
+}
+function _permSave(){ if(typeof savePerms==='function')savePerms(); }
+function _permCur(depts){
+  if(typeof curDept!=='undefined'&&curDept)return curDept;
+  if(window.__PERMFB&&window.__PERMFB.cur)return window.__PERMFB.cur;
+  return depts&&depts[0]?depts[0].id:null;
+}
+function _permSetCur(id){
+  if(typeof setDept==='function'){try{setDept(id);}catch(e){}}
+  if(window.__PERMFB)window.__PERMFB.cur=id;
+}
+function _permAllowed(dep,ct,perms){
+  if(dep.id==='director')return true;      // director row = full access
+  if(ct.id==='record')return true;         // record column = base access
+  return (perms[dep.id]||[]).indexOf(ct.id)>-1;
+}
+function _permSummaryHtml(){
+  var s=_permState(),cur=_permCur(s.depts);
+  var dep=null;s.depts.forEach(function(d){if(d.id===cur)dep=d;});
+  if(!dep)dep=s.depts[0];
+  var vis=s.cats.filter(function(ct){return _permAllowed(dep,ct,s.perms);});
+  var chips=vis.map(function(ct){return '<span class="chip on">'+(ct.icon?ct.icon+' ':'')+_pEsc(ct.label)+'</span>';}).join('');
+  return '<div class="k">'+_pT('현재 부서','Current department')+'</div>'
+    +'<div class="curname">'+_pEsc(dep.name)+(dep.id==='director'?' <span class="pill warn">'+_pT('전체권한','FULL')+'</span>':'')+'</div>'
+    +'<div class="curcats"><span class="dim">'+_pT('볼 수 있는 카테고리','Visible categories')+' ('+vis.length+')</span> '+chips+'</div>';
+}
+
+R.perms=function(m){
+  var s=_permState(),cur=_permCur(s.depts);
+  var head=''
+    +'<div class="ph"><h1>'+_pT('부서별 권한설정','Permissions by Department')+'</h1>'
+    +'<span class="sub">'+_pT('부서 × 카테고리 접근 매트릭스','Department × Category access matrix')+'</span>'
+    +'<span class="url">'+_pT('좌측 메뉴에 즉시 반영','Applies to the left menu immediately')+'</span>'
+    +'<span class="actions" style="margin-left:auto">'
+    +'<button class="btn primary" id="permSave">'+_pT('저장','Save')+'</button>'
+    +'</span></div>';
+
+  var note='<div class="banner" id="permNote">'
+    +'<b>'+_pT('안내','Note')+'</b> '
+    +_pT('체크 변경은 자동 저장되며 좌측 메뉴에 즉시 반영됩니다. ',
+         'Changes save automatically and update the left menu immediately. ')
+    +_pT("‘Record’ 열은 기본 접근으로 항상 켜져 있고, ‘원장’ 행은 전체 권한으로 고정됩니다.",
+         "The ‘Record’ column is always-on base access, and the ‘Director’ row is fixed to full access.")
+    +'</div>';
+
+  var summary='<div class="card pad permcur" id="permCur">'+_permSummaryHtml()+'</div>';
+
+  var th='<tr><th class="dname">'+_pT('부서','Department')+'</th>';
+  s.cats.forEach(function(ct){
+    th+='<th class="chd'+(ct.id==='record'?' base':'')+'"><span class="ci">'+(ct.icon||'')+'</span>'
+       +'<span class="cl">'+_pEsc(ct.label)+'</span>'
+       +(ct.id==='record'?'<span class="lk" title="'+_pT('기본 접근','Base access')+'">🔒</span>':'')+'</th>';
+  });
+  th+='</tr>';
+
+  var body='';
+  s.depts.forEach(function(dep){
+    var isDir=dep.id==='director', isCur=dep.id===cur;
+    body+='<tr class="'+(isCur?'cur':'')+'" data-deprow="'+_pEsc(dep.id)+'">';
+    body+='<th class="dname" data-dept="'+_pEsc(dep.id)+'" title="'+_pT('이 부서 선택','Select this department')+'">'
+        +_pEsc(dep.name)
+        +(isCur?' <span class="pill good">'+_pT('현재','current')+'</span>':'')
+        +(isDir?' <span class="pill warn">'+_pT('전체','ALL')+'</span>':'')
+        +'</th>';
+    s.cats.forEach(function(ct){
+      var allowed=_permAllowed(dep,ct,s.perms);
+      var locked=isDir||ct.id==='record';
+      body+='<td class="cell'+(allowed?' on':'')+(locked?' lock':'')+'">'
+          +'<label class="chk">'
+          +'<input type="checkbox" data-dept="'+_pEsc(dep.id)+'" data-cat="'+_pEsc(ct.id)+'"'
+          +(allowed?' checked':'')+(locked?' disabled':'')+'>'
+          +'<span class="box"></span></label></td>';
+    });
+    body+='</tr>';
+  });
+
+  var matrix='<div class="card pad"><div class="twrap"><table class="grid permx" id="permx">'
+    +'<thead>'+th+'</thead><tbody>'+body+'</tbody></table></div></div>';
+
+  return head+note+summary+matrix;
+};
+
+R.perms__init=function(root){
+  if(!root)return;
+  var s=_permState();
+  var tbl=root.querySelector('#permx');
+
+  function refreshSummary(){
+    var box=root.querySelector('#permCur');
+    if(box)box.innerHTML=_permSummaryHtml();
+  }
+  function rerender(){
+    root.innerHTML=R.perms(null);
+    R.perms__init(root);
+  }
+
+  if(tbl)tbl.addEventListener('change',function(e){
+    var cb=e.target;
+    if(!cb||cb.tagName!=='INPUT'||cb.type!=='checkbox')return;
+    if(cb.disabled)return;
+    var d=cb.getAttribute('data-dept'), c=cb.getAttribute('data-cat');
+    var perms=s.perms;
+    var arr=perms[d]||(perms[d]=[]);
+    if(cb.checked){ if(arr.indexOf(c)<0)arr.push(c); }
+    else { var i=arr.indexOf(c); if(i>-1)arr.splice(i,1); }
+    _permSave();
+    if(typeof renderCats==='function')renderCats();
+    var cell=cb.closest('.cell'); if(cell)cell.classList.toggle('on',cb.checked);
+    if(d===_permCur(s.depts))refreshSummary();
+    var dep=null;s.depts.forEach(function(x){if(x.id===d)dep=x;});
+    var ct=null;s.cats.forEach(function(x){if(x.id===c)ct=x;});
+    _pToast(_pT('권한 저장됨','Permission saved'),
+      (dep?_pEsc(dep.name):d)+' → '+(ct?_pEsc(ct.label):c)+' '
+      +(cb.checked?_pT('허용','allowed'):_pT('해제','removed')),true);
+  });
+
+  if(tbl)tbl.addEventListener('click',function(e){
+    var th=e.target.closest&&e.target.closest('th.dname[data-dept]');
+    if(!th)return;
+    var id=th.getAttribute('data-dept');
+    if(!id)return;
+    _permSetCur(id);
+    if(typeof renderCats==='function')renderCats();
+    rerender();
+  });
+
+  var sv=root.querySelector('#permSave');
+  if(sv)sv.addEventListener('click',function(){
+    _permSave();
+    if(typeof renderCats==='function')renderCats();
+    _pToast(_pT('저장 완료','Saved'),
+      _pT('권한 설정이 저장되었습니다. 좌측 메뉴에 반영됩니다.',
+          'Permissions saved. The left menu has been updated.'),true);
+  });
+};
+
+/* ===== R.agencylist ===== */
+// ─── AGENCY LIST (유학원 목록 · 학생수·커미션 집계) ───
+let _aglQ='';                 // 검색어(코드/이름) — 화면 재렌더 사이 유지되는 모듈 상태
+let _aglData=null;            // 집계 캐시
+
+function _aglNum(v){const n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;}
+
+// 유학원별 학생수·커미션 집계. DICT.uhak(코드→이름) 기준, 학생 col0=유학원코드.
+function _aglBuild(){
+  if(_aglData)return _aglData;
+  const dict=(DICT&&DICT.uhak)?DICT.uhak.filter(o=>o&&o.v):[];
+  // 학생수: studentsFull col0
+  const scnt={};
+  const SF=(REAL&&REAL.studentsFull&&REAL.studentsFull.rows)||[];
+  SF.forEach(r=>{const a=r&&r[0];if(a)scnt[a]=(scnt[a]||0)+1;});
+  // 커미션: uhak_agency_commission.php (NO,UHAK,구분,%,금액,담당,확인일,상태,학생)
+  const ct=(REAL&&REAL.tables&&REAL.tables['uhak_agency_commission.php'])||null;
+  const ccnt={},csum={};let commRecs=0;
+  if(ct&&ct.rows&&ct.rows.length){
+    let uCol=1,amtCol=4;
+    if(ct.cols){const fi=re=>ct.cols.findIndex(c=>re.test(String(c)));
+      const u=fi(/uhak/i);if(u>=0)uCol=u;
+      const a=fi(/금액|amount/i);if(a>=0)amtCol=a;}
+    ct.rows.forEach(r=>{const k=r&&r[uCol];if(k==null||k==='')return;commRecs++;
+      ccnt[k]=(ccnt[k]||0)+1;csum[k]=(csum[k]||0)+_aglNum(r[amtCol]);});
+  }
+  const list=dict.map(o=>({code:o.v,name:o.t,students:scnt[o.v]||0,
+    commCount:ccnt[o.v]||0,commSum:csum[o.v]||0}));
+  list.sort((a,b)=>b.students-a.students||b.commCount-a.commCount);
+  const totStudents=list.reduce((s,x)=>s+x.students,0);
+  _aglData={list,totStudents,totComm:commRecs,agencies:list.length};
+  return _aglData;
+}
+
+function _aglFilter(){
+  const d=_aglBuild();const q=(_aglQ||'').trim().toLowerCase();
+  if(!q)return d.list;
+  return d.list.filter(a=>(''+a.code).toLowerCase().includes(q)||(''+a.name).toLowerCase().includes(q));
+}
+
+function _aglPaintBody(root){
+  const tb=root.querySelector('#aglTbody');if(!tb)return;
+  const rows=_aglFilter();
+  tb.innerHTML=rows.length?rows.map((a,i)=>`
+    <tr data-code="${esc(a.code)}">
+      <td class="agl-rank">${i+1}</td>
+      <td class="agl-code">${esc(a.code)}</td>
+      <td><b>${esc(a.name)}</b></td>
+      <td class="num" data-sort="${a.students}">${a.students.toLocaleString()}</td>
+      <td class="num" data-sort="${a.commCount}">${a.commCount?`${a.commCount.toLocaleString()}${a.commSum?`<span class="agl-sum">${a.commSum.toLocaleString()}</span>`:''}`:'<span style="color:var(--faint)">—</span>'}</td>
+    </tr>`).join('')
+    :`<tr><td colspan="5" class="agl-empty">${T('검색 결과 없음','No results')}</td></tr>`;
+  const cnt=root.querySelector('#aglCount');
+  if(cnt)cnt.textContent=rows.length.toLocaleString();
+}
+
+R.agencylist=(m)=>{
+  const dict=(DICT&&DICT.uhak)?DICT.uhak.filter(o=>o&&o.v):[];
+  if(!dict.length)return `
+    <div class="ph"><h1>${T('유학원 목록','Agency List')}</h1><span class="sub">${T('유학원별 학생·커미션 집계','Students & commission by agency')}</span><span class="url">uhak_agency.php</span></div>
+    <div class="card pad" style="text-align:center;color:var(--dim);padding:34px">${T('유학원 사전(DICT.uhak) 데이터가 없습니다.','No agency dictionary (DICT.uhak) available.')}</div>`;
+  const d=_aglBuild();const hasReal=!!(REAL&&REAL.studentsFull);
+  return `
+  <div class="agl-wrap">
+    <div class="ph"><h1>${T('유학원 목록','Agency List')}</h1>
+      <span class="sub">${T('유학원별 학생수·커미션 집계','Students & commission by agency')}</span>
+      <span class="url">uhak_agency.php</span>
+      <span class="actions" style="margin-left:auto">
+        <input id="aglSearch" class="rs-ctrl" type="search" placeholder="${T('코드/유학원명 검색','Search code / agency')}" value="${esc(_aglQ)}">
+      </span>
+    </div>
+    <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi"><div class="k">${T('유학원 수','AGENCIES')}</div><div class="v mono">${d.agencies.toLocaleString()}</div><div class="d">${T('DICT.uhak 기준','from DICT.uhak')}</div></div>
+      <div class="kpi"><div class="k">${T('배정 학생','STUDENTS ASSIGNED')}</div><div class="v mono">${d.totStudents.toLocaleString()}</div><div class="d">${T('유학원 코드 매칭','matched to agency code')}</div></div>
+      <div class="kpi"><div class="k">${T('커미션 레코드','COMMISSION RECORDS')}</div><div class="v mono">${d.totComm.toLocaleString()}</div><div class="d">uhak_agency_commission</div></div>
+    </div>
+    <div class="chips" style="margin-bottom:10px">${hasReal?REALBADGE:''}<span class="chip">${T('표시','Showing')} <b id="aglCount">${dict.length.toLocaleString()}</b></span><span class="chip">${T('학생수 내림차순','by students desc')}</span></div>
+    <div class="twrap"><table class="grid">
+      <thead><tr>
+        <th>#</th>
+        <th>${T('유학원코드','UHAK ID')}</th>
+        <th>${T('유학원명','Agency')}</th>
+        <th>${T('학생수','Students')}</th>
+        <th>${T('커미션건수','Commission')}</th>
+      </tr></thead>
+      <tbody id="aglTbody"></tbody>
+    </table></div>
+    <div class="banner">${hasReal?'<b>'+T('실 MySQL','Real MySQL')+'</b> ':''}${T('학생수=student_info.uhak_id 집계 · 커미션=uhak_agency_commission(건수·금액합) · 행 클릭 시 요약','Students = student_info.uhak_id count · Commission = uhak_agency_commission (count · sum) · click a row for a summary')}</div>
+  </div>`;
+};
+
+R.agencylist__init=function(root){
+  _aglPaintBody(root);
+  const q=root.querySelector('#aglSearch');
+  if(q){const run=()=>{_aglQ=q.value;_aglPaintBody(root);};
+    q.addEventListener('input',run);
+    q.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();run();}});}
+  // 정렬(학생수/커미션 헤더 클릭) — 존재 시 재활용
+  try{if(typeof makeSortable==='function')makeSortable(root.querySelector('.twrap'));}catch(e){}
+  // 행 클릭 → 유학원 요약 토스트
+  const tb=root.querySelector('#aglTbody');
+  if(tb)tb.addEventListener('click',e=>{
+    const tr=e.target.closest('tr[data-code]');if(!tr)return;
+    const code=tr.getAttribute('data-code');
+    const a=_aglBuild().list.find(x=>x.code===code);if(!a)return;
+    const comm=a.commCount?`${a.commCount.toLocaleString()}${T('건','')}${a.commSum?' · '+a.commSum.toLocaleString():''}`:T('없음','none');
+    toast(esc(a.name),
+      `${T('코드','Code')}: <b>${esc(a.code)}</b> · ${T('학생','Students')}: <b>${a.students.toLocaleString()}</b> · ${T('커미션','Commission')}: <b>${comm}</b>`,true);
+  });
+};
+
+/* ===== R.financial ===== */
+// ─── FINANCIAL / TUITION + INVOICE (등록금·인보이스) ───
+// 등록금 산식: 등록비(REGIST) $100 (1회) + 학비(TUITION) 주(week)*$285 = TOTAL
+var FIN_RATE=285, FIN_ADM=100;
+function finWeeks(r){var w=parseInt(r&&r[10],10);return isFinite(w)&&w>0?w:0;}
+function finTuition(r){return finWeeks(r)*FIN_RATE+FIN_ADM;}
+function finMoney(n){return '$'+Number(n||0).toLocaleString();}
+function finFiltered(q){
+  if(!(REAL&&REAL.studentsFull&&REAL.studentsFull.rows))return [];
+  var rows=REAL.studentsFull.rows;
+  q=(''+(q||'')).trim().toLowerCase();
+  if(!q)return rows;
+  return rows.filter(function(r){
+    return (''+(r[2]||'')).toLowerCase().indexOf(q)>=0 || (''+(r[3]||'')).toLowerCase().indexOf(q)>=0;
+  });
+}
+// 페이지 슬라이스 HTML(테이블 + 더 보기). window._finPage = 현재 표시 슬라이스(버튼 data-i 인덱스 기준)
+function finListHtml(state){
+  var all=finFiltered(state.q);
+  var shown=Math.min(state.shown||25, all.length);
+  var pg=all.slice(0,shown);
+  window._finPage=pg;
+  var HDR=['NO','NAME(EN)','KOR',T('캠퍼스','CAMPUS'),T('코스','COURSE'),T('기간','WEEKS'),T('시작일','START'),T('종료일','END'),T('상태','STATUS'),T('등록금','TUITION'),'INVOICE','PDF'];
+  var body = pg.length ? pg.map(function(r,i){
+    var t=finTuition(r), w=finWeeks(r);
+    return '<tr>'
+      +'<td class="mono">'+(i+1)+'</td>'
+      +'<td><b>'+esc(r[2]||'')+'</b></td>'
+      +'<td>'+((r[3]&&r[3]!==r[2])?esc(r[3]):'—')+'</td>'
+      +'<td>'+campusChipName(r[14])+'</td>'
+      +'<td class="mono">'+(esc(r[12])||'—')+'</td>'
+      +'<td class="mono fin-week">'+(w?w+T('주','w'):'—')+'</td>'
+      +'<td class="mono">'+(esc(r[8])||'—')+'</td>'
+      +'<td class="mono">'+(esc(r[9])||'—')+'</td>'
+      +'<td><span class="pill '+condPill(r[11])+'">'+(esc((''+(r[11]||'')).toUpperCase())||'—')+'</span></td>'
+      +'<td class="fin-money">'+finMoney(t)+'</td>'
+      +'<td><button class="btn xs fin-inv" data-i="'+i+'" title="'+esc(T('멱등 인보이스 발행(중복 자동 차단)','Idempotent invoice publish (duplicates auto-blocked)'))+'">🧾 '+T('발행','Publish')+'</button></td>'
+      +'<td><button class="btn xs fin-pdf" data-i="'+i+'" title="'+esc(T('인보이스 PDF 출력','Invoice PDF output'))+'">📄 PDF</button></td>'
+      +'</tr>';
+  }).join('') : '<tr><td colspan="12" class="fin-empty">'+T('결과 없음','No results')+'</td></tr>';
+  var tbl='<div class="twrap"><table class="grid fin-tbl"><thead><tr>'
+    +HDR.map(function(h,i){return '<th'+(i===9?' class="num"':'')+'>'+esc(h)+'</th>';}).join('')
+    +'</tr></thead><tbody>'+body+'</tbody></table></div>';
+  var more = all.length>shown
+    ? '<div class="pager"><button class="btn primary" id="finMore">'+T('더 보기','Load more')+' (+'+Math.min(25,all.length-shown)+')</button>'
+      +'<span class="pginfo">'+T('표시','Showing')+' <b>'+shown.toLocaleString()+'</b> / '+all.length.toLocaleString()+T('명','')+'</span></div>'
+    : '<div class="pager"><span class="pginfo">'+T('전체 표시','All shown')+' · '+all.length.toLocaleString()+T('명','')+'</span></div>';
+  return tbl+more;
+}
+// 인보이스 PDF 본문(학생정보 + 요금 내역). openPdf 가 상단 브랜드/인쇄버튼을 감쌈.
+function finInvoiceHtml(r){
+  var w=finWeeks(r), tui=w*FIN_RATE, adm=FIN_ADM, tot=tui+adm;
+  var info='<table><tbody>'
+    +'<tr><th>'+T('학생(영문)','Student (EN)')+'</th><td><b>'+esc(r[2]||'')+'</b></td>'
+      +'<th>'+T('한글','Korean')+'</th><td>'+(esc(r[3])||'—')+'</td></tr>'
+    +'<tr><th>'+T('캠퍼스','Campus')+'</th><td>'+esc((''+(r[14]||'—')).toUpperCase())+'</td>'
+      +'<th>'+T('코스','Course')+'</th><td>'+(esc(r[12])||'—')+'</td></tr>'
+    +'<tr><th>'+T('기간','Period')+'</th><td>'+(w?w+T('주','w'):'—')+'</td>'
+      +'<th>'+T('객실','Room')+'</th><td>'+(esc(r[13])||'—')+'</td></tr>'
+    +'<tr><th>'+T('시작일','Start')+'</th><td>'+(esc(r[8])||'—')+'</td>'
+      +'<th>'+T('종료일','End')+'</th><td>'+(esc(r[9])||'—')+'</td></tr>'
+    +'<tr><th>'+T('출발일','Departure')+'</th><td>'+(esc(r[7])||'—')+'</td>'
+      +'<th>'+T('상태','Status')+'</th><td>'+(esc((''+(r[11]||'')).toUpperCase())||'—')+'</td></tr>'
+    +'</tbody></table>';
+  var fee='<table><thead><tr><th>'+T('항목','Item')+'</th><th>'+T('수량','Qty')+'</th><th style="text-align:right">'+T('금액','Amount')+'</th></tr></thead><tbody>'
+    +'<tr><td>'+T('등록비 (REGIST)','Registration (REGIST)')+'</td><td>1</td><td style="text-align:right">'+finMoney(adm)+'</td></tr>'
+    +'<tr><td>'+T('학비 (TUITION)','Tuition (TUITION)')+' · '+finMoney(FIN_RATE)+' / '+T('주','wk')+'</td><td>'+w+'</td><td style="text-align:right">'+finMoney(tui)+'</td></tr>'
+    +'<tr class="tot"><td colspan="2">'+T('합계 (TOTAL)','TOTAL')+'</td><td style="text-align:right">'+finMoney(tot)+'</td></tr>'
+    +'</tbody></table>';
+  return '<div class="muted">'+esc(T('학생 정보','Student information'))+'</div>'+info
+    +'<div class="muted" style="margin-top:14px">'+esc(T('요금 내역','Fee breakdown'))+'</div>'+fee
+    +'<div class="muted" style="margin-top:12px">'+esc(T('통화: USD · 견적 인보이스(참고용). 발행 확정은 INVOICE 버튼(멱등)으로 진행하세요.','Currency: USD · Estimate invoice (reference). Confirm publishing via the idempotent INVOICE button.'))+'</div>';
+}
+
+R.financial=function(m){
+  if(!(REAL&&REAL.studentsFull&&REAL.studentsFull.rows&&REAL.studentsFull.rows.length)){
+    return '<div class="ph"><h1>'+T('등록금 · 인보이스','Tuition · Invoice')+'</h1>'
+      +'<span class="sub">'+T('학생별 등록금 + 인보이스 발행 + PDF','Per-student tuition + invoice publish + PDF')+'</span>'
+      +'<span class="url">student_tution_fee_list3.php</span></div>'
+      +'<div class="card pad fin-empty">'+T('학생 데이터가 없습니다 (REAL.studentsFull 미주입).','No student data (REAL.studentsFull not injected).')+'</div>';
+  }
+  var state=window._finState||(window._finState={q:'',shown:25});
+  var flt=finFiltered(state.q);
+  var sumTui=0; for(var i=0;i<flt.length;i++)sumTui+=finTuition(flt[i]);
+  return '<div class="ph"><h1>'+T('등록금 · 인보이스','Tuition · Invoice')+'</h1>'
+    +'<span class="sub">'+T('학생별 등록금 산정 + 인보이스 발행 + PDF','Per-student tuition + invoice publish + PDF')+'</span>'
+    +'<span class="url">student_tution_fee_list3.php</span>'
+    +'<span class="actions" style="margin-left:auto">'
+      +'<input id="finSearch" class="rs-ctrl" type="search" placeholder="'+esc(T('이름 검색 (EN/한글)','Search name (EN/KOR)'))+'" value="'+esc(state.q)+'" style="width:180px">'
+      +'<button class="btn primary" id="finSearchBtn">🔍 '+T('검색','Search')+'</button>'
+      +(state.q?'<button class="btn" id="finClear">✕ '+T('초기화','Clear')+'</button>':'')
+    +'</span></div>'
+  +'<div class="kpis" style="grid-template-columns:repeat(2,1fr)">'
+    +'<div class="kpi"><div class="k">'+T('학생 수','STUDENTS')+(state.q?' · '+T('검색','filtered'):'')+'</div>'
+      +'<div class="v mono">'+flt.length.toLocaleString()+'<span style="font-size:14px;color:var(--dim)"> '+T('명','ppl')+'</span></div>'
+      +'<div class="d">'+T('등록금 대상','tuition scope')+'</div></div>'
+    +'<div class="kpi fin-kpi-sum"><div class="k">'+T('합계 등록금','TOTAL TUITION')+'</div>'
+      +'<div class="v mono">'+finMoney(sumTui)+'</div>'
+      +'<div class="d">'+T('등록비','REGIST')+' '+finMoney(FIN_ADM)+' + '+T('학비','TUITION')+' '+finMoney(FIN_RATE)+'/'+T('주','wk')+'</div></div>'
+  +'</div>'
+  +'<div class="note" style="margin-bottom:12px">'
+    +'🧾 <b>'+T('INVOICE 발행','INVOICE publish')+'</b> — '+T('멱등 발행(4중 가드: UI 잠금 + 멱등키 + DB UNIQUE + “이미 발행” 안내)으로 중복 인보이스가 생성되지 않습니다.','Idempotent publish (4-layer guard: UI lock + idempotency key + DB UNIQUE + “already published” notice) prevents duplicate invoices.')
+    +' &nbsp;·&nbsp; 📄 <b>PDF</b> — '+T('학생정보 + 요금내역(REGIST · TUITION · TOTAL)을 인쇄용 창으로 출력합니다.','Outputs student info + fee breakdown (REGIST · TUITION · TOTAL) to a print window.')
+    +' &nbsp;·&nbsp; '+T('등록금 = 주(week) × ','Tuition = weeks × ')+finMoney(FIN_RATE)+' + '+finMoney(FIN_ADM)+' ('+T('등록비 1회','REGIST once')+').'
+  +'</div>'
+  +'<div id="finList">'+finListHtml(state)+'</div>';
+};
+
+R.financial__init=function(root){
+  if(!(REAL&&REAL.studentsFull))return;
+  var state=window._finState||(window._finState={q:'',shown:25});
+  var listBox=root.querySelector('#finList');
+  var search=root.querySelector('#finSearch');
+  var run=function(){state.q=search?search.value:'';state.shown=25;renderMain();};
+  var sb=root.querySelector('#finSearchBtn'); if(sb)sb.onclick=run;
+  if(search)search.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();run();}});
+  var clr=root.querySelector('#finClear'); if(clr)clr.onclick=function(){state.q='';state.shown=25;renderMain();};
+  // 이벤트 위임: #finList 는 매 렌더마다 새로 생성 → 리스너 중복 없음.
+  //   더 보기(load more)는 listBox.innerHTML 만 교체하여 위임 리스너 유지.
+  if(listBox)listBox.addEventListener('click',function(e){
+    var more=e.target.closest('#finMore');
+    if(more){state.shown=(state.shown||25)+25;listBox.innerHTML=finListHtml(state);return;}
+    var inv=e.target.closest('.fin-inv');
+    if(inv){var r=(window._finPage||[])[+inv.dataset.i];
+      if(r){var nm=r[2]||r[3]||'';publishInvoice(inv,{target:'tuition:'+nm+'|'+(r[7]||''),amount:finTuition(r)});}
+      return;}
+    var pdf=e.target.closest('.fin-pdf');
+    if(pdf){var r2=(window._finPage||[])[+pdf.dataset.i];
+      if(r2){openPdf('INVOICE - '+(r2[2]||r2[3]||''),finInvoiceHtml(r2));
+        if(window.adminAuthLog)try{window.adminAuthLog('invoice_pdf',{name:r2[2]||r2[3]},'read');}catch(_){}}
+      return;}
+  });
+};
+
 // ─── 상태/네비게이션 ───
 let curCat='record', curKey='dash', curMenu=null;
 function closeDropdowns(){document.querySelectorAll('.dropdown.open').forEach(d=>d.classList.remove('open'));}
@@ -1666,9 +2162,44 @@ const MENU_EN={
   '대시보드':'Dashboard','수강등록관리':'Course Registration','AGENCY PAGE (유학원 포털)':'AGENCY PAGE (Portal)',
   '멀티수강관리':'Multi-Course Mgmt','변경환불홀딩':'Change/Refund/Hold','수금관리':'Collection Mgmt',
   'GYM 리포트':'GYM Report','FARM 리포트':'FARM Report','기숙사현황 (배치도)':'Dormitory Status (Batch)',
-  '주간 픽업 리스트':'Weekly Pickup List','기숙사이동관리':'Room Move Mgmt','일별 입실&퇴실':'Daily Check-in/out'};
+  '주간 픽업 리스트':'Weekly Pickup List','기숙사이동관리':'Room Move Mgmt','일별 입실&퇴실':'Daily Check-in/out',
+  '권한설정 (부서별)':'Permissions (by Dept)','회원관리':'Members','포인트관리':'Points','접속자현황':'Visitors',
+  '유학원 방문(VISIT)':'Agency Visit','등록금·인보이스':'Tuition · Invoice'};
 function mlabel(m){return LANG==='en'?(MENU_EN[m.t]||m.t):m.t;}
 function T(ko,en){return LANG==='en'?en:ko;} // 화면 문구 언어 전환
+
+// ─── 부서(Department) 권한 모델(RBAC) ───
+const DEPTS=[
+ {id:'director',name:'원장/대표',cats:['record','member','agency','student','dorm','financial','cash']},
+ {id:'student_affairs',name:'학생관리부',cats:['record','student','member','agency']},
+ {id:'dorm_dept',name:'기숙사부',cats:['record','dorm','student']},
+ {id:'finance',name:'재무부',cats:['record','financial','cash','student']},
+ {id:'agency_dept',name:'유학원관리부',cats:['record','agency','student']},
+];
+let PERMS=(function(){try{return JSON.parse(localStorage.getItem('smeag-perms'))||null;}catch(e){}return null;})()||Object.fromEntries(DEPTS.map(d=>[d.id,d.cats.slice()]));
+let curDept=(function(){try{return localStorage.getItem('smeag-dept')||'director';}catch(e){return 'director';}})();
+function deptAllows(catId){if(catId==='record')return true;if(curDept==='director')return true;return (PERMS[curDept]||[]).includes(catId);}
+function savePerms(){try{localStorage.setItem('smeag-perms',JSON.stringify(PERMS));}catch(e){}}
+function setDept(d){curDept=d;try{localStorage.setItem('smeag-dept',d);}catch(e){}}
+
+// ─── 인보이스/문서 PDF 생성(외부 라이브러리 없이 인쇄→PDF 저장) ───
+function openPdf(title,bodyHtml){
+  const w=window.open('','_blank','width=820,height=1000');
+  if(!w){toast(T('팝업 차단','Popup blocked'),T('PDF 창을 열 수 없습니다 — 팝업 허용 필요','Allow popups to generate PDF'),false);return;}
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+   <style>*{box-sizing:border-box}body{font:13px -apple-system,"Apple SD Gothic Neo",sans-serif;padding:28px;color:#111}
+   h1{font-size:20px;margin:0 0 2px}.muted{color:#666;font-size:12px}table{border-collapse:collapse;width:100%;margin-top:12px}
+   th,td{border:1px solid #bbb;padding:6px 9px;text-align:left;font-size:12.5px}th{background:#eee}
+   .tot{font-weight:800}.brand{display:flex;align-items:center;gap:8px;border-bottom:2px solid #0f766e;padding-bottom:8px;margin-bottom:12px}
+   .logo{width:26px;height:26px;border-radius:6px;background:#0f766e;color:#fff;display:grid;place-items:center;font-weight:900}
+   @media print{.noprint{display:none}}</style></head><body>
+   <div class="brand"><span class="logo">S</span><div><h1>${esc(title)}</h1><div class=muted>SMEAG · ${new Date().toISOString().slice(0,10)}</div></div></div>
+   ${bodyHtml}
+   <div class="noprint" style="margin-top:22px;display:flex;gap:8px"><button onclick="window.print()" style="padding:8px 16px;font-weight:700">🖨 ${esc(T('PDF로 저장 / 인쇄','Save as PDF / Print'))}</button><button onclick="window.close()" style="padding:8px 16px">${esc(T('닫기','Close'))}</button></div>
+   <scr`+`ipt>setTimeout(function(){try{window.print()}catch(e){}},400)</scr`+`ipt></body></html>`);
+  w.document.close();
+  if(window.adminAuthLog)try{window.adminAuthLog('pdf_generate',{title},'read');}catch(_){}
+}
 
 // ─── 런타임 번역 계층 — 렌더된 화면의 한글 UI 문구를 영어로 치환(LANG='en') ───
 //   · 정확일치 사전(I18N_EN) + 동적 패턴 규칙. 학생명 등 데이터는 사전에 없어 그대로 유지.
@@ -1729,7 +2260,7 @@ function i18nApply(root){
 }catch(e){}})();
 function renderCats(){const c=document.getElementById('cats');c.innerHTML='';
   const lb=document.getElementById('langBtn');if(lb)lb.textContent=LANG==='en'?'EN':'한';
-  CATS.forEach(ct=>{
+  CATS.filter(ct=>deptAllows(ct.id)).forEach(ct=>{
     const wrap=el('div','catwrap');
     const b=el('button','cat'+(ct.id===curCat?' active':''),`<span class="ic">${ct.icon}</span>${ct.label}<span class="caret">▾</span>`);
     const dd=el('div','dropdown');
@@ -1749,6 +2280,7 @@ function logRead(menu,cat){
     try{window.adminAuthLog('menu_view',{menu:menu,cat:cat},'read');}catch(e){}},800);
 }
 function renderMain(){const m=document.getElementById('main');seed=(curKey.length*13+7);
+  if(!deptAllows(curCat)){m.innerHTML=`<div class="ph"><h1>${T('접근 권한 없음','Access denied')}</h1></div><div class="card pad" style="color:var(--dim)">${T('현재 부서','Current dept')}: <b>${esc((DEPTS.find(d=>d.id===curDept)||{}).name||curDept)}</b> — ${T('이 메뉴 접근 권한이 없습니다. 권한설정에서 부서 권한을 조정하세요.','No permission for this menu. Adjust department permissions in Settings.')}</div>`;return;}
   const fn=R[curKey]||R.spec;m.innerHTML=fn(curMenu);
   m.classList.toggle('freeze', ['roommove','stdlist','enroll'].includes(curKey));  // 상단 전체 고정 + 행만 스크롤
   logRead(curKey,curCat);  // 조회 로그(비차단)
@@ -1807,6 +2339,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     d.stuProj?{nameCol:d.nameCol,getFull:(abs)=>REAL.studentsFull.rows[abs]}:null);}
   if(curMenu&&curMenu.u==='student_group_payment.php')wireGroups(m); // Group Students 화면 배선
   if(curKey==='agency'||(curMenu&&/student_present2/.test(curMenu.u||'')))wireAgency(m); // AGENCY PAGE 배선
+  if(typeof R[curKey+'__init']==='function')try{R[curKey+'__init'](m);}catch(e){console.error(curKey+'__init',e);} // 신규 전용화면 초기화 훅
 
   m.querySelectorAll('[data-specexcel]').forEach(b=>b.addEventListener('click',()=>{
     const d=specData(b.dataset.specexcel);if(!d){toast('내보낼 데이터 없음','',false);return;}
@@ -1927,6 +2460,13 @@ document.getElementById('themeBtn').addEventListener('click',()=>{
   const r=document.documentElement;const cur=r.getAttribute('data-theme')||'light';
   const next=cur==='dark'?'light':'dark';
   r.setAttribute('data-theme',next);try{localStorage.setItem('smeag-theme',next);}catch(e){}});
+// 부서 선택기(권한) 채우기·전환
+(function(){const ds=document.getElementById('deptSel');if(!ds)return;
+  ds.innerHTML=DEPTS.map(d=>`<option value="${d.id}" ${curDept===d.id?'selected':''}>${esc(d.name)}</option>`).join('');
+  ds.addEventListener('change',()=>{setDept(ds.value);
+    // 현재 카테고리가 새 부서에서 막히면 record로 이동
+    if(!deptAllows(curCat)){curCat='record';curKey='dash';curMenu=MENU.record[0];}
+    renderAll();});})();
 // 메뉴 언어 토글(EN ↔ 한글, 기본 EN)
 document.getElementById('langBtn').addEventListener('click',()=>{
   LANG=LANG==='en'?'ko':'en';try{localStorage.setItem('smeag-lang',LANG);}catch(e){}
