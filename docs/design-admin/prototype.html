@@ -1119,7 +1119,12 @@ R.roomstat=()=>{
   }
 
   // 레거시 필터: 센터(campus)·성별·방구분(인실)
-  const campusOf=n=>{const u=(n||'').toUpperCase();return u.startsWith('CAPITAL')?'CAPITAL':u.startsWith('ENCANTO')?'ENCANTO':u.startsWith('CLASSIC')?'CLASSIC':'ETC';};
+  const campusOf=n=>{const u=(n||'').toUpperCase();
+    if(u.startsWith('ENCANTO'))return 'ENCANTO';
+    if(u.startsWith('CLASSIC'))return 'CLASSIC';
+    // CAPITAL 권역 기숙사(빌딩명이 CAPITAL로 시작하지 않아도 CAPITAL 소속): S hotel·Amethyst·Canberry·Casablu·Citadines·Commercial·RECORD ROOM
+    if(u.startsWith('CAPITAL')||/S ?HOTEL|AMETHYST|CANBERRY|CASABLU|CITADINES|COMMERCIAL|RECORD ROOM/.test(u))return 'CAPITAL';
+    return 'ETC';};
   const genderOf=n=>{const u=(n||'').toUpperCase();return /\/MALE|\/ MALE/.test(u)?'MALE':/\/FEMALE/.test(u)?'FEMALE':/\/FAMILY/.test(u)?'FAMILY':'';};
   const rsReady=roomFilter.center&&roomFilter.gender&&roomFilter.per; // 센터+성별+방구분 모두 선택돼야 표시
   if(rsReady){
