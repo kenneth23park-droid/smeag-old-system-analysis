@@ -369,6 +369,8 @@
   .gantt tbody.room-block>tr:first-child>td.c1{box-shadow:inset 3px 0 0 var(--accent-weak)}
   /* 표 자체 스크롤 영역 → 세로로 내려가도 헤더/월버튼 고정, 월클릭 시 컬럼 가로스크롤 */
   .twrap.dorm-scroll{max-height:calc(100vh - 300px);overflow:auto}
+  .twrap.dorm-scroll.panning{cursor:grabbing;scroll-behavior:auto;user-select:none}
+  .twrap.dorm-scroll.panning *{cursor:grabbing !important}
 
   /* admission grid */
   .adm{overflow-x:auto}
@@ -2395,7 +2397,7 @@ document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();cl
 // ─── 십자 안내선 (마우스 휠/가운데 클릭 토글) — 날짜·학생 추적 ───
 (function(){
   let on=false;
-  const v=el('div','xh-line xh-v'),h=el('div','xh-line xh-h'),tip=el('div','xh-tip'),hint=el('div','xh-hint','십자선 ON · 셀 위로 이동하면 날짜·학생 표시 · 휠클릭/Esc 종료');
+  const v=el('div','xh-line xh-v'),h=el('div','xh-line xh-h'),tip=el('div','xh-tip'),hint=el('div','xh-hint','십자선 ON · 셀 위로 이동하면 날짜·학생 표시 · Esc 종료');
   [v,h,tip,hint].forEach(x=>{x.style.display='none';document.body.appendChild(x);});
   function move(e){
     const u=document.elementFromPoint(e.clientX,e.clientY);
@@ -2419,12 +2421,31 @@ document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();cl
     if(on)document.addEventListener('mousemove',move);
     else{document.removeEventListener('mousemove',move);v.style.display=h.style.display=tip.style.display='none';}
     syncBtn();}
-  document.addEventListener('mousedown',e=>{if(e.button===1&&e.target.closest&&e.target.closest('.gantt')){e.preventDefault();set(!on);}});
-  document.addEventListener('auxclick',e=>{if(e.button===1&&e.target.closest&&e.target.closest('.gantt'))e.preventDefault();});
+  // 휠클릭은 배치도 패닝(아래)으로 사용 — 룰러는 상단 '룰러' 버튼으로 토글
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&on)set(false);});
   // 룰러 토글 버튼(배치도 재렌더 시마다 위임으로 처리) + 렌더 후 버튼 상태 동기화
   document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#rsRuler');if(b){e.preventDefault();set(!on);}});
   window.__xhRuler={set,toggle:()=>set(!on),isOn:()=>on,sync:syncBtn};
+})();
+
+// ─── 배치도 휠(가운데) 버튼 드래그 패닝 — 상하좌우 이동 ───
+(function(){
+  let wrap=null,sx=0,sy=0,sl=0,st=0;
+  const mv=(ev)=>{if(!wrap)return;ev.preventDefault();
+    wrap.scrollLeft=sl-(ev.clientX-sx);wrap.scrollTop=st-(ev.clientY-sy);};
+  const up=()=>{if(!wrap)return;wrap.classList.remove('panning');wrap=null;
+    document.removeEventListener('mousemove',mv,true);document.removeEventListener('mouseup',up,true);};
+  document.addEventListener('mousedown',(e)=>{
+    if(e.button!==1)return;                              // 가운데(휠) 버튼만
+    const w=e.target.closest&&e.target.closest('.twrap.dorm-scroll');
+    if(!w)return;
+    e.preventDefault();                                  // 브라우저 기본 autoscroll 차단
+    wrap=w;sx=e.clientX;sy=e.clientY;sl=w.scrollLeft;st=w.scrollTop;
+    w.classList.add('panning');
+    document.addEventListener('mousemove',mv,true);document.addEventListener('mouseup',up,true);
+  });
+  document.addEventListener('auxclick',(e)=>{           // 가운데 클릭 기본동작(autoscroll) 방지
+    if(e.button===1&&e.target.closest&&e.target.closest('.twrap.dorm-scroll'))e.preventDefault();});
 })();
 
 applyHash();renderAll();

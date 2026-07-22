@@ -262,3 +262,5 @@
 - **2026-07-22** 배치도 CAPITAL 권역 기숙사 분류 보정: campusOf 가 CAPITAL로 시작하지 않는 실제 CAPITAL 권역 빌딩(S hotel(H)·Amethyst(AM)·Canberry(Cb)·Casablu·Citadines·Commercial·CAPITAL RECORD ROOM)을 ETC로 분류해 CAPITAL 센터에서 누락되던 문제 수정 → CAPITAL 센터 남/여/공용(FAMILY) 모두에 해당 카테고리 표시. 이름/방 클릭 → ROOM REPLACEMENT(후보방 포함)도 반영.
 
 - **2026-07-22** 배치도 이름 클릭 = STUDENT INFORMATION 전용(infoOnly): openRoomReplace 에 infoOnly 파라미터 추가 → 이름 클릭 시 후보방(CHANGE PERIOD)·빠른작업 바 숨기고 STUDENT INFORMATION+DORMITORY RESERVED만 단일컬럼 표시(헤더 'STUDENT INFORMATION'). 방번호/방구분 클릭은 전체 ROOM REPLACEMENT(후보방 MOVE 포함) 유지.
+
+- **2026-07-22** 배치도 휠(가운데) 버튼 드래그 패닝: .twrap.dorm-scroll 에서 가운데 버튼 누른 채 드래그하면 상하좌우 이동(scrollLeft/scrollTop). 브라우저 기본 autoscroll(auxclick) 차단, panning 중 grabbing 커서. 휠클릭 룰러 토글은 제거(룰러는 상단 버튼 유지). 검증: 가로180·세로120 이동.
