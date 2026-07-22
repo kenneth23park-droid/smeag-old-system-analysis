@@ -344,7 +344,9 @@
   .gantt .per.m{background:var(--male)} .gantt .per.f{background:var(--female)} .gantt .per.fam{background:#ca8a04}
   .gantt td.name{color:#c15b1e;font-size:12.5px;text-overflow:ellipsis}
   .gantt td.rs-name{cursor:pointer}
-  .gantt td.rs-name:hover{text-decoration:underline;color:var(--accent)}
+  .gantt .rs-nameseg{cursor:pointer;border-radius:3px}
+  .gantt .rs-nameseg:hover{text-decoration:underline;color:var(--accent);background:var(--accent-weak)}
+  .gantt .rs-sep{color:var(--faint)}
   .gantt td.rs-room{cursor:pointer}
   .gantt td.rs-room:hover{background:var(--accent-weak)}
   .gantt td.cx{color:var(--faint)}
@@ -1159,7 +1161,7 @@ R.roomstat=()=>{
       r.beds.forEach((bed,bi)=>{
         body+=`<tr><td class="info rno c1${bi===0?' rs-room':''}" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="${bi===0?'클릭 → ROOM REPLACEMENT':''}">${bi===0?`<span class="bldg">${esc(bldg)}</span>${r.no}`:''}</td>`
             +`<td class="info c2 rs-room" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
-            +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" title="${bed.name?esc(bed.name)+' — 클릭 → 학생정보':''}">${bed.name||''}</td>`
+            +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}">${bed.name?bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(nm)}</span>`).join('<span class="rs-sep"> / </span>'):''}</td>`
             +dcells(bed.pat)+`</tr>`;
       });
       body+=`</tbody>`;
@@ -2381,8 +2383,9 @@ document.addEventListener('click',(e)=>{
   const rsBtn=e.target.closest('.gantt td.rs-name, .gantt td.rs-room'); // 이름→학생정보만 / 방→ROOM REPLACEMENT(후보방)
   if(rsBtn){e.stopPropagation();closeCellPop();
     const isName=rsBtn.classList.contains('rs-name');
+    const seg=e.target.closest('.rs-nameseg');          // '/'로 묶인 이름 중 클릭한 학생 우선
     const blk=rsBtn.closest('tbody.room-block');
-    let name=rsBtn.dataset.name||'';
+    let name=(seg&&seg.dataset.name)||rsBtn.dataset.name||'';
     if(!name&&blk){const nc=blk.querySelector('.rs-name');name=nc?(nc.dataset.name||nc.textContent):'';}
     let room=rsBtn.dataset.room||(blk?((blk.querySelector('.rno')||{}).textContent||''):'');
     room=(''+room).replace(/\s+/g,' ').trim();
