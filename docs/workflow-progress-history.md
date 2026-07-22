@@ -252,3 +252,5 @@
 - **2026-07-22** 표 화면(spec)에서도 이름 클릭 → 상세정보: STUPROJ(studentsFull 1:1) 표(멀티수강관리·APPLY LIST·HISTORY·수금관리·MC Report1)의 이름 컬럼을 클릭 가능(td.sp-name, data-abs)하게 하고 paintPaged 에 nameCol/getFull 옵션 추가 → openStudentEdit. 5개 표 검증 정상.
 
 - **2026-07-22** 배치도(기숙사현황) 학생 이름 클릭 → 상세정보: 좌측 이름 셀에 .rs-name(data-name) 부여, document 클릭 핸들러에서 셀 팝업보다 우선 처리 → findStudent 로 studentsFull 조회 후 openStudentEdit. 실학생 매칭 정상(비학생 홀드는 '학생 정보 없음' 안내), 날짜 셀 클릭은 기존대로 ROOM REPLACEMENT/팝업 유지.
+
+- **2026-07-22** 배치도 방구분에 Temporary(임시방) 옵션 추가: rsPer 에 TEMP 추가, 선택 시 센터·성별 무관 TEMPORARY 카테고리 전체 표시(임시방 15실). 검증 정상.

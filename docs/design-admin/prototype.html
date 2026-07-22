@@ -1122,9 +1122,14 @@ R.roomstat=()=>{
   const genderOf=n=>{const u=(n||'').toUpperCase();return /\/MALE|\/ MALE/.test(u)?'MALE':/\/FEMALE/.test(u)?'FEMALE':/\/FAMILY/.test(u)?'FAMILY':'';};
   const rsReady=roomFilter.center&&roomFilter.gender&&roomFilter.per; // 센터+성별+방구분 모두 선택돼야 표시
   if(rsReady){
+    if(roomFilter.per==='TEMP'){
+      // 임시방(TEMPORARY): 센터·성별 무관 · TEMPORARY 카테고리 전체
+      groups=groups.filter(g=>/TEMPORARY/i.test(g.name));
+    }else{
     groups=groups.filter(g=>campusOf(g.name)===roomFilter.center);
     if(roomFilter.gender!=='ALL')groups=groups.filter(g=>genderOf(g.name)===roomFilter.gender);
     if(roomFilter.per!=='ALL')groups=groups.map(g=>({name:g.name,rooms:g.rooms.filter(r=>(''+(r.per||'')).replace(/[^0-9]/g,'')===roomFilter.per)})).filter(g=>g.rooms.length);
+    }
   }else groups=[]; // 초기/미선택 → 렌더 안 함(선택 안내)
   if(roomFilter.sortPer){const pn=p=>parseInt(p)||0;groups=groups.map(g=>({name:g.name,rooms:[...g.rooms].sort((a,b)=>roomFilter.sortPer==='asc'?pn(a.per)-pn(b.per):pn(b.per)-pn(a.per))}));}
   const CLS={x:'cx',in:'cin',out:'cout',rsv:'crsv',hold:'chold',e:'cempty'};
@@ -1171,7 +1176,7 @@ R.roomstat=()=>{
     <div style="display:flex;gap:8px;align-items:center">
       <select id="rsCenter" class="rs-ctrl" title="${T('센터','Center')}">${['','ENCANTO','CAPITAL'].map(v=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${v?v+' CENTER':T('::센터를 선택하세요::','::Select center::')}</option>`).join('')}</select>
       <select id="rsGender" class="rs-ctrl" title="${T('성별','Gender')}">${[['',T('::성별을 선택하세요::','::Select gender::')],['MALE',T('남 (MALE)','MALE')],['FEMALE',T('여 (FEMALE)','FEMALE')],['FAMILY',T('공용 (FAMILY)','FAMILY')],['ALL',T('전체 성별','All gender')]].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
-      <select id="rsPer" class="rs-ctrl" title="${T('방구분(인실)','Room type')}">${[['',T('::방구분을 선택하세요::','::Select room type::')],['1',T('1인실','1-person')],['2',T('2인실','2-person')],['3',T('3인실','3-person')],['4',T('4인실','4-person')],['5',T('5인실','5-person')],['ALL',T('방구분 전체','All types')]].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
+      <select id="rsPer" class="rs-ctrl" title="${T('방구분(인실)','Room type')}">${[['',T('::방구분을 선택하세요::','::Select room type::')],['1',T('1인실','1-person')],['2',T('2인실','2-person')],['3',T('3인실','3-person')],['4',T('4인실','4-person')],['5',T('5인실','5-person')],['TEMP',T('임시방(TEMPORARY)','Temporary')],['ALL',T('방구분 전체','All types')]].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="${T('인실 정렬','Sort by room type')}"><option value="">${T('인실 정렬','Room-type sort')}</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>${T('인실 ↑ 적은순','Type ↑ fewest')}</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>${T('인실 ↓ 많은순','Type ↓ most')}</option></select>
       <input id="rsMonth" class="rs-ctrl" type="month" value="${roomCenter.y}-${pad(roomCenter.m)}" min="2020-01" max="2032-12" title="${T('연/월 이동(캘린더) — 아무 년/월이나 선택','Year/month picker')}" style="cursor:pointer">
       <span class="rs-search"><input id="rsSearch" class="rs-ctrl" type="search" placeholder="${T('🔍 방번호 · 회원 검색','🔍 Room · member search')}" value="${esc(roomFilter.q||'')}" autocomplete="off" style="min-width:210px"><span id="rsSearchCnt" class="rs-cnt"></span></span>
