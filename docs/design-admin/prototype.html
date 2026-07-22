@@ -409,6 +409,8 @@
   .rp-cand-wrap{max-height:62vh;overflow:auto;border:1px solid var(--border);border-radius:8px}
   .rp-cand thead th{position:sticky;top:0;z-index:1}
   @media(max-width:760px){.modal-body{grid-template-columns:1fr}}
+  .modal-body.single{grid-template-columns:1fr}
+  .modal.rp-infoonly{max-width:620px}
   /* STUDENT MANAGEMENT INFORMATION 상세폼(레거시 재현) */
   .modal.smi{width:min(1020px,96vw);max-height:92vh;display:flex;flex-direction:column;padding:0}
   .modal.smi .modal-h{border-bottom:1px solid var(--border)}
@@ -2145,7 +2147,7 @@ function findStudent(nm){
   return R.find(r=>(r[2]||'')===first||(r[3]||'')===first)
       || R.find(r=>((''+(r[2]||'')).includes(first))||((''+(r[3]||'')).includes(first)))||null;
 }
-function openRoomReplace(srcCell,room,name,date){
+function openRoomReplace(srcCell,room,name,date,infoOnly){
   const GEN={MALE:['M','var(--male)'],FEMALE:['F','var(--female)'],FAMILY:['FAM','#ca8a04']};
   const endD=(()=>{const d=new Date(date||'2026-07-08');d.setDate(d.getDate()+24);return d.toISOString().slice(0,10);})();
   // 실 학생 데이터 (studentsFull cols: 0AG 1NAT 2EN 3KOR 4AGE 5SEX 6등록 7출발 8시작 9종료 10기간 11상태 12코스 13객실 14CAMPUS 15항공)
@@ -2153,26 +2155,27 @@ function openRoomReplace(srcCell,room,name,date){
   const S=(i,d)=>{const v=stu&&stu[i];return v!=null&&v!==''?v:(d||'');};
   const begin=S(8,date), end=S(9,endD), per=S(10), dorm=S(13,room);
   const _cc=S(12); const course=[per?per+'주':null,_cc?'코스 '+_cc:null].filter(Boolean).join(' · ')||'-';
-  // 실 후보 방목록 (roomstat 그룹 전체)
+  // 실 후보 방목록 (roomstat 그룹 전체) — infoOnly(이름클릭)면 생략
   let rows='';
+  if(!infoOnly){
   const grs=(REAL&&REAL.roomstat&&REAL.roomstat.groups)||[];
   grs.forEach(g=>{const parts=(g.name||'').split('/');const cat=parts[0].trim();const gm=GEN[(parts[1]||'').trim()]||['-','var(--dim)'];
     (g.rooms||[]).forEach(r=>{
       rows+=`<tr><td class="cat">${esc(cat)}</td><td class="mono">${esc(r.no)}</td><td class="mono">${esc(r.per||'')}</td>`
           +`<td style="color:${gm[1]};font-weight:750">${gm[0]}</td><td><button class="btn rp-move" data-to="${esc(cat)} ${esc(r.no)}" data-cap="${esc(r.per||'')}">MOVE</button></td></tr>`;});
   });
-  if(!rows)rows=`<tr><td colspan="5" style="color:var(--dim);text-align:center;padding:14px">후보 방 데이터 없음</td></tr>`;
+  if(!rows)rows=`<tr><td colspan="5" style="color:var(--dim);text-align:center;padding:14px">후보 방 데이터 없음</td></tr>`;}
   const info=(k,v)=>`<tr><th>${k}</th><td>${v}</td></tr>`;
   const ta='<textarea rows=2 style="width:100%;border:1px solid var(--border);background:var(--surface-2);border-radius:6px"></textarea>';
   const ov=el('div','modal-ov');ov.id='roomModal';
   const QA=[['입실','cin','var(--female)'],['퇴실','cout','var(--return)'],['예약','crsv','var(--good)'],['방배정','cx','var(--male)'],['홀딩','chold','var(--return)'],['빈방','cempty','var(--empty)']];
   const qbar=QA.map(([w,cls,c])=>`<button class="btn rp-qa" data-w="${w}" data-cls="${cls}"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${c};margin-right:5px"></i>${w}</button>`).join('');
-  ov.innerHTML=`<div class="modal">
-    <div class="modal-h"><b>ROOM REPLACEMENT</b><span style="color:var(--dim);font-size:12px;margin-left:10px">${esc(name||'-')}</span><button class="modal-x" id="rpClose">✕</button></div>
-    <div class="rp-actions" style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--border)">${qbar}</div>
-    <div class="modal-body">
+  ov.innerHTML=`<div class="modal${infoOnly?' rp-infoonly':''}">
+    <div class="modal-h"><b>${infoOnly?'STUDENT INFORMATION':'ROOM REPLACEMENT'}</b><span style="color:var(--dim);font-size:12px;margin-left:10px">${esc(name||'-')}</span><button class="modal-x" id="rpClose">✕</button></div>
+    ${infoOnly?'':`<div class="rp-actions" style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--border)">${qbar}</div>`}
+    <div class="modal-body${infoOnly?' single':''}">
       <div class="rp-left">
-        <div class="rp-t">※ STUDENT INFORMATION</div>
+        <div class="rp-t">※ STUDENT INFORMATION${stu&&stu.__idx!=null?' : '+stu.__idx:''}</div>
         <table class="rp-info">
           ${info('NAME',esc(S(2,name)))}${info('KOR',esc(S(3,name)))}
           ${info('AGE',stu?manAgeCell(stu):esc(S(4,'-')))}${info('SEX',(S(5)||'').toUpperCase()==='F'?'F':'M')}
@@ -2186,12 +2189,12 @@ function openRoomReplace(srcCell,room,name,date){
         <table class="rp-info"><tr><th>ROOM NUMBER</th><th>CAPACITY</th><th>PERIOD</th></tr>
           <tr><td class="mono">${esc(room||dorm||'-')}</td><td>${esc(per?per+'wk':'-')}</td><td class="mono">${esc(begin)} ~ ${esc(end)}</td></tr></table>
       </div>
-      <div class="rp-right">
+      ${infoOnly?'':`<div class="rp-right">
         <div class="rp-t">※ CHANGE PERIOD : ${esc(begin)} ~ ${esc(end)}</div>
         <div class="rp-cand-wrap"><table class="rp-cand">
           <thead><tr><th>CATEGORY</th><th>ROOM NUMBER</th><th>CAPA</th><th>SEX</th><th></th></tr></thead>
           <tbody>${rows}</tbody></table></div>
-      </div>
+      </div>`}
     </div></div>`;
   document.body.appendChild(ov);
   ov.querySelector('#rpClose').onclick=()=>ov.remove();
@@ -2373,15 +2376,16 @@ function openStudentEdit(row,act){
 }
 document.addEventListener('click',(e)=>{
   if(!e.target.closest('.catwrap'))closeDropdowns();
-  const rsBtn=e.target.closest('.gantt td.rs-name, .gantt td.rs-room'); // 이름/방 클릭 → ROOM REPLACEMENT
+  const rsBtn=e.target.closest('.gantt td.rs-name, .gantt td.rs-room'); // 이름→학생정보만 / 방→ROOM REPLACEMENT(후보방)
   if(rsBtn){e.stopPropagation();closeCellPop();
+    const isName=rsBtn.classList.contains('rs-name');
     const blk=rsBtn.closest('tbody.room-block');
     let name=rsBtn.dataset.name||'';
     if(!name&&blk){const nc=blk.querySelector('.rs-name');name=nc?(nc.dataset.name||nc.textContent):'';}
     let room=rsBtn.dataset.room||(blk?((blk.querySelector('.rno')||{}).textContent||''):'');
     room=(''+room).replace(/\s+/g,' ').trim();
     const st=findStudent(name);const date=st?((st[7]||st[8])||''):'';
-    openRoomReplace(null,room,name,date);return;}
+    openRoomReplace(null,room,name,date,isName);return;}   // 이름 클릭=infoOnly
   const cell=e.target.closest('.gantt td.dcell');
   if(cell){e.stopPropagation();openCellPop(cell,e);return;}
   if(!e.target.closest('#cellpop'))closeCellPop();

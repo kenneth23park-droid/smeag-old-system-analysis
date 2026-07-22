@@ -260,3 +260,5 @@
 - **2026-07-22** 만나이 기준·표기 변경: 기준일=시작일(BEGIN col8, 지났으면 오늘). 빨강 임계 만18미만→만14세 이하(MINOR_AGE 15). 셀에서 "만/age" 접두어 생략(숫자만, 빨강). 생년월일 병기·근사(≈)는 유지. 적용: STUDENT LIST·수강등록관리·AGENCY·ROOM REPLACEMENT.
 
 - **2026-07-22** 배치도 CAPITAL 권역 기숙사 분류 보정: campusOf 가 CAPITAL로 시작하지 않는 실제 CAPITAL 권역 빌딩(S hotel(H)·Amethyst(AM)·Canberry(Cb)·Casablu·Citadines·Commercial·CAPITAL RECORD ROOM)을 ETC로 분류해 CAPITAL 센터에서 누락되던 문제 수정 → CAPITAL 센터 남/여/공용(FAMILY) 모두에 해당 카테고리 표시. 이름/방 클릭 → ROOM REPLACEMENT(후보방 포함)도 반영.
+
+- **2026-07-22** 배치도 이름 클릭 = STUDENT INFORMATION 전용(infoOnly): openRoomReplace 에 infoOnly 파라미터 추가 → 이름 클릭 시 후보방(CHANGE PERIOD)·빠른작업 바 숨기고 STUDENT INFORMATION+DORMITORY RESERVED만 단일컬럼 표시(헤더 'STUDENT INFORMATION'). 방번호/방구분 클릭은 전체 ROOM REPLACEMENT(후보방 MOVE 포함) 유지.
