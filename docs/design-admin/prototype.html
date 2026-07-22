@@ -605,9 +605,16 @@ const MENU={
     {k:'agencylist',t:'AGENCY LIST',u:'uhak_agency_list.php',note:'유학원 목록(dict_options)'},
     {k:'spec',t:'COMMISSION',u:'uhak_agency_commission.php',cols:['NO','UHAK','구분','%','금액','담당','확인일','상태','학생']},
     {k:'spec',t:'유학원 방문(VISIT)',u:'uhak_day_info.php',cols:['#','방문일','유학원','연락처','시간','내용','상태']},
+    {k:'agencystat',t:'BRANCH RECORD',u:'uhak_agency_stat22.php',note:'지사 유학원 통계(캠퍼스별)'},
+    {k:'agencystat',t:'GROUP RECORD',u:'uhak_agency_stat33.php',note:'대표 유학원 통계(캠퍼스별)'},
+    {k:'agencystat',t:'EACH NATIONALITY',u:'uhak_agency_stat34.php',note:'유학원별 국적 통계'},
   ],
   financial:[
-    {k:'financial',t:'등록금·인보이스',u:'student_tution_fee_list3.php',note:'학생 등록금+인보이스 발행+PDF'},
+    {k:'financial',t:'등록금·인보이스(통합)',u:'student_tution_fee_list3.php',note:'학생 등록금+인보이스 발행+PDF'},
+    {k:'financial',t:'한국학생 등록현황',u:'student_tution_fee_list2.php',note:'한국 국적'},
+    {k:'financial',t:'외국학생 등록현황',u:'student_tution_fee_list_for2.php',note:'외국 국적'},
+    {k:'financial',t:'연장학생 통합관리',u:'student_tution_fee_list4.php',note:'상태=연장'},
+    {k:'financial',t:'변경환불홀딩 관리',u:'student_tution_fee_list_change.php',note:'변경/환불/홀딩/취소'},
     {k:'spec',t:'COURSE LIST',u:'course_list.php',cols:['#','코스명','COURSE(EN)','정원','학비','캠퍼스','상태']},
     {k:'spec',t:'TUITION FEE',u:'tution_fee.php',cols:['#','COURSE','WEEK','AGENCY(JP)','STUDENT(JP)']},
   ],
@@ -2026,9 +2033,17 @@ var FIN_RATE=285, FIN_ADM=100;
 function finWeeks(r){var w=parseInt(r&&r[10],10);return isFinite(w)&&w>0?w:0;}
 function finTuition(r){return finWeeks(r)*FIN_RATE+FIN_ADM;}
 function finMoney(n){return '$'+Number(n||0).toLocaleString();}
+var FIN_MODES={
+  all:{t:['등록금·인보이스','Tuition · Invoice'],f:null},
+  kor:{t:['한국학생 등록현황','Korean Students'],f:function(r){return (''+(r[1]||'')).toLowerCase()==='kor';}},
+  foreign:{t:['외국학생 등록현황','Foreign Students'],f:function(r){return (''+(r[1]||'')).toLowerCase()!=='kor';}},
+  extend:{t:['연장학생 통합관리','Extension Students'],f:function(r){return (''+(r[11]||'')).toLowerCase()==='extend';}},
+  change:{t:['변경·환불·홀딩 관리','Change/Refund/Hold'],f:function(r){return ['exchange','refund','holding','holdinguse','cancel','paycancel','out'].indexOf((''+(r[11]||'')).toLowerCase())>=0;}}
+};
 function finFiltered(q){
   if(!(REAL&&REAL.studentsFull&&REAL.studentsFull.rows))return [];
   var rows=REAL.studentsFull.rows;
+  var mode=FIN_MODES[window.finMode||'all']; if(mode&&mode.f)rows=rows.filter(mode.f);  // 메뉴별 대상 필터
   q=(''+(q||'')).trim().toLowerCase();
   if(!q)return rows;
   return rows.filter(function(r){
@@ -2093,9 +2108,12 @@ function finInvoiceHtml(r){
     +'<div class="muted" style="margin-top:12px">'+esc(T('통화: USD · 견적 인보이스(참고용). 발행 확정은 INVOICE 버튼(멱등)으로 진행하세요.','Currency: USD · Estimate invoice (reference). Confirm publishing via the idempotent INVOICE button.'))+'</div>';
 }
 
+var FIN_URLMODE={'student_tution_fee_list2.php':'kor','student_tution_fee_list_for2.php':'foreign','student_tution_fee_list4.php':'extend','student_tution_fee_list_change.php':'change'};
 R.financial=function(m){
+  window.finMode=(m&&FIN_URLMODE[m.u])||'all';   // 메뉴 URL로 대상 필터 결정
+  if(window._finState)window._finState.shown=25;  // 모드 변경 시 페이지 초기화
   if(!(REAL&&REAL.studentsFull&&REAL.studentsFull.rows&&REAL.studentsFull.rows.length)){
-    return '<div class="ph"><h1>'+T('등록금 · 인보이스','Tuition · Invoice')+'</h1>'
+    return '<div class="ph"><h1>'+T(FIN_MODES[window.finMode||'all'].t[0],FIN_MODES[window.finMode||'all'].t[1])+'</h1>'
       +'<span class="sub">'+T('학생별 등록금 + 인보이스 발행 + PDF','Per-student tuition + invoice publish + PDF')+'</span>'
       +'<span class="url">student_tution_fee_list3.php</span></div>'
       +'<div class="card pad fin-empty">'+T('학생 데이터가 없습니다 (REAL.studentsFull 미주입).','No student data (REAL.studentsFull not injected).')+'</div>';
@@ -2103,7 +2121,7 @@ R.financial=function(m){
   var state=window._finState||(window._finState={q:'',shown:25});
   var flt=finFiltered(state.q);
   var sumTui=0; for(var i=0;i<flt.length;i++)sumTui+=finTuition(flt[i]);
-  return '<div class="ph"><h1>'+T('등록금 · 인보이스','Tuition · Invoice')+'</h1>'
+  return '<div class="ph"><h1>'+T(FIN_MODES[window.finMode||'all'].t[0],FIN_MODES[window.finMode||'all'].t[1])+'</h1>'
     +'<span class="sub">'+T('학생별 등록금 산정 + 인보이스 발행 + PDF','Per-student tuition + invoice publish + PDF')+'</span>'
     +'<span class="url">student_tution_fee_list3.php</span>'
     +'<span class="actions" style="margin-left:auto">'
@@ -2153,6 +2171,36 @@ R.financial__init=function(root){
   });
 };
 
+// ─── Agency 통계(파생): BRANCH/GROUP RECORD(캠퍼스별) · EACH NATIONALITY(국적별) ───
+function _agName(code){var f=(DICT.uhak||[]).find(function(o){return o.v===code;});return f?f.t:(code||'(미지정)');}
+R.agencystat=function(m){
+  var u=(m&&m.u)||'';var mode=/stat34/.test(u)?'nat':'campus';
+  var title=mode==='nat'?T('유학원별 국적 통계','Agency × Nationality'):(/stat33/.test(u)?T('대표 유학원 통계','Group Record'):T('지사 유학원 통계','Branch Record'));
+  var hdr='<div class="ph"><h1>'+title+'</h1><span class="sub">'+T('유학원별 집계(studentsFull 파생)','Per-agency stats (derived)')+'</span><span class="url">'+esc(u)+'</span>'
+    +'<span class="actions" style="margin-left:auto">'+(REAL&&REAL.studentsFull?REALBADGE:'')+'</span></div>';
+  var SF=(REAL&&REAL.studentsFull&&REAL.studentsFull.rows)||[];
+  if(!SF.length)return hdr+'<div class="card pad" style="color:var(--dim)">'+T('데이터 없음','No data')+'</div>';
+  var byA={};
+  if(mode==='nat'){
+    var NATS=['KOR','CHI','JAP','TWA','VTN','ETC'];
+    SF.forEach(function(r){var a=r[0]||'(미지정)';var n=(''+(r[1]||'')).toUpperCase();if(NATS.indexOf(n)<0)n='ETC';
+      byA[a]=byA[a]||{KOR:0,CHI:0,JAP:0,TWA:0,VTN:0,ETC:0,_t:0};byA[a][n]++;byA[a]._t++;});
+    var rows=Object.keys(byA).map(function(a){return {a:a,o:byA[a]};}).sort(function(x,y){return y.o._t-x.o._t;}).slice(0,80);
+    var body=rows.map(function(x,i){return '<tr><td class="mono">'+(i+1)+'</td><td>'+esc(_agName(x.a))+'</td>'
+      +NATS.map(function(n){return '<td class="mono">'+x.o[n]+'</td>';}).join('')+'<td class="mono"><b>'+x.o._t+'</b></td></tr>';}).join('');
+    return hdr+'<div class="chips" style="margin-bottom:10px"><span class="chip">'+T('유학원','Agencies')+' <b>'+rows.length+'</b></span></div>'
+      +'<div class="twrap"><table class="grid"><thead><tr><th>#</th><th>'+T('유학원','Agency')+'</th><th>KOR</th><th>CHI</th><th>JAP</th><th>TWA</th><th>VTN</th><th>ETC</th><th>'+T('합계','Total')+'</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  }
+  var camps=['ENCANTO','CLASSIC','CAPITAL','기타'];
+  SF.forEach(function(r){var a=r[0]||'(미지정)';var c=(''+(r[14]||'')).toUpperCase();
+    c=(c.indexOf('ENCANTO')>=0||c.indexOf('SPARTA')>=0)?'ENCANTO':(c.indexOf('CLASSIC')>=0?'CLASSIC':(c.indexOf('CAPITAL')>=0?'CAPITAL':'기타'));
+    byA[a]=byA[a]||{ENCANTO:0,CLASSIC:0,CAPITAL:0,'기타':0,_t:0};byA[a][c]++;byA[a]._t++;});
+  var rows2=Object.keys(byA).map(function(a){return {a:a,o:byA[a]};}).sort(function(x,y){return y.o._t-x.o._t;}).slice(0,80);
+  var body2=rows2.map(function(x,i){return '<tr><td class="mono">'+(i+1)+'</td><td>'+esc(_agName(x.a))+'</td>'
+    +camps.map(function(c){return '<td class="mono">'+x.o[c]+'</td>';}).join('')+'<td class="mono"><b>'+x.o._t+'</b></td></tr>';}).join('');
+  return hdr+'<div class="chips" style="margin-bottom:10px"><span class="chip">'+T('유학원','Agencies')+' <b>'+rows2.length+'</b></span></div>'
+    +'<div class="twrap"><table class="grid"><thead><tr><th>#</th><th>'+T('유학원','Agency')+'</th><th>ENCANTO</th><th>CLASSIC</th><th>CAPITAL</th><th>'+T('기타','ETC')+'</th><th>'+T('합계','Total')+'</th></tr></thead><tbody>'+body2+'</tbody></table></div>';
+};
 // ─── 상태/네비게이션 ───
 let curCat='record', curKey='dash', curMenu=null;
 function closeDropdowns(){document.querySelectorAll('.dropdown.open').forEach(d=>d.classList.remove('open'));}

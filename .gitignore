@@ -27,3 +27,7 @@ deploy/.vercel/
 docs/design-admin/prototype.mobile.realdata.html
 /node_modules
 docs/QA_REPORT_*.html
+docs/LEGACY_COMPARE_*.html
+docs/LEGACY_ONLY_*.html
+docs/LEGACY_ALLMENU_*.html
+docs/AGENCY_PORTAL_*.html

@@ -275,3 +275,7 @@
   ③ 부서별 권한(RBAC): DEPTS 5부서 + PERMS 매트릭스 화면(부서×카테고리 체크박스, localStorage) + 상단 부서선택기 + 사이드바 필터 + 접근가드.
   ④ 인보이스: 멱등 발행(기존 4중 방어) + PDF 생성(openPdf 인쇄→PDF, 외부라이브러리 없음) — financial 화면 학생별 발행/PDF 버튼.
   ⑤ 워크플로 3에이전트 병렬(perms·agencylist·financial) + 적대적 QA 후 조립. Playwright 검증: 7카테고리·신규화면·인보이스발행·PDF팝업·부서전환 필터 무오류.
+
+- **2026-07-23** 남은 메뉴 마무리 — Financial 변형 4종 + Agency 통계 3종:
+  ① Financial 필터 모드(FIN_MODES): 등록금·인보이스(전체 12,150) / 한국학생(5,139) / 외국학생(7,011) / 연장학생(279) / 변경환불홀딩(1,782). URL(m.u)→모드 매핑(FIN_URLMODE), 화면 제목·대상행 모드연동. finFiltered에 모드필터 삽입.
+  ② Agency 통계(R.agencystat): BRANCH RECORD·GROUP RECORD(유학원×캠퍼스 ENCANTO/CLASSIC/CAPITAL/기타) + EACH NATIONALITY(유학원×국적 KOR/CHI/JAP/TWA/VTN/ETC). studentsFull에서 실시간 집계, DICT.uhak로 유학원명 해석, 총계순 상위 80. Playwright 검증: 3화면 렌더·80행·필터카운트 정확·무오류. 배포·별칭 완료.
