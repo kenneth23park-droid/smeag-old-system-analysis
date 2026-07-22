@@ -244,3 +244,5 @@
 - **2026-07-21** 레거시 표 타이포 조건 반영: 실 레거시(student_list.php) 로그인 측정값(Tahoma,굴림 · 본문11px/헤더11px · #222 · 행 30px · 가운데정렬, AGENCY만 좌측)을 신전산 리스트 표(#stdBody·#specBody·AGENCY)에 적용. 이름 강조 해제(폭제한·복사·툴팁 유지), 미성년 빨강·상태 pill·캠퍼스 칩은 유지. 부수효과로 1440px에서도 가로스크롤 제거.
 
 - **2026-07-21** 학생리스트 한 페이지 맞춤: ①freeze 레이아웃의 min-height:0 로 행 영역이 0으로 눌리던 버그 수정(.main.freeze #stdBody .twrap{min-height:280px}) → 짧은 화면·확대에서도 행 항상 표시 ②날짜 YY-MM-DD 축약(전체 날짜는 title 툴팁) ③이름150/KOR88, 셀 여백 3px → 1000~1500px 전 구간 가로스크롤 없음(확대 150%까지).
+
+- **2026-07-22** 이름 클릭 → 상세정보(STUDENT MANAGEMENT INFORMATION 7섹션) 열기: STUDENT LIST/수강등록관리(.std-name)·AGENCY PAGE(.std-name-ag) 이름 클릭 시 openStudentEdit(row,'edit') 오픈. 이름 셀 링크 스타일(밑줄·포인터)·툴팁, 오른쪽 ACTION 버튼은 그대로. 드래그 복사 유지.

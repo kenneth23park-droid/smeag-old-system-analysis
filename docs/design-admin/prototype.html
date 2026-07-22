@@ -437,8 +437,11 @@
     font-family:Tahoma,"굴림",Gulim,"돋움",Dotum,sans-serif;font-variant-numeric:tabular-nums}
   /* 첫 컬럼(AGENCY)만 좌측 정렬 — 레거시와 동일 */
   #stdBody table.grid td:first-child,#stdBody table.grid th:first-child{text-align:left}
-  /* 이름 강조 해제(레거시는 본문과 동일) — 폭 제한·복사 기능은 유지 */
-  #stdBody table.grid td.std-name{font-weight:400;color:var(--text)}
+  /* 이름 클릭 → 상세정보. 링크처럼 보이게(밑줄·포인터), 드래그 복사도 유지 */
+  #stdBody table.grid td.std-name{font-weight:600;color:var(--accent-ink);cursor:pointer;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:2px}
+  #stdBody table.grid td.std-name:hover{color:var(--accent);text-decoration-color:var(--accent)}
+  .std-name-ag{cursor:pointer}
+  .std-name-ag:hover b{text-decoration:underline}
   #stdBody .std-act .btn.xs{font-size:10px;padding:1px 4px}
   .smi-body{overflow:auto;padding:14px 16px}
   .smi-t{width:100%;border-collapse:collapse;font-size:12.5px}
@@ -712,7 +715,7 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   const pg=f.slice(s.page*s.per,s.page*s.per+s.per);
   window._stdPage=pg;  // 액션 상세폼에서 전체 행 참조
   const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">수정</button><button class="btn xs" data-sact="move">변경</button><button class="btn xs" data-sact="extend">연장</button><button class="btn xs" data-sact="counsel">상담</button><button class="btn xs" data-sact="brief">약식</button></td>`;
-  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" title="${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td><td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
+  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="클릭 → 상세정보 · ${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td><td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -1492,7 +1495,8 @@ function wireAgency(root){
     if(window.adminAuthLog)try{window.adminAuthLog('agency_student_edit',{name:row&&row[2]},'update');}catch(_){}});
   root.querySelectorAll('.ag-score').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];toast('SCORE',(row&&row[2]||'')+' · 성적 입력(데모)',true);});
   root.querySelectorAll('.ag-flight').forEach(b=>b.onclick=()=>{const row=(window._agencyPage||[])[+b.dataset.i];if(row)openFlightReg(row);});
-  // 행 클릭 팝업 없음 — 오른쪽 Edit/Score/✈ 버튼으로만 진행, 이름은 선택·복사 가능
+  // 이름 클릭 → 상세정보 화면(오른쪽 Edit/Score/✈ 버튼은 그대로)
+  root.querySelectorAll('.std-name-ag').forEach(el=>el.onclick=()=>{const row=(window._agencyPage||[])[+el.dataset.i];if(row)openStudentEdit(row,'edit');});
   // 등록신청 폼: 여권 생년월일 → 나이 자동계산·잠금(출발일 기준, 없으면 오늘 기준)
   const apDob=root.querySelector('#apDob'),apAge=root.querySelector('#apAge'),apDep=root.querySelector('#apDepart');
   function apAgeCalc(){if(!apDob||!apAge)return;const dob=apDob.value;
@@ -1750,6 +1754,8 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     // ACTION 버튼(수정/변경/연장/상담/약식) — 이벤트 위임
     const body=m.querySelector('#stdBody');
     body.addEventListener('click',e=>{
+      const nmc=e.target.closest('.std-name');           // 이름 클릭 → 상세정보 화면
+      if(nmc){const row=(window._stdPage||[])[+nmc.dataset.i];if(row)openStudentEdit(row,'edit');return;}
       const b=e.target.closest('button[data-sact]');
       if(b){const cell=b.closest('.std-act');const row=(window._stdPage||[])[+cell.dataset.i]||[];
         const nm=row[2]||row[3]||'',rm=row[13]||'',dp=row[7]||'';const act=b.dataset.sact;
