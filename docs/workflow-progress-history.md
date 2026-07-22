@@ -256,3 +256,5 @@
 - **2026-07-22** 배치도 방구분에 Temporary(임시방) 옵션 추가: rsPer 에 TEMP 추가, 선택 시 센터·성별 무관 TEMPORARY 카테고리 전체 표시(임시방 15실). 검증 정상.
 
 - **2026-07-22** ① Vercel Basic Auth 미들웨어(deploy/middleware.js, admin/smeagadmin) 제거 → 사이트 직접 접근(200). ② 로그인 계정 5개로 정리(admin·master·admin1·admin2·manager, 비번=아이디), Supabase에 admin 계정 추가. ③ 로그인 게이트 비활성 — 데스크톱·모바일 모두 아이디/비번 없이 즉시 실행(기본 admin 세션 자동). ⚠ PII 임베드 상태에서 접근 보호가 사라짐(주의 고지).
+
+- **2026-07-22** 만나이 기준·표기 변경: 기준일=시작일(BEGIN col8, 지났으면 오늘). 빨강 임계 만18미만→만14세 이하(MINOR_AGE 15). 셀에서 "만/age" 접두어 생략(숫자만, 빨강). 생년월일 병기·근사(≈)는 유지. 적용: STUDENT LIST·수강등록관리·AGENCY·ROOM REPLACEMENT.
