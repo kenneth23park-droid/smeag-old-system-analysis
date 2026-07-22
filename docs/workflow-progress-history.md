@@ -248,3 +248,5 @@
 - **2026-07-22** 이름 클릭 → 상세정보(STUDENT MANAGEMENT INFORMATION 7섹션) 열기: STUDENT LIST/수강등록관리(.std-name)·AGENCY PAGE(.std-name-ag) 이름 클릭 시 openStudentEdit(row,'edit') 오픈. 이름 셀 링크 스타일(밑줄·포인터)·툴팁, 오른쪽 ACTION 버튼은 그대로. 드래그 복사 유지.
 
 - **2026-07-22** 기본 테마 낮(라이트) 고정: 데스크톱·모바일 모두 저장된 선택 없으면 OS가 다크여도 light로 초기화(head 조기 스크립트로 FOUC 방지). 데스크톱 테마 토글이 선택을 localStorage(smeag-theme)에 저장·재로드 유지. Playwright(OS=dark 에뮬) 검증: 초기 light, 토글 dark 저장·유지, 모바일 light 확인.
+
+- **2026-07-22** 표 화면(spec)에서도 이름 클릭 → 상세정보: STUPROJ(studentsFull 1:1) 표(멀티수강관리·APPLY LIST·HISTORY·수금관리·MC Report1)의 이름 컬럼을 클릭 가능(td.sp-name, data-abs)하게 하고 paintPaged 에 nameCol/getFull 옵션 추가 → openStudentEdit. 5개 표 검증 정상.
