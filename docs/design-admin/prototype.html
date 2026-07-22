@@ -12,6 +12,10 @@
     location.replace(base+'m/'+location.hash);
   }
 }catch(e){}})();
+/* 기본 낮(라이트) 모드 — 저장된 선택이 없으면 시스템(다크)여도 라이트로 고정 */
+(function(){try{var t=localStorage.getItem('smeag-theme');
+  document.documentElement.setAttribute('data-theme', t==='dark'?'dark':'light');}catch(e){
+  document.documentElement.setAttribute('data-theme','light');}})();
 </script>
 <style>
   :root{
@@ -1888,9 +1892,9 @@ function toast(title,msg,ok){const t=document.getElementById('toasts');const d=e
 document.getElementById('campus').addEventListener('change',()=>{const cf=document.getElementById('cf1');if(cf)cf.textContent=document.getElementById('campus').selectedOptions[0].text;});
 // 테마 토글
 document.getElementById('themeBtn').addEventListener('click',()=>{
-  const r=document.documentElement;const cur=r.getAttribute('data-theme');
-  const dark=cur?cur==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
-  r.setAttribute('data-theme',dark?'light':'dark');});
+  const r=document.documentElement;const cur=r.getAttribute('data-theme')||'light';
+  const next=cur==='dark'?'light':'dark';
+  r.setAttribute('data-theme',next);try{localStorage.setItem('smeag-theme',next);}catch(e){}});
 // 메뉴 언어 토글(EN ↔ 한글, 기본 EN)
 document.getElementById('langBtn').addEventListener('click',()=>{
   LANG=LANG==='en'?'ko':'en';try{localStorage.setItem('smeag-lang',LANG);}catch(e){}

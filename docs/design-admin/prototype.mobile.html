@@ -389,7 +389,7 @@ document.getElementById('mvThemeBtn').addEventListener('click',()=>{
   document.documentElement.setAttribute('data-theme',next);
   try{localStorage.setItem('mv-theme',next);}catch(e){}});
 document.getElementById('mvMenuBtn').addEventListener('click',openMenuSheet);
-(function(){try{const t=localStorage.getItem('mv-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+(function(){try{const t=localStorage.getItem('mv-theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();
 
 /* ================= 섹션 렌더러(에이전트 산출물) ================= */
 /* ===== M_dash ===== */

@@ -246,3 +246,5 @@
 - **2026-07-21** 학생리스트 한 페이지 맞춤: ①freeze 레이아웃의 min-height:0 로 행 영역이 0으로 눌리던 버그 수정(.main.freeze #stdBody .twrap{min-height:280px}) → 짧은 화면·확대에서도 행 항상 표시 ②날짜 YY-MM-DD 축약(전체 날짜는 title 툴팁) ③이름150/KOR88, 셀 여백 3px → 1000~1500px 전 구간 가로스크롤 없음(확대 150%까지).
 
 - **2026-07-22** 이름 클릭 → 상세정보(STUDENT MANAGEMENT INFORMATION 7섹션) 열기: STUDENT LIST/수강등록관리(.std-name)·AGENCY PAGE(.std-name-ag) 이름 클릭 시 openStudentEdit(row,'edit') 오픈. 이름 셀 링크 스타일(밑줄·포인터)·툴팁, 오른쪽 ACTION 버튼은 그대로. 드래그 복사 유지.
+
+- **2026-07-22** 기본 테마 낮(라이트) 고정: 데스크톱·모바일 모두 저장된 선택 없으면 OS가 다크여도 light로 초기화(head 조기 스크립트로 FOUC 방지). 데스크톱 테마 토글이 선택을 localStorage(smeag-theme)에 저장·재로드 유지. Playwright(OS=dark 에뮬) 검증: 초기 light, 토글 dark 저장·유지, 모바일 light 확인.
