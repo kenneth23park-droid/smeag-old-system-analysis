@@ -1172,6 +1172,7 @@ R.roomstat=()=>{
   //   - 선택월 이전 종료분 제외, 가시범위 밖 미래 제외. 월 클릭 시 갱신.
   const cFrom=`${roomCenter.y}-${pad(roomCenter.m)}-01`;
   const cHorizon=dateLabels[dateLabels.length-1];
+  const dateIdx={};dateLabels.forEach((d,i)=>{dateIdx[d]=i;}); // 날짜문자열 → 컬럼인덱스
   const bedName=(segs)=>{
     const ss=(segs||[]).filter(s=>s.nm).slice().sort((a,b)=>a.s.localeCompare(b.s));
     const seen=new Set(),ns=[];let started=false;
@@ -1184,10 +1185,18 @@ R.roomstat=()=>{
       if(ns.length>=6)break;
     }
     return ns.join(' / ');};
+  // 실시간 스크롤 갱신용: 침대별 점유 세그먼트 → [이름, 시작idx, 종료idx, 예약/홀딩플래그](가시창 클램프)
+  const bedOcc=(segs)=>((segs||[]).filter(s=>s.nm).slice().sort((a,b)=>a.s.localeCompare(b.s)).map(sg=>{
+      if(sg.e<dateLabels[0]||sg.s>cHorizon)return null;                        // 창밖 세그먼트 제외
+      const a=sg.s<=dateLabels[0]?0:(dateIdx[sg.s]!=null?dateIdx[sg.s]:0);
+      const b=sg.e>=cHorizon?TOTAL-1:(dateIdx[sg.e]!=null?dateIdx[sg.e]:TOTAL-1);
+      return [sg.nm,a,b,(sg.st==='R'||sg.h)?1:0];
+    }).filter(Boolean));
+  const occStore=[];  // 침대별 occ 리스트 저장(스크롤 시 이름 재계산에 사용) — 인덱스로 셀에 매핑
   let groups;
   if(REAL&&REAL.roomstat&&REAL.roomstat.groups){
     groups=REAL.roomstat.groups.map(g=>({name:g.name,rooms:g.rooms.map(r=>({no:r.no,per:r.per,gender:r.gender,
-      beds:(r.beds&&r.beds.length?r.beds:[{name:'',segs:[]}]).map(b=>({name:(b.segs&&b.segs.length?bedName(b.segs):(b.name||'')),pat:realPat(b.segs)}))}))}));
+      beds:(r.beds&&r.beds.length?r.beds:[{name:'',segs:[]}]).map(b=>{const oi=occStore.push(bedOcc(b.segs))-1;return {name:(b.segs&&b.segs.length?bedName(b.segs):(b.name||'')),occ:oi,pat:realPat(b.segs)};})}))}));
   }else{
   groups=[];
   // TEMPORARY — 공용(FAMILY), 1인실, 전실 공실
@@ -1256,7 +1265,7 @@ R.roomstat=()=>{
       r.beds.forEach((bed,bi)=>{
         body+=`<tr><td class="info rno c1${bi===0?' rs-room':''}" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="${bi===0?'클릭 → ROOM REPLACEMENT':''}">${bi===0?`<span class="bldg">${esc(bldg)}</span>${r.no}`:''}</td>`
             +`<td class="info c2 rs-room" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
-            +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}">${bed.name?bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(nm)}</span>`).join('<span class="rs-sep"> / </span>'):''}</td>`
+            +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(nm)}</span>`).join('<span class="rs-sep"> / </span>'):''}</td>`
             +dcells(bed.pat)+`</tr>`;
       });
       body+=`</tbody>`;
@@ -1265,6 +1274,7 @@ R.roomstat=()=>{
 
   const sel=months.map(mo=>`<button class="btn${mo.off===0?' on':''}" data-my="${mo.y}" data-mm="${mo.m}" title="${mo.y}년 ${pad(mo.m)}월">${String(mo.y).slice(2)}.${pad(mo.m)}</button>`).join('');
   roomstatCtx={months,dateLabels,groups,daysBefore}; // 엑셀 export 컨텍스트
+  window._rsOcc=occStore; // 스크롤 실시간 이름 갱신용 침대별 점유 저장소
 
   return `
   <div class="ph"><h1>${T('기숙사 현황 (배치도)','Dormitory Status (Batch)')}</h1><span class="sub">room_stat3.php · ${T('방배치 캘린더','room layout calendar')}</span>
@@ -1299,7 +1309,7 @@ R.roomstat=()=>{
     <span><i style="background:var(--surface-2);color:var(--faint);border:1px solid var(--border)">X</i> ${T('재실 (STAY)','STAY')}</span>
     <span><i style="background:var(--surface);border:1px solid var(--border)"></i> ${T('빈방 (VACANT)','VACANT')}</span>
   </div>
-  <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}"><table class="gantt" style="width:${INFOW+TOTAL*CELLW}px">${colg}${head}${body}</table></div>`
+  <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}" data-cellw="${CELLW}"><table class="gantt" style="width:${INFOW+TOTAL*CELLW}px">${colg}${head}${body}</table></div>`
   :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>${T('센터 · 성별 · 방구분을 선택하세요','Select Center · Gender · Room type')}</b><div class="rs-ph-sub">${T('상단에서 <b>센터</b>(ENCANTO·CAPITAL) · <b>성별</b> · <b>방구분</b> <b>3가지를 모두 선택</b>하면 배치도가 표시됩니다.<br>초기엔 전체를 불러오지 않아 빠릅니다 · 전체 성별·방구분 전체도 선택으로 인정 · 연월/검색 병행 가능.','Select all <b>3</b> — <b>Center</b>(ENCANTO·CAPITAL) · <b>Gender</b> · <b>Room type</b> — to show the batch calendar.<br>Nothing is loaded initially for speed · All gender / All types also count · year-month & search supported.')}</div></div>`}
   <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}${T('레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬 · 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b>.','Legacy <span class="mono">room_stat3.php</span> room×date calendar — shows <b>±6 months</b> around selected month, click a month to <b>center</b> it · horizontal scroll · <b>frozen header</b> · <b>cell click → check-in/out·assign·move</b>.')} ${REAL&&REAL.roomstat?T(`<b>실 MySQL 예약데이터</b> (${REAL.roomstat.from}~${REAL.roomstat.to})`,`<b>Real MySQL reservations</b> (${REAL.roomstat.from}~${REAL.roomstat.to})`):T('가상 샘플','sample data')}.</div>`;};
 
@@ -2434,9 +2444,37 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     if(roomFilter.q)runFilter();} // 재렌더 후 검색어 복원
   const tw=m.querySelector('.twrap[data-mstart]');
   if(tw){const ms=+tw.dataset.mstart,mw=+tw.dataset.mwidth,iw=+tw.dataset.infow;
-    tw.scrollLeft=Math.max(0,ms-((tw.clientWidth-iw-mw)/2));} // 선택월을 가시영역 중앙으로
+    tw.scrollLeft=Math.max(0,ms-((tw.clientWidth-iw-mw)/2)); // 선택월을 가시영역 중앙으로
+    // 가로 스크롤 시 이름칸을 좌측 가시일 기준으로 실시간 갱신(rAF 스로틀)
+    let _raf=0;const onSc=()=>{if(_raf)return;_raf=requestAnimationFrame(()=>{_raf=0;rsUpdateNames(tw);});};
+    tw.addEventListener('scroll',onSc,{passive:true});
+    rsUpdateNames(tw);} // 초기 1회(중앙정렬 위치 기준)
   try{history.replaceState(null,'','#'+curCat+'.'+MENU[curCat].indexOf(curMenu));}catch(e){}
   window.scrollTo(0,0);}
+// 침대 점유리스트+기준일(idx) → 표시할 점유자 이름(레거시 bedName 전개 규칙과 동일)
+function _rsOccNameAt(list,refIdx){
+  const seen={},out=[];let started=false;
+  for(let i=0;i<list.length;i++){const s=list[i];
+    if(s[2]<refIdx)continue;              // 종료가 기준일 이전 → 제외
+    if(started&&s[3])break;               // 첫 점유자 이후 예약/홀딩 → 중단
+    if(!seen[s[0]]){seen[s[0]]=1;out.push(s[0]);}
+    started=true;
+    if(out.length>=6)break;
+  }
+  return out;}
+// 현재 스크롤 위치(좌측 가시일)를 기준으로 각 이름칸 재계산 — 값이 바뀐 칸만 갱신
+function rsUpdateNames(tw){
+  const store=window._rsOcc;if(!store||!tw)return;
+  const cw=+tw.dataset.cellw||22;
+  let refIdx=Math.round((tw.scrollLeft||0)/cw);if(refIdx<0)refIdx=0;
+  tw.querySelectorAll('.gantt td.name[data-occ]').forEach(cell=>{
+    const oi=+cell.dataset.occ;if(!(oi>=0))return;
+    const list=store[oi];if(!list||!list.length)return;
+    const names=_rsOccNameAt(list,refIdx);const key=names.join(' / ');
+    if(cell.dataset.cur===key)return;     // 변화 없으면 스킵(성능)
+    cell.dataset.cur=key;cell.dataset.name=key;cell.classList.toggle('rs-name',!!key);
+    cell.innerHTML=key?names.map(nm=>`<span class="rs-nameseg" data-name="${esc(nm)}" title="${esc(nm)} — 클릭 → 학생정보">${esc(nm)}</span>`).join('<span class="rs-sep"> / </span>'):'';
+  });}
 function renderAll(){if(!curMenu)curMenu=MENU[curCat][0];renderCats();renderMain();i18nApply(document.body);}
 function applyHash(){const [cat,idx]=location.hash.replace('#','').split('.');
   if(cat&&MENU[cat]){curCat=cat;curMenu=MENU[cat][+idx]||MENU[cat][0];curKey=curMenu.k;}}
