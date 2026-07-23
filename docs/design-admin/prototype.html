@@ -372,7 +372,8 @@
   .gantt tbody.room-block>tr:first-child>td.c1{box-shadow:inset 3px 0 0 var(--accent-weak)}
   /* 표 자체 스크롤 영역 → 세로로 내려가도 헤더/월버튼 고정, 월클릭 시 컬럼 가로스크롤 */
   .twrap.dorm-scroll{max-height:calc(100vh - 300px);overflow:auto}
-  .rs-botpad{height:16px;width:100%} /* 마지막 행과 가로 스크롤바 사이 여백(오클릭 방지) */
+  /* 마지막 행과 가로 스크롤바 사이 여백을 하단에 고정(프리즈) → 어느 스크롤 위치에서도 오클릭 방지 */
+  .rs-botpad{position:sticky;bottom:0;left:0;height:15px;width:100%;background:var(--surface);border-top:1px solid var(--gline,var(--border));z-index:5}
   .twrap.dorm-scroll.panning{cursor:grabbing;scroll-behavior:auto;user-select:none}
   .twrap.dorm-scroll.panning *{cursor:grabbing !important}
 
