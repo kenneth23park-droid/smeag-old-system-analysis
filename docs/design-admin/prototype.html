@@ -130,6 +130,17 @@
   .field select,.field input{border:1px solid var(--border);background:var(--surface-2);color:var(--text);
     font:inherit;font-size:12.5px;padding:6px 9px;border-radius:7px;min-width:110px}
   .filters .grow{flex:1}
+  /* 다중선택 체크박스 필터(COURSE 등) */
+  .msel{position:relative}
+  .msel-btn{border:1px solid var(--border);background:var(--surface-2);color:var(--text);font:inherit;font-size:12.5px;padding:6px 9px;border-radius:7px;min-width:150px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .msel-btn::after{content:"▾";margin-left:6px;color:var(--dim)}
+  .msel-pop{position:absolute;z-index:40;top:calc(100% + 4px);left:0;width:250px;max-width:80vw;background:var(--surface);border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow);padding:8px;display:flex;flex-direction:column;gap:6px}
+  .msel-search{width:100%}
+  .msel-list{max-height:240px;overflow:auto;display:flex;flex-direction:column;gap:1px}
+  .msel-opt{display:flex;align-items:center;gap:7px;font-size:12.5px;padding:5px 6px;border-radius:6px;cursor:pointer;color:var(--text);white-space:nowrap}
+  .msel-opt:hover{background:var(--surface-2)}
+  .msel-opt input{min-width:auto;width:15px;height:15px;flex:none}
+  .msel-foot{display:flex;justify-content:space-between;gap:6px;border-top:1px solid var(--border);padding-top:6px}
   .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
   .chip{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);
     color:var(--dim);font-weight:650}
@@ -806,7 +817,7 @@ function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let
   if(s.ageFrom)f=f.filter(r=>(+r[4]||0)>=+s.ageFrom);
   if(s.ageTo)f=f.filter(r=>(+r[4]||0)<=+s.ageTo);
   if(s.campus)f=f.filter(r=>(r[14]||'').toUpperCase().includes(s.campus.toUpperCase()));
-  if(s.course){const cq=s.course.toLowerCase();f=f.filter(r=>(r[12]||'').toLowerCase().includes(cq));}
+  if(s.courses&&s.courses.length){f=f.filter(r=>s.courses.indexOf((r[12]||'').trim())>-1);}
   if(s.room){const rq=s.room.toLowerCase();f=f.filter(r=>(''+(r[13]||'')).toLowerCase().includes(rq));}
   if(s.q){const q=s.q.toLowerCase();f=f.filter(r=>(r[2]||'').toLowerCase().includes(q)||(''+(r[3]||'')).includes(s.q));}
   // 최근순(내림차순): 출발일(도착) 우선, 없으면 등록/시작/종료 최신
@@ -949,8 +960,12 @@ function paintPaged(box,cols,rows,name,opts){const st=pgState[name]||(pgState[na
     const row=opts.getFull(+td.dataset.abs);if(row)openStudentEdit(row,'edit');});}
 function stdView(cfg){
   const wk=cfg.dateWeek?pickupWeek():[cfg.from||'2025-01-01',cfg.to||'2027-12-31'];
-  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:wk[0],to:wk[1],sex:'',ageFrom:'',ageTo:'',campus:'',course:'',room:'',actions:!!cfg.actions,pickup:!!cfg.pickup};
+  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:wk[0],to:wk[1],sex:'',ageFrom:'',ageTo:'',campus:'',courses:[],room:'',actions:!!cfg.actions,pickup:!!cfg.pickup};
   const src=REAL&&REAL.studentsFull;const total=src?src.rows.length:0;
+  // COURSE 다중선택 옵션: 데이터의 distinct 연수코스(col12)
+  const courseList=src?[...new Set(src.rows.map(r=>(r[12]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})):[];
+  const _cname=code=>{const o=(DICT.course_info1||[]).find(x=>x.v===code);return o?o.t:code;};
+  const courseOptsHtml=courseList.map(c=>{const nm=_cname(c);return `<label class="msel-opt"><input type="checkbox" class="fCourseChk" value="${esc(c)}">${esc(nm)}${nm!==c?` <span style="color:var(--dim);font-size:11px">(${esc(c)})</span>`:''}</label>`;}).join('');
   return `
   <div class="ph"><h1>${cfg.title}</h1><span class="sub">${cfg.sub}</span><span class="url">${cfg.url}</span>
     <span class="actions" style="margin-left:auto">${cfg.extraBtn||''}<button class="btn" data-stdexcel="1">📊 EXCEL</button></span></div>
@@ -965,7 +980,15 @@ function stdView(cfg){
     <div class="field" style="max-width:110px"><label>AGE FROM</label><input id="fAgeF" type="number" min="0" max="99" placeholder="예 18"></div>
     <div class="field" style="max-width:110px"><label>AGE TO</label><input id="fAgeT" type="number" min="0" max="99" placeholder="예 40"></div>
     <div class="field"><label>CAMPUS</label><select id="fCampus"><option value="">전체</option><option>ENCANTO</option><option>CLASSIC</option><option>CAPITAL</option></select></div>
-    <div class="field"><label>COURSE(연수코스)</label><input id="fCourse" placeholder="예 ESL / IELTS"></div>
+    <div class="field"><label>COURSE(연수코스)</label>
+      <div class="msel" id="msCourse">
+        <button type="button" class="msel-btn" id="fCourseBtn">${T('전체 코스','All courses')}</button>
+        <div class="msel-pop" id="fCoursePop" hidden>
+          <input class="msel-search" id="fCourseSearch" placeholder="${T('코스 검색','Search course')}">
+          <div class="msel-list">${courseOptsHtml||('<div style="color:var(--dim);font-size:12px;padding:6px">'+T('코스 없음','No courses')+'</div>')}</div>
+          <div class="msel-foot"><button type="button" class="btn xs" id="fCourseClear">${T('전체해제','Clear')}</button><button type="button" class="btn xs primary" id="fCourseApply">${T('닫기','Close')}</button></div>
+        </div>
+      </div></div>
     <div class="field" style="max-width:130px"><label>방번호(ROOM)</label><input id="fRoom" placeholder="예 519 / E218"></div>
     <div class="field grow"><label>이름 검색</label><input id="fq" placeholder="영문/한글 이름"></div>
     <div class="field"><label>&nbsp;</label><button class="btn primary" id="fSearch">검색</button></div>
@@ -2473,14 +2496,30 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     const upd=()=>{stdState.ag=v('#fAg');stdState.nat=v('#fNat');stdState.cond=v('#fCond');stdState.q=v('#fq');
       stdState.from=v('#depFrom');stdState.to=v('#depTo');
       stdState.sex=v('#fSex');stdState.ageFrom=v('#fAgeF');stdState.ageTo=v('#fAgeT');
-      stdState.campus=v('#fCampus');stdState.course=v('#fCourse');stdState.room=v('#fRoom');
+      stdState.campus=v('#fCampus');stdState.room=v('#fRoom');
       stdState.page=0;paintStd();};
     // 수강등록관리: FROM(목) 변경 시 TO=FROM+6(다음주 수) 자동
     const df=m.querySelector('#depFrom');
     if(df&&df.dataset.weekauto)df.addEventListener('change',()=>{if(df.value){const d=new Date(df.value);d.setDate(d.getDate()+6);const to=m.querySelector('#depTo');if(to)to.value=d.toISOString().slice(0,10);}});
     ['#fAg','#fNat','#fCond','#depFrom','#depTo','#fSex','#fCampus'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('change',upd);});
-    ['#fq','#fCourse','#fRoom','#fAgeF','#fAgeT'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('input',()=>{clearTimeout(window._sq);window._sq=setTimeout(upd,250);});});
+    ['#fq','#fRoom','#fAgeF','#fAgeT'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('input',()=>{clearTimeout(window._sq);window._sq=setTimeout(upd,250);});});
     const sb=m.querySelector('#fSearch');if(sb)sb.addEventListener('click',upd);
+    // COURSE 다중선택(체크박스) 필터
+    (function(){const btn=m.querySelector('#fCourseBtn'),pop=m.querySelector('#fCoursePop');if(!btn||!pop)return;
+      const chks=()=>[...m.querySelectorAll('.fCourseChk')];
+      const cname=code=>{const o=(DICT.course_info1||[]).find(x=>x.v===code);return o?o.t:code;};
+      const syncLabel=()=>{const sel=chks().filter(c=>c.checked).map(c=>c.value);
+        btn.textContent=sel.length===0?T('전체 코스','All courses'):(sel.length===1?cname(sel[0]):sel.length+T('개 코스',' courses'));};
+      const applyCourses=()=>{stdState.courses=chks().filter(c=>c.checked).map(c=>c.value);stdState.page=0;paintStd();syncLabel();};
+      btn.addEventListener('click',e=>{e.stopPropagation();pop.hidden=!pop.hidden;});
+      pop.addEventListener('click',e=>e.stopPropagation());
+      chks().forEach(c=>c.addEventListener('change',applyCourses));
+      const srch=m.querySelector('#fCourseSearch');if(srch)srch.addEventListener('input',()=>{const q=srch.value.toLowerCase();
+        m.querySelectorAll('#fCoursePop .msel-opt').forEach(o=>{o.style.display=o.textContent.toLowerCase().includes(q)?'':'none';});});
+      const clr=m.querySelector('#fCourseClear');if(clr)clr.addEventListener('click',()=>{chks().forEach(c=>c.checked=false);applyCourses();});
+      const apl=m.querySelector('#fCourseApply');if(apl)apl.addEventListener('click',()=>{pop.hidden=true;});
+      document.addEventListener('click',()=>{if(!pop.hidden)pop.hidden=true;});
+    })();
     m.querySelectorAll('[data-stdexcel]').forEach(b=>b.addEventListener('click',exportStd));
     // ACTION 버튼(수정/변경/연장/상담/약식) — 이벤트 위임
     const body=m.querySelector('#stdBody');
