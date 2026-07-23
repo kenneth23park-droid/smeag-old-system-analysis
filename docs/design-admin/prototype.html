@@ -355,10 +355,11 @@
   .gantt td.crsv{background:var(--good);color:#fff}    /* 예약(R) = 초록 (레거시) */
   .gantt td.chold{background:color-mix(in srgb,var(--return) 60%,var(--surface));color:#fff}
   .gantt td.cempty{background:var(--surface)}
-  /* 틀고정: 좌측 3열 (방번호/인실/이름) */
+  /* 틀고정: 좌측 3열 (방번호/인실/이름) — 가로 스크롤 시 실시간 고정 */
   .gantt .c1{position:sticky;left:0;z-index:1}
   .gantt .c2{position:sticky;left:86px;z-index:1}
-  .gantt .c3{position:sticky;left:144px;z-index:1}
+  .gantt .c3{position:sticky;left:144px;z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
+  .gantt thead .c3{z-index:3}
   .gantt thead .c1,.gantt thead .c2,.gantt thead .c3{z-index:3}
   .gantt td.c1,.gantt td.c2,.gantt td.c3{background:var(--surface)}
   /* 구분 그룹 구분행 (rowspan 제거 대체) */
