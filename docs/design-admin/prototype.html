@@ -1580,7 +1580,7 @@ R.agency=(m)=>{
         ${F('연수코스(COURSE)',`<select id="apCourse" class="rs-ctrl" style="width:100%">${courseOpts}</select>`)}
         ${F('기간(주)',inp('apWeek','예: 4','number'))}
         ${F('시작일',inp('apStart','','date'))}
-        ${F('출발일(DEPARTURE)',inp('apDepart','','date'))}
+        ${F('출발일(DEPARTURE)',inp('apDepart','','date')+'<div id="apDepNote" class="note" style="margin-top:5px;font-size:10.5px;line-height:1.45">'+T('출발일 등록은 출발일 일주일전 금요일까지오니 필히 등록바랍니다.','Departure date must be registered by the Friday one week before departure. Please be sure to register.')+'</div>')}
         ${F('희망 객실(DORM)',inp('apDorm','예: 3인실'))}
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
@@ -1653,6 +1653,24 @@ function wireAgency(root){
   if(apDep){apDep.addEventListener('input',apAgeCalc);}
   apAgeCalc();
   const sub=root.querySelector('#agApplySubmit');
+  // 출발일 등록 마감 = 출발일 1주일 전 '금요일'. 마감 지난 출발일은 선택 불가(min) + 안내·제출차단.
+  if(apDep){
+    const apNote=root.querySelector('#apDepNote');
+    const fridayBefore=(D)=>{const d=new Date(D.getTime()-7*86400000);const diff=(d.getDay()-5+7)%7;d.setDate(d.getDate()-diff);d.setHours(0,0,0,0);return d;}; // 1주일 전 그 주의 금요일
+    const today0=()=>{const t=new Date();t.setHours(0,0,0,0);return t;};
+    // 최소 선택가능 출발일 = deadline(D) >= 오늘 인 첫 날 → 마감 지난 근접 출발일은 달력에서 선택 비활성
+    (function(){const t0=today0();let d=new Date(t0),g=0;while(fridayBefore(d).getTime()<t0.getTime()&&g<400){d.setDate(d.getDate()+1);g++;}apDep.min=_ymd(d);})();
+    const baseNote=T('출발일 등록은 출발일 일주일전 금요일까지오니 필히 등록바랍니다.','Departure date must be registered by the Friday one week before departure. Please be sure to register.');
+    function chkDep(){const v=apDep.value;
+      if(!/^\d{4}-\d\d-\d\d$/.test(v)){apDep.style.borderColor='';apDep.style.background='';if(apNote){apNote.textContent=baseNote;apNote.style.color='';apNote.style.fontWeight='';}if(sub)sub.disabled=false;return;}
+      const dl=fridayBefore(new Date(v+'T00:00:00'));const ok=dl.getTime()>=today0().getTime();
+      if(apNote){apNote.textContent=(ok?'':'⚠ ')+T('출발일 등록 마감','Registration deadline')+' '+_ymd(dl)+'('+T('금','Fri')+') · '+baseNote;
+        apNote.style.color=ok?'':'var(--female)';apNote.style.fontWeight=ok?'':'800';}
+      apDep.style.borderColor=ok?'':'var(--female)';apDep.style.background=ok?'':'color-mix(in srgb,var(--female) 9%,var(--surface))';
+      if(sub)sub.disabled=!ok; // 마감 지난 출발일 → 등록신청 비활성화
+    }
+    apDep.addEventListener('input',chkDep);apDep.addEventListener('change',chkDep);chkDep();
+  }
   if(sub)sub.onclick=()=>{
     const val=id=>{const el=root.querySelector('#'+id);return el?(el.value||'').trim():'';};
     const uhak=val('apUhak'),en=val('apEn'),kor=val('apKor'),sex=val('apSex'),age=val('apAge'),
@@ -1684,7 +1702,9 @@ function wireAgency(root){
       toast('등록신청 완료',`${en} · 승인 대기(waiting) 등재 · ${uhak} — 목록에서 확인하세요`,true);
     };
   };
-  const rs=root.querySelector('#agApplyReset');if(rs)rs.onclick=()=>root.querySelectorAll('.agency-main input,.agency-main select').forEach(x=>{if(x.type!=='button')x.value=(x.tagName==='SELECT'?x.options[0].value:'');});
+  const rs=root.querySelector('#agApplyReset');if(rs)rs.onclick=()=>{root.querySelectorAll('.agency-main input,.agency-main select').forEach(x=>{if(x.type!=='button')x.value=(x.tagName==='SELECT'?x.options[0].value:'');});
+    if(apDep){apDep.style.borderColor='';apDep.style.background='';}if(sub)sub.disabled=false;
+    const apNote=root.querySelector('#apDepNote');if(apNote){apNote.textContent=T('출발일 등록은 출발일 일주일전 금요일까지오니 필히 등록바랍니다.','Departure date must be registered by the Friday one week before departure. Please be sure to register.');apNote.style.color='';apNote.style.fontWeight='';}};
 }
 function sessionUser(){try{return (JSON.parse(sessionStorage.getItem('smeag_admin_session')||'null')||{}).username;}catch(e){return null;}}
 
