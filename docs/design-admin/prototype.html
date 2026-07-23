@@ -280,15 +280,15 @@
   .gantt td.name.hl{background:var(--accent-weak);color:var(--accent-ink);font-weight:750}
   .gantt thead th.mon-cur{background:var(--accent-weak);color:var(--accent-ink)}
 
-  table.gantt{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px;background:var(--surface);--gline:color-mix(in srgb,var(--border) 45%,var(--dim))}
+  table.gantt{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px;background:var(--surface);--gline:color-mix(in srgb,var(--border) 22%,var(--dim))}
   table.gantt th,table.gantt td{border-right:1px solid var(--gline);border-bottom:1px solid var(--gline);overflow:hidden}
-  table.gantt thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);color:var(--dim);font-weight:750;padding:5px 4px;text-align:center;white-space:nowrap}
-  table.gantt thead th.mon{font-size:12px;color:var(--text);height:29px}
+  table.gantt thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);color:var(--text);font-weight:800;padding:3px 4px;text-align:center;white-space:nowrap}
+  table.gantt thead th.mon{font-size:12px;color:var(--text);font-weight:800;height:24px}
   /* 월 행(top:0) 아래에 일 행을 고정 → 세로 스크롤 시 월·일 2행 모두 프리즈 */
-  .gantt thead th.dh{position:sticky;top:29px;z-index:2}
+  .gantt thead th.dh{position:sticky;top:24px;z-index:2;color:var(--text);font-weight:800}
   .gantt thead th.c1,.gantt thead th.c2,.gantt thead th.c3{top:0}
-  .gantt .dh{font-size:10px;padding:4px 0}
-  .gantt td.dcell{height:26px;text-align:center;font-weight:700;font-size:10px;color:var(--dim);padding:0;cursor:pointer}
+  .gantt .dh{font-size:10px;padding:3px 0}
+  .gantt td.dcell{height:21px;text-align:center;font-weight:800;font-size:10.5px;color:color-mix(in srgb,var(--dim) 45%,var(--text));padding:0;cursor:pointer}
   .gantt td.dcell:hover{outline:2px solid var(--accent);outline-offset:-2px}
   /* 셀 액션 팝업 (입실/퇴실/방배정/방변경 등) */
   .cellpop{position:absolute;z-index:60;background:var(--surface);border:1px solid var(--border);
@@ -337,19 +337,19 @@
   .agency-main{flex:1;min-width:0}
   .agency-main thead th{position:sticky;top:0}
   @media(max-width:820px){.agency-wrap{flex-direction:column}.agency-side{flex:auto;width:100%}.agency-hero .campuses{grid-template-columns:1fr}}
-  .gantt td.info{padding:5px 9px;text-align:left;background:var(--surface);white-space:nowrap;text-overflow:ellipsis}
+  .gantt td.info{padding:2px 8px;text-align:left;background:var(--surface);white-space:nowrap;text-overflow:ellipsis}
   .gantt td.rno{font-weight:800;text-align:center}
   .gantt .rno .bldg{display:block;font-size:8.5px;font-weight:700;color:var(--dim);letter-spacing:.2px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .gantt .per{display:inline-block;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:750}
   .gantt .per.m{background:var(--male)} .gantt .per.f{background:var(--female)} .gantt .per.fam{background:#ca8a04}
-  .gantt td.name{color:#b04d13;font-size:12.5px;font-weight:650;text-overflow:ellipsis}
+  .gantt td.name{color:#b04d13;font-size:11.5px;font-weight:700;line-height:1.2;text-overflow:ellipsis}
   .gantt td.rs-name{cursor:pointer}
   .gantt .rs-nameseg{cursor:pointer;border-radius:3px}
   .gantt .rs-nameseg:hover{text-decoration:underline;color:var(--accent);background:var(--accent-weak)}
   .gantt .rs-sep{color:var(--faint)}
   .gantt td.rs-room{cursor:pointer}
   .gantt td.rs-room:hover{background:var(--accent-weak)}
-  .gantt td.cx{color:var(--dim);font-weight:700}
+  .gantt td.cx{color:color-mix(in srgb,var(--dim) 45%,var(--text));font-weight:800}
   .gantt td.cin{background:var(--female);color:#fff}   /* 입실(S) = 빨강 (레거시) */
   .gantt td.cout{background:var(--return);color:#fff}  /* 퇴실(E) = 보라 (레거시) */
   .gantt td.crsv{background:var(--good);color:#fff}    /* 예약(R) = 초록 (레거시) */
@@ -1132,7 +1132,7 @@ R.dailyio=(m)=>{
   <div class="banner">기간 기본값: 이번주 목→다음주 수 (해당 기간 데이터 자동 표시) · reserve_info 실 입퇴실 집계</div>`;};
 
 R.roomstat=()=>{
-  const CELLW=22, nameW=+(roomFilter.nameW)||230, INFOW=86+58+nameW; // 방번호+인실+이름(조절가능) = 좌측 고정폭
+  const CELLW=19, nameW=+(roomFilter.nameW)||230, INFOW=86+58+nameW; // 방번호+인실+이름(조절가능) = 좌측 고정폭
   const pad=n=>String(n).padStart(2,'0');
   const daysIn=(y,m)=>new Date(y,m,0).getDate();
   // 선택월(roomCenter) 기준 ±6개월 = 13개월
@@ -1265,7 +1265,7 @@ R.roomstat=()=>{
     const bldg=(g.name||'').split('/')[0].trim(); // 그룹명 '건물/성별' 중 건물 부분(예 CAPITAL3)
     body+=`<tbody class="grp-head"><tr><td colspan="${3+TOTAL}"><span class="grp-label">${g.name}</span></td></tr></tbody>`;
     g.rooms.forEach(r=>{
-      const h=r.beds.length*27;
+      const h=r.beds.length*22;
       body+=`<tbody class="room-block" style="contain-intrinsic-size:auto ${h}px">`;
       r.beds.forEach((bed,bi)=>{
         body+=`<tr><td class="info rno c1${bi===0?' rs-room':''}" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="${bi===0?'클릭 → ROOM REPLACEMENT':''}">${bi===0?`<span class="bldg">${esc(bldg)}</span>${r.no}`:''}</td>`
