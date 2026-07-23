@@ -280,15 +280,15 @@
   .gantt td.name.hl{background:var(--accent-weak);color:var(--accent-ink);font-weight:750}
   .gantt thead th.mon-cur{background:var(--accent-weak);color:var(--accent-ink)}
 
-  table.gantt{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px;background:var(--surface)}
-  table.gantt th,table.gantt td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden}
+  table.gantt{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px;background:var(--surface);--gline:color-mix(in srgb,var(--border) 45%,var(--dim))}
+  table.gantt th,table.gantt td{border-right:1px solid var(--gline);border-bottom:1px solid var(--gline);overflow:hidden}
   table.gantt thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);color:var(--dim);font-weight:750;padding:5px 4px;text-align:center;white-space:nowrap}
   table.gantt thead th.mon{font-size:12px;color:var(--text);height:29px}
   /* 월 행(top:0) 아래에 일 행을 고정 → 세로 스크롤 시 월·일 2행 모두 프리즈 */
   .gantt thead th.dh{position:sticky;top:29px;z-index:2}
   .gantt thead th.c1,.gantt thead th.c2,.gantt thead th.c3{top:0}
   .gantt .dh{font-size:10px;padding:4px 0}
-  .gantt td.dcell{height:26px;text-align:center;font-weight:700;font-size:10px;color:var(--faint);padding:0;cursor:pointer}
+  .gantt td.dcell{height:26px;text-align:center;font-weight:700;font-size:10px;color:var(--dim);padding:0;cursor:pointer}
   .gantt td.dcell:hover{outline:2px solid var(--accent);outline-offset:-2px}
   /* 셀 액션 팝업 (입실/퇴실/방배정/방변경 등) */
   .cellpop{position:absolute;z-index:60;background:var(--surface);border:1px solid var(--border);
@@ -342,14 +342,14 @@
   .gantt .rno .bldg{display:block;font-size:8.5px;font-weight:700;color:var(--dim);letter-spacing:.2px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .gantt .per{display:inline-block;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:750}
   .gantt .per.m{background:var(--male)} .gantt .per.f{background:var(--female)} .gantt .per.fam{background:#ca8a04}
-  .gantt td.name{color:#c15b1e;font-size:12.5px;text-overflow:ellipsis}
+  .gantt td.name{color:#b04d13;font-size:12.5px;font-weight:650;text-overflow:ellipsis}
   .gantt td.rs-name{cursor:pointer}
   .gantt .rs-nameseg{cursor:pointer;border-radius:3px}
   .gantt .rs-nameseg:hover{text-decoration:underline;color:var(--accent);background:var(--accent-weak)}
   .gantt .rs-sep{color:var(--faint)}
   .gantt td.rs-room{cursor:pointer}
   .gantt td.rs-room:hover{background:var(--accent-weak)}
-  .gantt td.cx{color:var(--faint)}
+  .gantt td.cx{color:var(--dim);font-weight:700}
   .gantt td.cin{background:var(--female);color:#fff}   /* 입실(S) = 빨강 (레거시) */
   .gantt td.cout{background:var(--return);color:#fff}  /* 퇴실(E) = 보라 (레거시) */
   .gantt td.crsv{background:var(--good);color:#fff}    /* 예약(R) = 초록 (레거시) */
