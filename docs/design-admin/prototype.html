@@ -607,6 +607,7 @@ const MENU={
   agency:[
     {k:'agencylist',t:'AGENCY LIST',u:'uhak_agency_list.php',note:'유학원 목록(dict_options)'},
     {k:'spec',t:'COMMISSION',u:'uhak_agency_commission.php',cols:['NO','UHAK','구분','%','금액','담당','확인일','상태','학생']},
+    {k:'commrules',t:'COMMISSION RULES (수수료 규칙)',u:'commission_rules',note:'나라 정율%·코스 정액·빌딩 정액 (편집가능·합산)'},
     {k:'spec',t:'유학원 방문(VISIT)',u:'uhak_day_info.php',cols:['#','방문일','유학원','연락처','시간','내용','상태']},
     {k:'agencystat',t:'BRANCH RECORD',u:'uhak_agency_stat22.php',note:'지사 유학원 통계(캠퍼스별)'},
     {k:'agencystat',t:'GROUP RECORD',u:'uhak_agency_stat33.php',note:'대표 유학원 통계(캠퍼스별)'},
@@ -2246,6 +2247,56 @@ R.agencystat=function(m){
   return hdr+'<div class="chips" style="margin-bottom:10px"><span class="chip">'+T('유학원','Agencies')+' <b>'+rows2.length+'</b></span></div>'
     +'<div class="twrap"><table class="grid"><thead><tr><th>#</th><th>'+T('유학원','Agency')+'</th><th>ENCANTO</th><th>CLASSIC</th><th>CAPITAL</th><th>'+T('기타','ETC')+'</th><th>'+T('합계','Total')+'</th></tr></thead><tbody>'+body2+'</tbody></table></div>';
 };
+// ─── COMMISSION RULES (수수료 규칙 설정) — 나라 정율% + 코스 정액 + 빌딩 정액 (합산) ───
+R.commrules=function(m){
+  const R2=commRules();
+  const NATN={kor:'KOR',chi:'CHI',jap:'JAP',twa:'TWA',vtn:'VTN',tha:'THA',rus:'RUS',mgl:'MGL',om:'OM',sa:'SA',etc:'ETC'};
+  const natRows=Object.keys(R2.country).map(k=>`<tr><td><b>${(NATN[k]||k.toUpperCase())}</b> <span class="mono" style="color:var(--dim)">${k}</span></td>
+    <td><input class="rs-ctrl cr-nat" data-k="${k}" type="number" step="0.1" value="${R2.country[k]}" style="width:90px"> %</td></tr>`).join('');
+  const courseRows=(R2.course||[]).map((c,i)=>`<tr><td><input class="rs-ctrl cr-ckw" data-i="${i}" value="${esc(c.kw)}" style="width:150px" placeholder="${T('코스 키워드','course keyword')}"></td>
+    <td><input class="rs-ctrl cr-camt" data-i="${i}" type="number" value="${c.amt}" style="width:100px"> $</td></tr>`).join('');
+  const bldRows=Object.keys(R2.building).map(k=>`<tr><td><b>${esc(k)}</b></td>
+    <td><input class="rs-ctrl cr-bld" data-k="${k}" type="number" value="${R2.building[k]}" style="width:100px"> $</td></tr>`).join('');
+  return `
+  <div class="ph"><h1>${T('수수료 규칙 (COMMISSION RULES)','Commission Rules')}</h1><span class="sub">${T('나라 정율% + 코스 정액$ + 빌딩 정액$ — 합산','Country %% + Course fixed$ + Building fixed$ — summed')}</span><span class="url">commission_rules</span></div>
+  <div class="banner">${T('학생 커미션 = <b>학비 × 나라 정율%</b> + <b>코스 정액$</b> + <b>빌딩 정액$</b>. 값 수정 후 <b>저장</b>하면 학생 COMMISSION INFO·인보이스에 즉시 반영됩니다(브라우저 저장).','Student commission = <b>tuition × country %%</b> + <b>course fixed$</b> + <b>building fixed$</b>. Save to apply immediately to student COMMISSION INFO·invoice (stored in browser).')}</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:14px;align-items:start">
+    <div class="card pad"><b style="color:var(--accent-ink)">🌐 ${T('나라 정율(%)','Country rate (%)')}</b>
+      <table class="grid" style="margin-top:8px"><thead><tr><th>${T('국적','Nationality')}</th><th>${T('정율','Rate')} %</th></tr></thead><tbody>${natRows}</tbody></table></div>
+    <div class="card pad"><b style="color:var(--accent-ink)">📚 ${T('코스 정액($)','Course fixed ($)')}</b>
+      <table class="grid" style="margin-top:8px"><thead><tr><th>${T('코스 키워드(포함매칭)','Course keyword (contains)')}</th><th>${T('정액','Fixed')} $</th></tr></thead><tbody>${courseRows}</tbody></table>
+      <div style="margin-top:8px;font-size:12px">${T('미매칭 기본','Default')}: <input class="rs-ctrl" id="crCourseDef" type="number" value="${R2.courseDefault||0}" style="width:90px"> $</div></div>
+    <div class="card pad"><b style="color:var(--accent-ink)">🏠 ${T('빌딩/캠퍼스 정액($)','Building/Campus fixed ($)')}</b>
+      <table class="grid" style="margin-top:8px"><thead><tr><th>${T('빌딩','Building')}</th><th>${T('정액','Fixed')} $</th></tr></thead><tbody>${bldRows}</tbody></table></div>
+  </div>
+  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+    <button class="btn" id="crReset">${T('기본값 복원','Reset to default')}</button>
+    <button class="btn primary" id="crSave">💾 ${T('저장','Save')}</button>
+  </div>
+  <div id="crPreview" class="card pad" style="margin-top:14px"></div>`;
+};
+R.commrules__init=function(m){
+  const root=document.getElementById('main');if(!root)return;
+  function collect(){const o=commRules();
+    root.querySelectorAll('.cr-nat').forEach(i=>{o.country[i.dataset.k]=+i.value||0;});
+    const course=[];root.querySelectorAll('.cr-ckw').forEach(kw=>{const i=+kw.dataset.i;const amtEl=root.querySelector('.cr-camt[data-i="'+i+'"]');const k=(kw.value||'').trim();if(k)course.push({kw:k,amt:+(amtEl&&amtEl.value)||0});});
+    o.course=course;o.courseDefault=+(root.querySelector('#crCourseDef')||{}).value||0;
+    root.querySelectorAll('.cr-bld').forEach(i=>{o.building[i.dataset.k]=+i.value||0;});
+    return o;}
+  function preview(){const R2=collect();
+    const ex=[['vtn','IELTS 6.0','CAPITAL',285*4],['kor','ESL(CAPITAL)','ENCANTO',285*8],['jap','GAC Level 1','CLASSIC',285*12]];
+    const box=root.querySelector('#crPreview');if(!box)return;
+    box.innerHTML=`<b>${T('예시 계산 (현재 입력값 기준)','Sample calculation (current inputs)')}</b><table class="grid" style="margin-top:8px"><thead><tr><th>${T('국적','Nat')}</th><th>${T('코스','Course')}</th><th>${T('빌딩','Bldg')}</th><th>${T('학비','Tuition')}</th><th>${T('정율분','Rate part')}</th><th>${T('코스','Course')}</th><th>${T('빌딩','Bldg')}</th><th>COMMISSION</th></tr></thead><tbody>`
+      +ex.map(([n,c,b,t])=>{const r=calcComm(n,c,b,t,R2);return `<tr><td>${n.toUpperCase()}</td><td>${esc(c)}</td><td>${b}</td><td class="mono">${t.toLocaleString()}</td><td class="mono">${r.pct}% → ${r.ratePart.toLocaleString()}</td><td class="mono">${r.courseAmt}</td><td class="mono">${r.bldgAmt}</td><td class="mono"><b style="color:var(--good)">${r.total.toLocaleString()} $</b></td></tr>`;}).join('')
+      +'</tbody></table>';}
+  preview();
+  const sv=root.querySelector('#crSave');if(sv)sv.onclick=()=>{saveCommRules(collect());preview();
+    if(window.adminAuthLog)try{window.adminAuthLog('commission_rules_save',{},'update');}catch(_){}
+    toast(T('저장됨','Saved'),T('수수료 규칙이 저장되었습니다 — 학생 COMMISSION INFO에 반영','Commission rules saved — applied to student COMMISSION INFO'),true);};
+  const rs=root.querySelector('#crReset');if(rs)rs.onclick=()=>{saveCommRules(JSON.parse(JSON.stringify(COMM_DEFAULT)));renderMain();
+    toast(T('복원됨','Reset'),T('기본값으로 복원했습니다','Reset to default values'),true);};
+  root.querySelectorAll('.cr-nat,.cr-ckw,.cr-camt,.cr-bld,#crCourseDef').forEach(i=>i.addEventListener('input',preview));
+};
 // ─── 상태/네비게이션 ───
 let curCat='record', curKey='dash', curMenu=null;
 function closeDropdowns(){document.querySelectorAll('.dropdown.open').forEach(d=>d.classList.remove('open'));}
@@ -2276,6 +2327,27 @@ function savePerms(){try{localStorage.setItem('smeag-perms',JSON.stringify(PERMS
 function setDept(d){curDept=d;try{localStorage.setItem('smeag-dept',d);}catch(e){}}
 
 // ─── 인보이스/문서 PDF 생성(외부 라이브러리 없이 인쇄→PDF 저장) ───
+// ─── 수수료(커미션) 규칙: 나라 정율%(학비 기준) + 코스 정액$ + 빌딩 정액$ 합산 ───
+const COMM_DEFAULT={
+  country:{kor:12,chi:10,jap:12,twa:11,vtn:15,tha:13,rus:12,mgl:12,om:12,sa:12,etc:10}, // 정율 %
+  course:[{kw:'IELTS',amt:40},{kw:'TOEFL',amt:40},{kw:'TOEIC',amt:20},{kw:'GAC',amt:50},{kw:'BUSINESS',amt:30},{kw:'PRE-IELTS',amt:20},{kw:'ESL',amt:0}], // 정액 $ (코스명 포함매칭, 위→아래 우선)
+  courseDefault:0,
+  building:{ENCANTO:0,CLASSIC:0,CAPITAL:20,ETC:0}, // 정액 $ (캠퍼스/빌딩)
+  buildingDefault:0
+};
+function commRules(){try{const s=localStorage.getItem('smeag-commrules');if(s)return JSON.parse(s);}catch(e){}
+  return JSON.parse(JSON.stringify(COMM_DEFAULT));}
+function saveCommRules(o){try{localStorage.setItem('smeag-commrules',JSON.stringify(o));}catch(e){}}
+// 학생 커미션 계산: 학비(tuition) × 나라정율% + 코스정액 + 빌딩정액
+function calcComm(nat,courseStr,campus,tuition,R2){
+  const R=R2||commRules();const n=(nat||'').toLowerCase();const cs=(courseStr||'').toUpperCase();const cp=(campus||'').toUpperCase();
+  const pct=(R.country&&(n in R.country)?R.country[n]:(R.country&&R.country.etc)||0);
+  let courseAmt=R.courseDefault||0;for(let i=0;i<(R.course||[]).length;i++){if(cs.indexOf((R.course[i].kw||'').toUpperCase())>-1){courseAmt=+R.course[i].amt||0;break;}}
+  const bKey=(R.building&&(cp in R.building))?cp:'ETC';
+  const bldgAmt=(R.building&&(bKey in R.building))?(+R.building[bKey]||0):(R.buildingDefault||0);
+  const ratePart=Math.round((+tuition||0)*pct/100);
+  return {pct:pct,ratePart:ratePart,courseAmt:courseAmt,bldgAmt:bldgAmt,total:ratePart+courseAmt+bldgAmt};
+}
 function openPdf(title,bodyHtml){
   const w=window.open('','_blank','width=820,height=1000');
   if(!w){toast(T('팝업 차단','Popup blocked'),T('PDF 창을 열 수 없습니다 — 팝업 허용 필요','Allow popups to generate PDF'),false);return;}
@@ -2946,7 +3018,8 @@ function openStudentEdit(row,act){
   // 비용(주차 기반 산정)
   const regist=100, c1fee=tuiWk, c2fee=220, etcFee=0, prePay=450;
   const tuition=tuiWk*wk, dormTot=dormFee*wk, grand=regist+tuition+dormTot+etcFee-prePay;
-  const comRate=0.35, comAmt=Math.round((grand-regist)*0.19); const netAmt=grand-comAmt;
+  // 커미션 = 학비×나라정율% + 코스정액 + 빌딩정액 (편집가능 규칙: smeag-commrules)
+  const _cm=calcComm(row[1],row[12],row[14],tuition); const comAmt=_cm.total; const netAmt=grand-comAmt;
   // 인보이스 발행 이력(발행 시 write-layer 기록 — 현재는 구조/현재값 표시)
   const invRows=`<tr><td class="mono">1th</td><td>${link('AGENCY')} ${link('STUDENT')}</td><td class="mono">${g(6)||'—'}</td><td class="mono">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>`;
   const ov=el('div','modal-ov');ov.id='smiModal';
@@ -2988,7 +3061,11 @@ function openStudentEdit(row,act){
       ${rw('STUDENT CONDITION',sel(['NOMAL(정상)','EXTEND(연장)','REFUND(환불)','HOLDING(홀딩)','OUT(퇴교)'], (row[11]||'').toLowerCase()==='normal'?'NOMAL(정상)':'NOMAL(정상)'),'AMOUNT<br><i>(REFUND & CANCEL)</i>',`${ipt('0')} won($)`)}
       ${rw('STAFF COMMENT<br><i>[ONLY ENGLISH!]</i>',`<textarea class="smi-ta" rows=2></textarea>`,null)}
       ${sec('COMMISSION INFO')}
-      ${rw('COMMISSION',sel(['7월 (현재) / 35% / 담당자 Joon(cebusme)'],'7월 (현재) / 35% / 담당자 Joon(cebusme)')+` <span style="color:var(--good);font-size:11px">COMMISSION(EXCLUDE APPLY FEE): ${comAmt.toLocaleString()}</span>`,'ETC COMMISSION',`${ipt('0')} $ <span style="color:var(--dim);font-size:11px">program 조정분</span>`)}
+      ${rw('COMMISSION<br><i>'+T('나라 정율% + 코스 정액 + 빌딩 정액','Country %% + Course fixed + Building fixed')+'</i>',`<div style="font-size:12px;line-height:1.6">
+        <b>${(row[1]||'ETC').toUpperCase()}</b> ${_cm.pct}% × ${T('학비','tuition')} ${tuition.toLocaleString()} = <b>${_cm.ratePart.toLocaleString()}</b>
+        &nbsp;+&nbsp; ${T('코스','Course')}(${esc(row[12]||'-')}) <b>${_cm.courseAmt.toLocaleString()}</b>
+        &nbsp;+&nbsp; ${T('빌딩','Bldg')}(${esc(row[14]||'-')}) <b>${_cm.bldgAmt.toLocaleString()}</b>
+        <span style="color:var(--good);font-weight:800">= COMMISSION ${comAmt.toLocaleString()} $</span></div>`,'ETC COMMISSION',`${ipt('0')} $ <span style="color:var(--dim);font-size:11px">program 조정분</span>`)}
       <tr class="smi-dc"><th>INVOICE</th><th>AGENCY / STUDENT</th><th>DATE</th><th>TOTAL · COM · NET</th></tr>
       ${invRows}
       <tr class="smi-dc"><td style="font-weight:800;color:var(--good)">FINANCIAL</td><td colspan="3" class="mono" style="color:var(--good);font-weight:800">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>
