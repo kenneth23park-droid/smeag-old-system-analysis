@@ -1304,7 +1304,7 @@ R.roomstat=()=>{
       r.beds.forEach((bed,bi)=>{
         body+=`<tr><td class="info rno c1${bi===0?' rs-room':''}" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="${bi===0?'클릭 → ROOM REPLACEMENT':''}">${bi===0?`<span class="bldg">${esc(bldg)}</span>${r.no}`:''}</td>`
             +`<td class="info c2 rs-room" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
-            +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?'<div class="rs-nmwrap">'+bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(nm)}</span>`).join('<span class="rs-sep"> / </span>')+'</div>':''}</td>`
+            +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?'<div class="rs-nmwrap">'+bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(korDisp(nm.trim()))}</span>`).join('<span class="rs-sep"> / </span>')+'</div>':''}</td>`
             +dcells(bed.pat)+`</tr>`;
       });
       body+=`</tbody>`;
@@ -2359,6 +2359,12 @@ function savePerms(){try{localStorage.setItem('smeag-perms',JSON.stringify(PERMS
 function setDept(d){curDept=d;try{localStorage.setItem('smeag-dept',d);}catch(e){}}
 
 // ─── 인보이스/문서 PDF 생성(외부 라이브러리 없이 인쇄→PDF 저장) ───
+// 배치도 이름 표시용: EN(studentsFull col2) → KOR(col3) 매핑. 한글 KOR 있으면 그걸로 표시(없으면 원문).
+let _nameKor=null;
+function korDisp(nm){
+  if(_nameKor===null){_nameKor={};try{const sf=REAL&&REAL.studentsFull;if(sf&&sf.rows)sf.rows.forEach(r=>{const en=(''+(r[2]||'')).trim();const ko=(''+(r[3]||'')).trim();if(en&&!(en in _nameKor))_nameKor[en]=ko;});}catch(e){}}
+  const t=(''+nm).trim();const k=_nameKor[t];return (k&&/[가-힣]/.test(k))?k:nm;
+}
 // ─── 수수료(커미션) 규칙: 나라 정율%(학비 기준) + 코스 정액$ + 빌딩 정액$ 합산 ───
 const COMM_DEFAULT={
   country:{kor:12,chi:10,jap:12,twa:11,vtn:15,tha:13,rus:12,mgl:12,om:12,sa:12,etc:10}, // 정율 %
@@ -2619,7 +2625,7 @@ function rsUpdateNames(tw){
     const names=_rsOccNameAt(list,refIdx);const key=names.join(' / ');
     if(cell.dataset.cur===key)return;     // 변화 없으면 스킵(성능)
     cell.dataset.cur=key;cell.dataset.name=key;cell.classList.toggle('rs-name',!!key);
-    cell.innerHTML=key?'<div class="rs-nmwrap">'+names.map(nm=>`<span class="rs-nameseg" data-name="${esc(nm)}" title="${esc(nm)} — 클릭 → 학생정보">${esc(nm)}</span>`).join('<span class="rs-sep"> / </span>')+'</div>':'';
+    cell.innerHTML=key?'<div class="rs-nmwrap">'+names.map(nm=>`<span class="rs-nameseg" data-name="${esc(nm)}" title="${esc(nm)} — 클릭 → 학생정보">${esc(korDisp(nm))}</span>`).join('<span class="rs-sep"> / </span>')+'</div>':'';
   });}
 function renderAll(){if(!curMenu)curMenu=MENU[curCat][0];renderCats();renderMain();i18nApply(document.body);}
 function applyHash(){const [cat,idx]=location.hash.replace('#','').split('.');
