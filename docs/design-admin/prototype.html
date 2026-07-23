@@ -353,7 +353,8 @@
   .gantt .rno .bldg{display:block;font-size:8.5px;font-weight:700;color:var(--dim);letter-spacing:.2px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .gantt .per{display:inline-block;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:750}
   .gantt .per.m{background:var(--male)} .gantt .per.f{background:var(--female)} .gantt .per.fam{background:#ca8a04}
-  .gantt td.name{color:#b04d13;font-size:11.5px;font-weight:700;line-height:1.2;text-overflow:ellipsis}
+  .gantt td.name{color:#b04d13;font-size:11.5px;font-weight:700;white-space:normal;vertical-align:middle}
+  .gantt td.name .rs-nmwrap{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.18;word-break:break-word} /* 이름 최대 2줄 전체표시 */
   .gantt td.rs-name{cursor:pointer}
   .gantt .rs-nameseg{cursor:pointer;border-radius:3px}
   .gantt .rs-nameseg:hover{text-decoration:underline;color:var(--accent);background:var(--accent-weak)}
@@ -417,6 +418,14 @@
     border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:14px}
   .modal-body{display:grid;grid-template-columns:1fr 1.15fr;gap:18px;padding:18px}
   .rp-t{font-size:12px;font-weight:750;color:var(--dim);margin-bottom:8px}
+  /* 방 이동경로(ROOM MOVE PATH) */
+  .rp-path{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin:2px 0 10px}
+  .rp-node{display:flex;flex-direction:column;justify-content:center;gap:1px;border:1px solid var(--border);background:var(--surface-2);border-radius:8px;padding:5px 10px;min-width:0}
+  .rp-node b{font-size:12.5px;color:var(--text);font-variant-numeric:tabular-nums}
+  .rp-node small{font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .rp-node[data-cur="1"]{border-color:var(--accent);background:var(--accent-weak)}
+  .rp-node[data-cur="1"] b{color:var(--accent-ink)}
+  .rp-arrow{align-self:center;color:var(--accent);font-weight:800;font-size:14px}
   table.rp-info,table.rp-cand{border-collapse:collapse;width:100%;font-size:12px}
   table.rp-info th,table.rp-info td,table.rp-cand th,table.rp-cand td{border:1px solid var(--border);padding:7px 9px;text-align:left}
   table.rp-info th{background:var(--surface-2);color:var(--dim);white-space:nowrap;width:96px}
@@ -1295,7 +1304,7 @@ R.roomstat=()=>{
       r.beds.forEach((bed,bi)=>{
         body+=`<tr><td class="info rno c1${bi===0?' rs-room':''}" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="${bi===0?'클릭 → ROOM REPLACEMENT':''}">${bi===0?`<span class="bldg">${esc(bldg)}</span>${r.no}`:''}</td>`
             +`<td class="info c2 rs-room" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
-            +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(nm)}</span>`).join('<span class="rs-sep"> / </span>'):''}</td>`
+            +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?'<div class="rs-nmwrap">'+bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(nm)}</span>`).join('<span class="rs-sep"> / </span>')+'</div>':''}</td>`
             +dcells(bed.pat)+`</tr>`;
       });
       body+=`</tbody>`;
@@ -2610,7 +2619,7 @@ function rsUpdateNames(tw){
     const names=_rsOccNameAt(list,refIdx);const key=names.join(' / ');
     if(cell.dataset.cur===key)return;     // 변화 없으면 스킵(성능)
     cell.dataset.cur=key;cell.dataset.name=key;cell.classList.toggle('rs-name',!!key);
-    cell.innerHTML=key?names.map(nm=>`<span class="rs-nameseg" data-name="${esc(nm)}" title="${esc(nm)} — 클릭 → 학생정보">${esc(nm)}</span>`).join('<span class="rs-sep"> / </span>'):'';
+    cell.innerHTML=key?'<div class="rs-nmwrap">'+names.map(nm=>`<span class="rs-nameseg" data-name="${esc(nm)}" title="${esc(nm)} — 클릭 → 학생정보">${esc(nm)}</span>`).join('<span class="rs-sep"> / </span>')+'</div>':'';
   });}
 function renderAll(){if(!curMenu)curMenu=MENU[curCat][0];renderCats();renderMain();i18nApply(document.body);}
 function applyHash(){const [cat,idx]=location.hash.replace('#','').split('.');
@@ -2934,6 +2943,14 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
   const S=(i,d)=>{const v=stu&&stu[i];return v!=null&&v!==''?v:(d||'');};
   const begin=S(8,date), end=S(9,endD), per=S(10), dorm=S(13,room);
   const _cc=S(12); const course=[per?per+'주':null,_cc?'코스 '+_cc:null].filter(Boolean).join(' · ')||'-';
+  // 방 이동경로: roomstat 전 그룹에서 이 학생 이름의 점유 세그먼트를 모아 시간순 정렬 → 연속 동일방 병합
+  const _rpath=(function(){const grs=(REAL&&REAL.roomstat&&REAL.roomstat.groups)||[];const nm=(''+(S(2,name)||name||'')).trim();if(!nm)return [];
+    const segs=[];grs.forEach(g=>{const cat=(g.name||'').split('/')[0].trim();(g.rooms||[]).forEach(r=>{(r.beds||[]).forEach(bed=>{(bed.segs||[]).forEach(sg=>{if(sg&&sg.nm&&(''+sg.nm).trim()===nm)segs.push({room:r.no,cat:cat,s:sg.s,e:sg.e});});});});});
+    segs.sort((a,b)=>(''+(a.s||'')).localeCompare(''+(b.s||'')));
+    const st=[];segs.forEach(x=>{const last=st[st.length-1];const key=x.cat+'|'+x.room;
+      if(last&&last.key===key){if((''+(x.e||''))>(''+(last.e||'')))last.e=x.e;if((''+(x.s||''))<(''+(last.s||'')))last.s=x.s;}
+      else st.push({key:key,room:x.room,cat:x.cat,s:x.s,e:x.e});});
+    return st;})();
   // 실 후보 방목록 (roomstat 그룹 전체) — infoOnly(이름클릭)면 생략
   let rows='';
   if(!infoOnly){
@@ -2967,6 +2984,10 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
         <div class="rp-t" style="margin-top:14px">※ DORMITORY RESERVED INFORMATION</div>
         <table class="rp-info"><tr><th>ROOM NUMBER</th><th>CAPACITY</th><th>PERIOD</th></tr>
           <tr><td class="mono">${esc(room||dorm||'-')}</td><td>${esc(per?per+'wk':'-')}</td><td class="mono">${esc(begin)} ~ ${esc(end)}</td></tr></table>
+        <div class="rp-t" style="margin-top:14px">※ ROOM MOVE PATH ${T('(방 이동경로)','(room move history)')}</div>
+        ${_rpath.length?`<div class="rp-path">${_rpath.map((x,i)=>`<span class="rp-node"${i===_rpath.length-1?' data-cur="1"':''}><b>${esc(x.cat)} ${esc(x.room)}</b><small>${esc((''+(x.s||'')).slice(0,10))} ~ ${esc((''+(x.e||'')).slice(0,10))}</small></span>`).join('<span class="rp-arrow">→</span>')}</div>
+          <table class="rp-info"><tr><th>#</th><th>ROOM</th><th>PERIOD</th></tr>${_rpath.map((x,i)=>`<tr><td class="mono">${i+1}</td><td class="mono">${esc(x.cat)} ${esc(x.room)}</td><td class="mono">${esc((''+(x.s||'')).slice(0,10))} ~ ${esc((''+(x.e||'')).slice(0,10))}</td></tr>`).join('')}</table>`
+          :`<div class="note" style="margin:2px 0">${T('이동 이력 없음 (단일 배정)','No move history (single assignment)')}</div>`}
       </div>
       ${infoOnly?'':`<div class="rp-right">
         <div class="rp-t">※ CHANGE PERIOD : ${esc(begin)} ~ ${esc(end)}</div>
