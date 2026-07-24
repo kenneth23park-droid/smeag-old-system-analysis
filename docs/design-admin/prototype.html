@@ -130,6 +130,10 @@
   .field select,.field input{border:1px solid var(--border);background:var(--surface-2);color:var(--text);
     font:inherit;font-size:12.5px;padding:6px 9px;border-radius:7px;min-width:110px}
   .filters .grow{flex:1}
+  /* DORM LIST 방 블로킹 */
+  .dl-chk{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text);padding:6px 2px;white-space:nowrap}
+  #dormListBody tr.dl-blk td{background:color-mix(in srgb,var(--female) 9%,var(--surface))}
+  #dormListBody tr.dl-blk td:first-child{box-shadow:inset 3px 0 0 var(--female)}
   /* 다중선택 체크박스 필터(COURSE 등) */
   .msel{position:relative}
   .msel-btn{border:1px solid var(--border);background:var(--surface-2);color:var(--text);font:inherit;font-size:12.5px;padding:6px 9px;border-radius:7px;min-width:150px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1426,6 +1430,7 @@ R.cashmng=()=>{
   </div>`;};
 
 R.spec=(m)=>{
+  if(m.u==='room_list.php')return R.dormlist(m); // DORM LIST = 방 블로킹(배치 선택) 전용화면
   if(m.u==='room_stat2.php')return R.roomstat(m); // DORM STATUS = 배치도(영문판) 재사용 → 실 캘린더
   if(m.u==='student_group_payment.php')return R.groups(m); // Group Students = 레거시 student_group_info 실화면
   if(/student_present2/.test(m.u))return R.agency(m); // 외부 에이전시 포털 = AGENCY PAGE 재현
@@ -1460,6 +1465,57 @@ function specReason(u){
   return '이 화면은 임베드 데이터로 파생 불가하여 골격만 표시합니다(핵심 화면은 실데이터 렌더 적용).';
 }
 
+// ─── DORM LIST 방 블로킹(배치 선택) — 방을 우선 배정제외(BLOCKED)로 표시 ───
+function blockedRooms(){try{return new Set(JSON.parse(localStorage.getItem('smeag-blocked-rooms')||'[]'));}catch(e){return new Set();}}
+function saveBlockedRooms(set){try{localStorage.setItem('smeag-blocked-rooms',JSON.stringify([...set]));}catch(e){}}
+function roomBlockKey(center,no){return (''+(center||'')).toUpperCase().trim()+'|'+(''+(no||'')).toUpperCase().trim();}
+let dormListState={q:'',blockedOnly:false};
+R.dormlist=(m)=>{
+  const d=specData('room_list.php');
+  if(!d)return `<div class="ph"><h1>${mlabel(m)}</h1><span class="url">${m.u}</span></div><div class="banner">${T('데이터 없음','No data')}</div>`;
+  return `
+  <div class="ph"><h1>${mlabel(m)}</h1><span class="sub">${T('방 블로킹(배치 선택) · 우선 배정제외','Room blocking (batch) · exclude from assignment')}</span><span class="url">${m.u}</span>
+    <span class="actions" style="margin-left:auto"><button class="btn" data-specexcel="${m.u}">📊 EXCEL</button></span></div>
+  <div class="filters" style="align-items:flex-end">
+    <div class="field grow"><label>${T('방번호·구분·센터 검색','Search room·category·center')}</label><input id="dlSearch" placeholder="${T('예 X-201 / CAPITAL','e.g. X-201 / CAPITAL')}"></div>
+    <div class="field"><label>&nbsp;</label><label class="dl-chk"><input type="checkbox" id="dlBlockedOnly"> ${T('블로킹만 보기','Blocked only')}</label></div>
+    <div class="field"><label>&nbsp;</label><button class="btn" id="dlBlock" style="background:var(--female);border-color:var(--female);color:#fff">🔒 ${T('선택 블로킹','Block selected')}</button></div>
+    <div class="field"><label>&nbsp;</label><button class="btn" id="dlUnblock">🔓 ${T('선택 해제','Unblock selected')}</button></div>
+    <div class="field"><label>&nbsp;</label><span class="chip" id="dlCount"></span></div>
+  </div>
+  <div id="dormListBody"></div>
+  <div class="banner">${REALBADGE} ${T('행 체크 → <b>선택 블로킹</b>으로 여러 방을 한 번에 배정제외 처리(브라우저 저장). 배치도/배정 시 참고.','Check rows → <b>Block selected</b> to exclude many rooms from assignment at once (stored in browser).')}</div>`;
+};
+R.spec__init=function(m){if(curMenu&&curMenu.u==='room_list.php')wireDormList(m);};
+function wireDormList(m){
+  const d=specData('room_list.php');if(!d)return;
+  const cols=d.cols, iId=cols.indexOf('NO')>=0?cols.indexOf('NO'):0; // NO=고유키(방마다 유일)
+  const keyOf=r=>'RL|'+(''+(r[iId]==null?'':r[iId])).trim();
+  const box=m.querySelector('#dormListBody');if(!box)return;
+  function paint(){
+    const set=blockedRooms();const q=(dormListState.q||'').toLowerCase();
+    let rows=d.rows.map((r,i)=>({r,i,key:keyOf(r),blocked:set.has(keyOf(r))}));
+    if(q)rows=rows.filter(x=>x.r.some(c=>(''+(c==null?'':c)).toLowerCase().includes(q)));
+    if(dormListState.blockedOnly)rows=rows.filter(x=>x.blocked);
+    const head=`<tr><th style="width:34px"><input type="checkbox" id="dlAll"></th><th>${T('상태','STATUS')}</th>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>`;
+    const body=rows.slice(0,2000).map(x=>`<tr class="${x.blocked?'dl-blk':''}"><td><input type="checkbox" class="dl-row" data-key="${esc(x.key)}"></td>`
+      +`<td>${x.blocked?`<span class="pill female">${T('블로킹','BLOCKED')}</span>`:`<span class="pill neutral">—</span>`}</td>`
+      +x.r.map(c=>`<td class="${/^[\d,]+$/.test(''+c)?'mono':''}">${esc(c==null?'':c)}</td>`).join('')+`</tr>`).join('');
+    box.innerHTML=`<div class="twrap"><table class="grid"><thead>${head}</thead><tbody>${body||`<tr><td colspan="${cols.length+2}" style="text-align:center;color:var(--dim);padding:18px">${T('결과 없음','No results')}</td></tr>`}</tbody></table></div>`;
+    const cnt=m.querySelector('#dlCount');if(cnt)cnt.innerHTML=`${T('블로킹','Blocked')} <b>${set.size.toLocaleString()}</b> · ${T('표시','Shown')} ${rows.length.toLocaleString()}`;
+    const all=box.querySelector('#dlAll');if(all)all.addEventListener('change',()=>box.querySelectorAll('.dl-row').forEach(c=>c.checked=all.checked));
+  }
+  const selectedKeys=()=>[...box.querySelectorAll('.dl-row:checked')].map(c=>c.dataset.key);
+  function apply(block){const keys=selectedKeys();if(!keys.length){toast(T('선택 없음','No selection'),T('블로킹할 방을 체크하세요','Check rooms first'),false);return;}
+    const set=blockedRooms();keys.forEach(k=>block?set.add(k):set.delete(k));saveBlockedRooms(set);
+    if(window.adminAuthLog)try{window.adminAuthLog(block?'room_block':'room_unblock',{count:keys.length},'update');}catch(_){}
+    paint();toast(block?T('블로킹 완료','Blocked'):T('해제 완료','Unblocked'),`${keys.length}${T('개 방','rooms')} · ${T('전체 블로킹','total blocked')} ${blockedRooms().size}`,true);}
+  const s=m.querySelector('#dlSearch');if(s)s.addEventListener('input',()=>{clearTimeout(window._dlq);window._dlq=setTimeout(()=>{dormListState.q=s.value;paint();},200);});
+  const bo=m.querySelector('#dlBlockedOnly');if(bo)bo.addEventListener('change',()=>{dormListState.blockedOnly=bo.checked;paint();});
+  const bb=m.querySelector('#dlBlock');if(bb)bb.addEventListener('click',()=>apply(true));
+  const ub=m.querySelector('#dlUnblock');if(ub)ub.addEventListener('click',()=>apply(false));
+  paint();
+}
 // ─── Group Students (레거시 student_group_payment.php · student_group_info) ───
 let groupQ='';
 R.groups=(m)=>{
