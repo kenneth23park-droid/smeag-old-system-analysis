@@ -1287,6 +1287,7 @@ R.roomstat=()=>{
     }
   }else groups=[]; // 초기/미선택 → 렌더 안 함(선택 안내)
   if(roomFilter.sortPer){const pn=p=>parseInt(p)||0;groups=groups.map(g=>({name:g.name,rooms:[...g.rooms].sort((a,b)=>roomFilter.sortPer==='asc'?pn(a.per)-pn(b.per):pn(b.per)-pn(a.per))}));}
+  else{groups=groups.map(g=>({name:g.name,rooms:[...g.rooms].sort((a,b)=>(''+(a.no||'')).localeCompare(''+(b.no||''),undefined,{numeric:true,sensitivity:'base'}))}));} // 방번호 자연정렬(숫자·대소문자 무시)
   const CLS={x:'cx',in:'cin',out:'cout',rsv:'crsv',hold:'chold',e:'cempty'};
   const dcells=(p)=>p.map((st,i)=>`<td class="dcell ${CLS[st]}" data-date="${dateLabels[i]}">${st==='e'?'':'X'}</td>`).join('');
   const colg=`<colgroup><col style="width:86px"><col style="width:58px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
