@@ -354,7 +354,7 @@
   @media(max-width:820px){.agency-wrap{flex-direction:column}.agency-side{flex:auto;width:100%}.agency-hero .campuses{grid-template-columns:1fr}}
   .gantt td.info{padding:2px 8px;text-align:left;background:var(--surface);white-space:nowrap;text-overflow:ellipsis}
   .gantt td.rno{font-weight:800;text-align:center}
-  .gantt .rno .bldg{display:block;font-size:8.5px;font-weight:700;color:var(--dim);letter-spacing:.2px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gantt .rno .bldg{display:block;font-size:8.5px;font-weight:700;color:var(--accent-ink);letter-spacing:.2px;line-height:1.15;white-space:normal;word-break:break-all;margin-bottom:1px} /* 그룹 전체표시(방번호 앞) */
   .gantt .per{display:inline-block;color:#fff;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:750}
   .gantt .per.m{background:var(--male)} .gantt .per.f{background:var(--female)} .gantt .per.fam{background:#ca8a04}
   .gantt td.name{color:#b04d13;font-size:11.5px;font-weight:700;white-space:normal;vertical-align:middle}
@@ -390,6 +390,14 @@
   .twrap.dorm-scroll{max-height:calc(100vh - 300px);overflow:auto}
   /* 마지막 행과 가로 스크롤바 사이 여백을 하단에 고정(프리즈) → 어느 스크롤 위치에서도 오클릭 방지 */
   .rs-botpad{position:sticky;bottom:0;left:0;height:15px;width:100%;background:var(--surface);border-top:1px solid var(--gline,var(--border));z-index:5}
+  /* 방막기(드래그) */
+  #rsBlockMode.on{background:var(--female);border-color:var(--female);color:#fff}
+  .twrap.dorm-scroll.blkmode{cursor:crosshair}
+  .twrap.dorm-scroll.blkmode *{cursor:crosshair !important;user-select:none}
+  .gantt tbody.room-block.rs-blocked td{background:color-mix(in srgb,var(--female) 12%,var(--surface))}
+  .gantt tbody.room-block.rs-blocked td.dcell{background:color-mix(in srgb,var(--female) 16%,var(--surface))}
+  .gantt tbody.room-block.rs-blocked td.c1{box-shadow:inset 3px 0 0 var(--female)}
+  .gantt .rs-lock{margin-right:2px;font-size:9px;vertical-align:middle}
   .twrap.dorm-scroll.panning{cursor:grabbing;scroll-behavior:auto;user-select:none}
   .twrap.dorm-scroll.panning *{cursor:grabbing !important}
 
@@ -838,14 +846,14 @@ function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let
   f=f.slice().sort((a,b)=>key(b).localeCompare(key(a)));
   return f;}
 function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
-  const cols=`<thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>SEX</th><th>APPLY</th><th>DEPA</th>${stdState.pickup?'<th>PICKUP</th>':''}<th>BEGIN</th><th>END</th><th>PERI</th><th>COURSE</th><th>ROOM</th><th>CAMPUS</th><th>COND</th>${stdState.actions?'<th>ACTION</th>':''}</tr></thead>`;
+  const cols=`<thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>BIRTH</th><th>SEX</th><th>APPLY</th><th>DEPA</th>${stdState.pickup?'<th>PICKUP</th>':''}<th>BEGIN</th><th>END</th><th>PERI</th><th>COURSE</th><th>ROOM</th><th>COND</th>${stdState.actions?'<th>ACTION</th>':''}</tr></thead>`;
   const f=stdFiltered();
   if(!f){box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${rowsStudents(12)}</tbody></table></div>`;makeSortable(box);return;}
   const s=stdState;const pages=Math.max(1,Math.ceil(f.length/s.per));if(s.page>=pages)s.page=pages-1;if(s.page<0)s.page=0;
   const pg=f.slice(s.page*s.per,s.page*s.per+s.per);
   window._stdPage=pg;  // 액션 상세폼에서 전체 행 참조
   const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">수정</button><button class="btn xs" data-sact="move">변경</button><button class="btn xs" data-sact="extend">연장</button><button class="btn xs" data-sact="counsel">상담</button><button class="btn xs" data-sact="brief">약식</button></td>`;
-  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="클릭 → 상세정보 · ${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td><td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td>${campusChipName(r[14])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
+  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="클릭 → 상세정보 · ${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td class="mono" title="${esc(r[17]||'')}">${r[17]?d8(r[17]):'—'}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td><td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -1300,16 +1308,18 @@ R.roomstat=()=>{
   const head=`<thead><tr><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
 
   let body='';
+  const _blkSet=blockedRooms(); // 방막기(BX 키) 세트
   groups.forEach(g=>{
     const bldg=(g.name||'').split('/')[0].trim(); // 그룹명 '건물/성별' 중 건물 부분(예 CAPITAL3)
     body+=`<tbody class="grp-head"><tr><td colspan="${3+TOTAL}"><span class="grp-label">${g.name}</span></td></tr></tbody>`;
     g.rooms.forEach(r=>{
       const h=r.beds.length*22;
-      body+=`<tbody class="room-block" style="contain-intrinsic-size:auto ${h}px">`;
+      const bxk='BX|'+bldg.toUpperCase()+'|'+(''+r.no).toUpperCase(); const rblk=_blkSet.has(bxk);
+      body+=`<tbody class="room-block${rblk?' rs-blocked':''}" data-bx="${esc(bxk)}" style="contain-intrinsic-size:auto ${h}px">`;
       r.beds.forEach((bed,bi)=>{
-        body+=`<tr><td class="info rno c1${bi===0?' rs-room':''}" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="${bi===0?'클릭 → ROOM REPLACEMENT':''}">${bi===0?`<span class="bldg">${esc(bldg)}</span>${r.no}`:''}</td>`
+        body+=`<tr><td class="info rno c1${bi===0?' rs-room':''}" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="${bi===0?'클릭 → ROOM REPLACEMENT':''}">${bi===0?`${rblk?'<span class="rs-lock">🔒</span>':''}<span class="bldg">${esc(bldg)}</span>${r.no}`:''}</td>`
             +`<td class="info c2 rs-room" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
-            +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?'<div class="rs-nmwrap">'+bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(korDisp(nm.trim()))}</span>`).join('<span class="rs-sep"> / </span>')+'</div>':''}</td>`
+            +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?'<div class="rs-nmwrap">'+bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(korDisp(nm.trim()))}</span>`).join('<span class="rs-sep"> - </span>')+'</div>':''}</td>`
             +dcells(bed.pat)+`</tr>`;
       });
       body+=`</tbody>`;
@@ -1324,6 +1334,7 @@ R.roomstat=()=>{
   <div class="ph"><h1>${T('기숙사 현황 (배치도)','Dormitory Status (Batch)')}</h1><span class="sub">room_stat3.php · ${T('방배치 캘린더','room layout calendar')}</span>
     <span class="actions dorm-actions" style="margin-left:auto">
       <button class="btn" id="rsRuler" title="${T('십자 안내선(룰러) 표시/숨김 · 휠클릭/Esc 로도 토글','Ruler (crosshair) show/hide · also toggled by wheel-click/Esc')}">📏 ${T('룰러','Ruler')}</button>
+      <button class="btn" id="rsBlockMode" title="${T('드래그로 방 막기/해제 (좌클릭 드래그)','Drag to block/unblock rooms (left-drag)')}">🔒 ${T('방막기(드래그)','Block (drag)')}</button>
       <button class="btn" data-excel="1">📊 1MONTH EXCEL(TOTAL)</button>
       <button class="btn" data-excel="2">📊 2MONTH EXCEL(TOTAL)</button>
       <button class="btn">⚠ ROOM ERROR CHECK</button>
@@ -1337,7 +1348,7 @@ R.roomstat=()=>{
     <div style="display:flex;gap:8px;align-items:center">
       <select id="rsCenter" class="rs-ctrl" title="${T('센터','Center')}">${[['',T('::센터를 선택하세요::','::Select center::')],['ALL',T('전체 센터','All centers')],['ENCANTO','ENCANTO CENTER'],['CAPITAL','CAPITAL CENTER']].map(([v,l])=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsGender" class="rs-ctrl" title="${T('성별','Gender')}">${[['',T('::성별을 선택하세요::','::Select gender::')],['ALL',T('전체 성별','All gender')],['MALE',T('남 (MALE)','MALE')],['FEMALE',T('여 (FEMALE)','FEMALE')],['FAMILY',T('공용 (FAMILY)','FAMILY')]].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
-      <select id="rsGroup" class="rs-ctrl" title="${T('구분(그룹)','Group')}"${grpOpts.length?'':' disabled'}><option value="">Select group</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
+      <select id="rsGroup" class="rs-ctrl" title="${T('구분(그룹)','Group')}"${grpOpts.length?'':' disabled'}><option value="">${T('전체 그룹 (SELECT ALL)','All groups (SELECT ALL)')}</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
       <select id="rsPer" class="rs-ctrl" title="${T('방구분(인실)','Room type')}">${[['',T('::방구분을 선택하세요::','::Select room type::')],['ALL',T('방구분 전체','All types')],['1',T('1인실','1-person')],['2',T('2인실','2-person')],['3',T('3인실','3-person')],['4',T('4인실','4-person')],['5',T('5인실','5-person')],['TEMP',T('임시방(TEMPORARY)','Temporary')]].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="${T('인실 정렬','Sort by room type')}"><option value="">${T('인실 정렬','Room-type sort')}</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>${T('인실 ↑ 적은순','Type ↑ fewest')}</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>${T('인실 ↓ 많은순','Type ↓ most')}</option></select>
       <select id="rsNameW" class="rs-ctrl" title="${T('이름 컬럼 폭','Name column width')}">${[['160',T('이름 좁게','Name: narrow')],['230',T('이름 보통','Name: normal')],['320',T('이름 넓게','Name: wide')],['460',T('이름 아주넓게','Name: x-wide')]].map(([v,l])=>`<option value="${v}" ${nameW==+v?'selected':''}>${l}</option>`).join('')}</select>
@@ -2657,7 +2668,28 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     // 가로 스크롤 시 이름칸을 좌측 가시일 기준으로 실시간 갱신(rAF 스로틀)
     let _raf=0;const onSc=()=>{if(_raf)return;_raf=requestAnimationFrame(()=>{_raf=0;rsUpdateNames(tw);});};
     tw.addEventListener('scroll',onSc,{passive:true});
-    rsUpdateNames(tw);} // 초기 1회(중앙정렬 위치 기준)
+    rsUpdateNames(tw);
+    // ── 방막기(드래그) ──
+    const bmBtn=m.querySelector('#rsBlockMode');
+    if(window._blkMode)tw.classList.add('blkmode');
+    if(bmBtn){bmBtn.classList.toggle('on',!!window._blkMode);
+      bmBtn.addEventListener('click',()=>{window._blkMode=!window._blkMode;bmBtn.classList.toggle('on',window._blkMode);tw.classList.toggle('blkmode',window._blkMode);
+        toast(window._blkMode?T('방막기 ON','Block mode ON'):T('방막기 OFF','Block mode OFF'),window._blkMode?T('방을 좌클릭 드래그하면 막힘/해제됩니다','Left-drag rooms to block/unblock'):'',true);});}
+    let dg=false,dgAdd=true,dgKeys=null;
+    const roomAt=t=>{const tb=t&&t.closest&&t.closest('tbody.room-block');return (tb&&tb.dataset.bx)?tb:null;};
+    const mark=tb=>{if(!tb)return;const k=tb.dataset.bx;if(dgKeys.has(k))return;dgKeys.add(k);
+      tb.classList.toggle('rs-blocked',dgAdd);
+      const rno=tb.querySelector('td.rno');if(rno){let lk=rno.querySelector('.rs-lock');
+        if(dgAdd&&!lk){lk=document.createElement('span');lk.className='rs-lock';lk.textContent='🔒';rno.insertBefore(lk,rno.firstChild);}
+        else if(!dgAdd&&lk){lk.remove();}}};
+    tw.addEventListener('pointerdown',e=>{if(!window._blkMode||e.button!==0)return;const tb=roomAt(e.target);if(!tb)return;
+      e.preventDefault();dg=true;dgKeys=new Set();dgAdd=!blockedRooms().has(tb.dataset.bx);mark(tb);});
+    tw.addEventListener('pointermove',e=>{if(dg)mark(roomAt(e.target));});
+    const endDg=()=>{if(!dg)return;dg=false;const set=blockedRooms();dgKeys.forEach(k=>dgAdd?set.add(k):set.delete(k));saveBlockedRooms(set);
+      if(window.adminAuthLog)try{window.adminAuthLog(dgAdd?'room_block_drag':'room_unblock_drag',{count:dgKeys.size},'update');}catch(_){}
+      toast(dgAdd?T('방 블로킹','Rooms blocked'):T('블로킹 해제','Rooms unblocked'),`${dgKeys.size}${T('개 방','rooms')} · ${T('전체','total')} ${blockedRooms().size}`,true);};
+    tw.addEventListener('pointerup',endDg);tw.addEventListener('pointercancel',endDg);
+  } // 초기 1회(중앙정렬 위치 기준)
   try{history.replaceState(null,'','#'+curCat+'.'+MENU[curCat].indexOf(curMenu));}catch(e){}
   window.scrollTo(0,0);}
 // 침대 점유리스트+기준일(idx) → 표시할 점유자 이름(레거시 bedName 전개 규칙과 동일)
@@ -2682,7 +2714,7 @@ function rsUpdateNames(tw){
     const names=_rsOccNameAt(list,refIdx);const key=names.join(' / ');
     if(cell.dataset.cur===key)return;     // 변화 없으면 스킵(성능)
     cell.dataset.cur=key;cell.dataset.name=key;cell.classList.toggle('rs-name',!!key);
-    cell.innerHTML=key?'<div class="rs-nmwrap">'+names.map(nm=>`<span class="rs-nameseg" data-name="${esc(nm)}" title="${esc(nm)} — 클릭 → 학생정보">${esc(korDisp(nm))}</span>`).join('<span class="rs-sep"> / </span>')+'</div>':'';
+    cell.innerHTML=key?'<div class="rs-nmwrap">'+names.map(nm=>`<span class="rs-nameseg" data-name="${esc(nm)}" title="${esc(nm)} — 클릭 → 학생정보">${esc(korDisp(nm))}</span>`).join('<span class="rs-sep"> - </span>')+'</div>':'';
   });}
 function renderAll(){if(!curMenu)curMenu=MENU[curCat][0];renderCats();renderMain();i18nApply(document.body);}
 function applyHash(){const [cat,idx]=location.hash.replace('#','').split('.');
@@ -3244,6 +3276,7 @@ function openStudentEdit(row,act){
 }
 document.addEventListener('click',(e)=>{
   if(!e.target.closest('.catwrap'))closeDropdowns();
+  if(window._blkMode&&e.target.closest('.twrap.dorm-scroll'))return; // 방막기 모드: 배치도 클릭(모달) 무시
   const rsBtn=e.target.closest('.gantt td.rs-name, .gantt td.rs-room'); // 이름→학생정보만 / 방→ROOM REPLACEMENT(후보방)
   if(rsBtn){e.stopPropagation();closeCellPop();
     const isName=rsBtn.classList.contains('rs-name');
