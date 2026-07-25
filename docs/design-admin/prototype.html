@@ -3720,6 +3720,345 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
 })();
 </script>
 <!-- ═══════════════ 관리자 로그인 게이트 끝 ═══════════════ -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     운영 콘솔 (데이터 이관 / 일일 동기화)  — 자기완결·인라인·외부리소스 없음
+     · 로그인 카드 + 하단 관리자 바에 아이콘 주입.
+     · 이관 콘솔: migrate_all.py 가 만든 migration_report_*.json 을 불러와 표시 + 엑셀.
+     · 동기화 콘솔: export_daily_changes.py 산출 changes_*.json(또는 audit) 표시 + 엑셀.
+     · 실행: 러너 엔드포인트(window.OPS_MIGRATE_URL / OPS_SYNC_URL) 설정 시 호출,
+             없으면 실행 명령을 보여주고 복사(브라우저는 서버측 이관을 직접 실행 못함).
+     · 접두사 ops*, IIFE 로 기존과 충돌 방지.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<style>
+  .adminAuth-ops{margin-top:16px;padding-top:14px;border-top:1px dashed #e2e8f0;display:flex;gap:8px;}
+  .adminAuth-ops .opsBtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+    padding:10px 6px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;cursor:pointer;
+    font-size:11px;color:#334155;font-weight:600;transition:all .12s;}
+  .adminAuth-ops .opsBtn:hover{border-color:#2563eb;background:#eff6ff;color:#1d4ed8;}
+  .adminAuth-ops .opsBtn .opsIco{font-size:22px;line-height:1;}
+  #adminAuthBar .opsBarBtn{background:#0d9488;color:#fff;}
+  #opsOverlay{position:fixed;inset:0;z-index:2147483200;display:none;align-items:center;justify-content:center;
+    background:rgba(15,23,42,.55);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;}
+  #opsOverlay.opsShow{display:flex;}
+  .opsCard{width:min(940px,94vw);max-height:90vh;overflow:auto;background:#fff;border-radius:14px;
+    box-shadow:0 24px 70px rgba(0,0,0,.5);box-sizing:border-box;}
+  .opsHead{position:sticky;top:0;background:#0f172a;color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;
+    display:flex;align-items:center;gap:12px;z-index:2;}
+  .opsHead h2{margin:0;font-size:16px;font-weight:700;flex:1;}
+  .opsTabs{display:flex;gap:6px;}
+  .opsTab{padding:6px 12px;border-radius:8px;border:0;background:#334155;color:#cbd5e1;font-size:12px;
+    font-weight:600;cursor:pointer;}
+  .opsTab.on{background:#2563eb;color:#fff;}
+  .opsX{border:0;background:#475569;color:#fff;border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:16px;}
+  .opsBody{padding:18px;}
+  .opsPane{display:none;}
+  .opsPane.on{display:block;}
+  .opsRow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px;}
+  .opsRow input[type=date]{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;}
+  .opsAct{padding:8px 14px;border:0;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:#fff;}
+  .opsAct.run{background:#16a34a;} .opsAct.run:hover{background:#15803d;}
+  .opsAct.xls{background:#0d9488;} .opsAct.xls:hover{background:#0f766e;}
+  .opsAct.file{background:#6366f1;} .opsAct.file:hover{background:#4f46e5;}
+  .opsAct[disabled]{opacity:.45;cursor:not-allowed;}
+  .opsNote{font-size:12px;color:#64748b;margin:0 0 12px;line-height:1.55;}
+  .opsVerdict{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;}
+  .opsVerdict.ok{background:#dcfce7;color:#166534;} .opsVerdict.fail{background:#fee2e2;color:#991b1b;}
+  .opsVerdict.dry{background:#e0f2fe;color:#075985;}
+  .opsSum{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:12px 0;}
+  .opsSum .cell{background:#f1f5f9;border-radius:8px;padding:8px 10px;}
+  .opsSum .cell .k{font-size:11px;color:#64748b;} .opsSum .cell .v{font-size:16px;font-weight:700;color:#0f172a;}
+  .opsTbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+  .opsTbl th,.opsTbl td{border:1px solid #e2e8f0;padding:5px 8px;text-align:left;white-space:nowrap;}
+  .opsTbl th{background:#f8fafc;color:#334155;position:sticky;top:0;}
+  .opsTbl td.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .opsTbl tr.bad td{background:#fef2f2;}
+  .opsTblWrap{max-height:340px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;}
+  .opsCmd{background:#0f172a;color:#e2e8f0;border-radius:8px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;
+    font-size:12px;white-space:pre-wrap;word-break:break-all;margin-top:8px;}
+  .opsEmpty{color:#94a3b8;font-size:13px;padding:24px;text-align:center;border:1px dashed #cbd5e1;border-radius:10px;}
+</style>
+
+<div id="opsOverlay">
+  <div class="opsCard">
+    <div class="opsHead">
+      <h2 id="opsTitle">운영 콘솔</h2>
+      <div class="opsTabs">
+        <button class="opsTab" data-tab="mig" type="button">🗄️ 데이터 이관</button>
+        <button class="opsTab" data-tab="sync" type="button">🔄 일일 동기화</button>
+      </div>
+      <button class="opsX" id="opsClose" type="button">×</button>
+    </div>
+    <div class="opsBody">
+      <!-- 이관 -->
+      <div class="opsPane" id="opsPaneMig">
+        <p class="opsNote">구 MySQL 백업 → Supabase <b>전체 이관</b>. 실행 후 <code>migration/reports/migration_report_*.json</code> 을 불러오면
+          테이블별 <b>원본행=적재행=Supabase행</b> 검증 결과가 표시됩니다. 엑셀로 내보낼 수 있습니다.</p>
+        <div class="opsRow">
+          <button class="opsAct run" id="opsMigRun" type="button">▶ 이관 실행</button>
+          <button class="opsAct file" id="opsMigLoad" type="button">📂 리포트(JSON) 불러오기</button>
+          <button class="opsAct xls" id="opsMigXls" type="button" disabled>⬇ 엑셀로 내보내기</button>
+          <input type="file" id="opsMigFile" accept=".json,application/json" style="display:none">
+        </div>
+        <div id="opsMigCmd"></div>
+        <div id="opsMigReport"><div class="opsEmpty">아직 불러온 리포트가 없습니다. 이관 실행 후 리포트 JSON 을 불러오세요.</div></div>
+      </div>
+      <!-- 동기화 -->
+      <div class="opsPane" id="opsPaneSync">
+        <p class="opsNote">신전산(Supabase)에서 <b>그날 생성·변경된 데이터</b>를 구 MySQL 로 저장(일일). 날짜 선택 후 실행하고,
+          산출 <code>changes_YYYY-MM-DD.json</code> 을 불러오면 반영 대상이 표로 표시됩니다. 엑셀로 내보낼 수 있습니다.</p>
+        <div class="opsRow">
+          <label style="font-size:12px;color:#475569;">대상일</label>
+          <input type="date" id="opsSyncDate">
+          <button class="opsAct run" id="opsSyncRun" type="button">▶ 동기화 실행</button>
+          <button class="opsAct file" id="opsSyncLoad" type="button">📂 변경분(JSON) 불러오기</button>
+          <button class="opsAct xls" id="opsSyncXls" type="button" disabled>⬇ 엑셀로 내보내기</button>
+          <input type="file" id="opsSyncFile" accept=".json,application/json" style="display:none">
+        </div>
+        <div id="opsSyncCmd"></div>
+        <div id="opsSyncReport"><div class="opsEmpty">아직 불러온 변경분이 없습니다. 동기화 실행 후 changes JSON 을 불러오세요.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 실행 인증(위험작업 게이트): kenneth / 2300555 -->
+<div id="opsAuth" style="position:fixed;inset:0;z-index:2147483400;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.72);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;">
+  <div style="width:320px;max-width:90vw;background:#fff;border-radius:14px;padding:24px 22px;box-shadow:0 24px 70px rgba(0,0,0,.5);box-sizing:border-box;">
+    <h3 style="margin:0 0 4px;font-size:17px;color:#991b1b;">⚠ 실행 인증 필요</h3>
+    <p style="margin:0 0 16px;font-size:12px;color:#64748b;line-height:1.5;" id="opsAuthWhat">이 작업은 데이터에 영향을 주는 <b>위험 작업</b>입니다. 담당자 인증 후 진행됩니다.</p>
+    <form id="opsAuthForm" autocomplete="off">
+      <div style="margin-bottom:10px;"><label style="display:block;font-size:12px;color:#475569;margin-bottom:4px;">아이디</label>
+        <input id="opsAuthUser" type="text" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;"></div>
+      <div style="margin-bottom:6px;"><label style="display:block;font-size:12px;color:#475569;margin-bottom:4px;">비밀번호</label>
+        <input id="opsAuthPass" type="password" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;"></div>
+      <div id="opsAuthMsg" style="min-height:16px;font-size:12px;color:#dc2626;text-align:center;margin:6px 0;"></div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" id="opsAuthCancel" style="flex:1;padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:#f1f5f9;color:#334155;font-weight:600;cursor:pointer;">취소</button>
+        <button type="submit" style="flex:2;padding:10px;border:0;border-radius:8px;background:#dc2626;color:#fff;font-weight:700;cursor:pointer;">인증 후 실행</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});};
+  var num=function(n){return (typeof n==="number")?n.toLocaleString():esc(n);};
+  var overlay=document.getElementById("opsOverlay");
+  var lastMig=null, lastSync=null;   // 마지막 렌더 데이터(엑셀용)
+
+  // ── 아이콘 주입: 로그인 카드 + 하단 바 ─────────────────────────────
+  function inject(){
+    var card=document.querySelector(".adminAuth-card");
+    if(card && !card.querySelector(".adminAuth-ops")){
+      var box=document.createElement("div"); box.className="adminAuth-ops";
+      box.innerHTML=
+        '<button class="opsBtn" type="button" data-open="mig"><span class="opsIco">🗄️</span>데이터 이관</button>'+
+        '<button class="opsBtn" type="button" data-open="sync"><span class="opsIco">🔄</span>일일 동기화</button>';
+      card.appendChild(box);
+    }
+    var bar=document.getElementById("adminAuthBar");
+    if(bar && !bar.querySelector(".opsBarBtn")){
+      var b1=document.createElement("button"); b1.type="button"; b1.className="opsBarBtn"; b1.textContent="🗄️ 이관"; b1.setAttribute("data-open","mig");
+      var b2=document.createElement("button"); b2.type="button"; b2.className="opsBarBtn"; b2.textContent="🔄 동기화"; b2.setAttribute("data-open","sync");
+      bar.insertBefore(b2, bar.firstChild.nextSibling);
+      bar.insertBefore(b1, b2);
+    }
+  }
+  document.addEventListener("click", function(e){
+    var t=e.target.closest("[data-open]"); if(t){ openModal(t.getAttribute("data-open")); }
+  });
+
+  // ── 모달 열기/닫기/탭 ───────────────────────────────────────────────
+  function openModal(tab){ overlay.classList.add("opsShow"); switchTab(tab||"mig"); }
+  function closeModal(){ overlay.classList.remove("opsShow"); }
+  function switchTab(tab){
+    document.querySelectorAll(".opsTab").forEach(function(el){el.classList.toggle("on",el.getAttribute("data-tab")===tab);});
+    document.getElementById("opsPaneMig").classList.toggle("on",tab==="mig");
+    document.getElementById("opsPaneSync").classList.toggle("on",tab==="sync");
+    document.getElementById("opsTitle").textContent = tab==="mig" ? "데이터 이관 콘솔 (구 MySQL → Supabase)" : "일일 동기화 콘솔 (Supabase → 구 MySQL)";
+  }
+  document.getElementById("opsClose").addEventListener("click", closeModal);
+  overlay.addEventListener("click", function(e){ if(e.target===overlay) closeModal(); });
+  document.querySelectorAll(".opsTab").forEach(function(el){ el.addEventListener("click",function(){switchTab(el.getAttribute("data-tab"));}); });
+
+  // ── 엑셀 내보내기(HTML 테이블 → .xls, UTF-8 BOM) ────────────────────
+  function toExcel(filename, title, rows2d){
+    var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table border="1">';
+    html+='<tr><td colspan="'+(rows2d[0]?rows2d[0].length:1)+'"><b>'+esc(title)+'</b></td></tr>';
+    rows2d.forEach(function(r){ html+='<tr>'+r.map(function(c){return '<td>'+esc(c)+'</td>';}).join("")+'</tr>'; });
+    html+='</table></body></html>';
+    var blob=new Blob(["﻿"+html],{type:"application/vnd.ms-excel;charset=utf-8"});
+    var url=URL.createObjectURL(blob), a=document.createElement("a");
+    a.href=url; a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+    if(window.adminAuthLog) window.adminAuthLog("ops_excel",{file:filename},"read");
+  }
+
+  // ── 실행 인증 게이트 (위험작업: kenneth / 2300555) ──────────────────
+  //   ※ 프로토타입 수준 보호입니다. 실제 운영 강도는 서버측(러너) 인증으로 확보하세요.
+  var OPS_RUN_USER="kenneth", OPS_RUN_PW="2300555";
+  var _opsAuthCb=null;
+  var opsAuthEl=document.getElementById("opsAuth");
+  var opsAuthUser=document.getElementById("opsAuthUser");
+  var opsAuthPass=document.getElementById("opsAuthPass");
+  var opsAuthMsg=document.getElementById("opsAuthMsg");
+  function requireOpsAuth(what, cb){
+    _opsAuthCb=cb;
+    document.getElementById("opsAuthWhat").innerHTML="<b>"+esc(what)+"</b> — 데이터에 영향을 주는 <b>위험 작업</b>입니다. 담당자 인증 후 진행됩니다.";
+    opsAuthMsg.textContent=""; opsAuthUser.value=""; opsAuthPass.value="";
+    opsAuthEl.style.display="flex";
+    setTimeout(function(){opsAuthUser.focus();},30);
+  }
+  function opsAuthClose(){ opsAuthEl.style.display="none"; _opsAuthCb=null; }
+  document.getElementById("opsAuthCancel").addEventListener("click",opsAuthClose);
+  opsAuthEl.addEventListener("click",function(e){ if(e.target===opsAuthEl) opsAuthClose(); });
+  document.getElementById("opsAuthForm").addEventListener("submit",function(ev){
+    ev.preventDefault();
+    var u=(opsAuthUser.value||"").trim(), p=opsAuthPass.value||"";
+    if(u!==OPS_RUN_USER || p!==OPS_RUN_PW){
+      opsAuthMsg.textContent="아이디 또는 비밀번호가 올바르지 않습니다.";
+      if(window.adminAuthLog) window.adminAuthLog("ops_auth_fail",{user:u},"auth");
+      return;
+    }
+    var cb=_opsAuthCb; opsAuthClose();
+    if(window.adminAuthLog) window.adminAuthLog("ops_auth_ok",{user:u},"auth");
+    if(cb) cb();
+  });
+
+  // ── 러너 호출 or 명령 표시 ──────────────────────────────────────────
+  function runOrShow(url, body, cmd, cmdEl, onResult){
+    cmdEl.innerHTML="";
+    if(url){
+      var box=document.createElement("div"); box.className="opsCmd"; box.textContent="러너 호출 중… "+url; cmdEl.appendChild(box);
+      fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})})
+        .then(function(r){return r.json();})
+        .then(function(j){ box.textContent="러너 응답 수신 ✔"; if(onResult) onResult(j); })
+        .catch(function(err){ box.textContent="러너 호출 실패: "+err+"\n\n수동 실행 명령:\n"+cmd; });
+    } else {
+      var wrap=document.createElement("div");
+      wrap.innerHTML='<p class="opsNote">브라우저에서는 서버측 이관을 직접 실행할 수 없습니다. 아래 명령을 서버(터미널)에서 실행하세요. '+
+        '(러너 엔드포인트를 <code>window.OPS_MIGRATE_URL</code>/<code>OPS_SYNC_URL</code> 로 설정하면 이 버튼으로 바로 호출됩니다.)</p>'+
+        '<div class="opsCmd">'+esc(cmd)+'</div>';
+      var copy=document.createElement("button"); copy.className="opsAct file"; copy.style.marginTop="8px"; copy.textContent="📋 명령 복사";
+      copy.addEventListener("click",function(){ try{navigator.clipboard.writeText(cmd);copy.textContent="복사됨 ✔";}catch(e){} });
+      wrap.appendChild(copy); cmdEl.appendChild(wrap);
+    }
+  }
+
+  // ── 이관 리포트 렌더 ───────────────────────────────────────────────
+  function renderMig(j){
+    lastMig=j;
+    var v=j.overall_ok?'<span class="opsVerdict ok">✅ 100% 일치(PASS)</span>'
+         :(j.mode==="DRY-RUN"?'<span class="opsVerdict dry">🔎 DRY-RUN(미검증)</span>'
+         :'<span class="opsVerdict fail">❌ 불일치/에러(FAIL)</span>');
+    var s=j.summary||{};
+    var h='<div style="margin:8px 0 4px;">'+v+' &nbsp; <span class="opsNote" style="display:inline">모드 '+esc(j.mode)+' · 시작 '+esc(j.started||"")+' · 소요 '+esc(j.elapsed_s)+'s</span></div>';
+    h+='<div class="opsSum">'+
+       cell("대상 테이블",num(s.tables))+cell("일치",num(s.matched))+cell("불일치",num(s.mismatched))+
+       cell("에러/특수",num(s.errored)+" / "+num(s.special))+cell("원본 총행",num(s.src_total))+
+       cell("적재 총행",num(s.loaded_total))+cell("Supabase 총행",num(s.tgt_total))+'</div>';
+    h+='<div class="opsTblWrap"><table class="opsTbl"><thead><tr><th>결과</th><th>스키마</th><th>테이블</th>'+
+       '<th>원본행</th><th>적재행</th><th>Supabase행</th><th>초</th><th>상태</th></tr></thead><tbody>';
+    (j.tables||[]).forEach(function(r){
+      var bad=String(r.result||"").indexOf("✗")>=0;
+      h+='<tr'+(bad?' class="bad"':'')+'><td>'+esc(r.result)+'</td><td>'+esc(r.schema)+'</td><td>'+esc(r.table)+
+         '</td><td class="num">'+num(r.src)+'</td><td class="num">'+num(r.loaded)+'</td><td class="num">'+num(r.tgt)+
+         '</td><td class="num">'+esc(r.seconds)+'</td><td>'+esc(r.status)+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+    if((j.post_sql||[]).length){
+      h+='<p class="opsNote" style="margin-top:12px"><b>후처리 SQL</b></p><div class="opsCmd">'+
+         (j.post_sql.map(function(p){return esc(p.file)+" → "+esc(p.result);}).join("\n"))+'</div>';
+    }
+    if((j.notes||[]).length){
+      h+='<p class="opsNote" style="margin-top:10px"><b>제외/특수</b><br>'+j.notes.map(esc).join("<br>")+'</p>';
+    }
+    document.getElementById("opsMigReport").innerHTML=h;
+    document.getElementById("opsMigXls").disabled=false;
+  }
+  function cell(k,v){ return '<div class="cell"><div class="k">'+esc(k)+'</div><div class="v">'+v+'</div></div>'; }
+
+  // ── 동기화 변경분 렌더 ──────────────────────────────────────────────
+  function renderSync(list, day){
+    lastSync={list:list, day:day};
+    if(!Array.isArray(list)){ list=[]; }
+    var byT={}; list.forEach(function(c){ byT[c.table]=(byT[c.table]||0)+1; });
+    var h='<div style="margin:8px 0 4px;"><span class="opsVerdict ok">변경 '+num(list.length)+'건</span>'+
+      (day?' <span class="opsNote" style="display:inline">· 대상일 '+esc(day)+'</span>':'')+'</div>';
+    h+='<div class="opsSum">'+Object.keys(byT).map(function(t){return cell(t,num(byT[t]));}).join("")+'</div>';
+    h+='<div class="opsTblWrap"><table class="opsTbl"><thead><tr><th>#</th><th>테이블</th><th>PK</th><th>변경 컬럼</th></tr></thead><tbody>';
+    list.forEach(function(c,i){
+      var cols=Object.keys(c.set||{}).map(function(k){return k+"="+c.set[k];}).join(", ");
+      h+='<tr><td class="num">'+(i+1)+'</td><td>'+esc(c.table)+'</td><td>'+esc(JSON.stringify(c.pk))+'</td><td>'+esc(cols)+'</td></tr>';
+    });
+    if(!list.length) h+='<tr><td colspan="4" style="text-align:center;color:#94a3b8">변경분 없음</td></tr>';
+    h+='</tbody></table></div>';
+    document.getElementById("opsSyncReport").innerHTML=h;
+    document.getElementById("opsSyncXls").disabled=list.length===0;
+  }
+
+  // ── 파일 불러오기 ───────────────────────────────────────────────────
+  function loadJSON(inputEl, cb){
+    var f=inputEl.files&&inputEl.files[0]; if(!f) return;
+    var rd=new FileReader();
+    rd.onload=function(){ try{ cb(JSON.parse(rd.result)); }catch(e){ alert("JSON 파싱 실패: "+e); } };
+    rd.readAsText(f); inputEl.value="";
+  }
+
+  // ── 이관 탭 배선 ────────────────────────────────────────────────────
+  document.getElementById("opsMigLoad").addEventListener("click",function(){document.getElementById("opsMigFile").click();});
+  document.getElementById("opsMigFile").addEventListener("change",function(){ loadJSON(this,renderMig); });
+  document.getElementById("opsMigRun").addEventListener("click",function(){
+    requireOpsAuth("전체 데이터 이관 실행 (구 MySQL → Supabase)", function(){
+      var cmd="cd migration\n# 미리보기(DB 미변경):\n./run.sh all ../sql\n# 실제 이관 + 검증 + 리포트:\nexport PG_PASS=...\n./run.sh all-exec ../sql";
+      runOrShow(window.OPS_MIGRATE_URL, {backup:"../sql"}, cmd, document.getElementById("opsMigCmd"),
+        function(j){ if(j&&j.report) renderMig(j.report); else if(j&&j.tables) renderMig(j); });
+      if(window.adminAuthLog) window.adminAuthLog("ops_migrate_run",{},"update");
+    });
+  });
+  document.getElementById("opsMigXls").addEventListener("click",function(){
+    if(!lastMig) return;
+    var rows=[["결과","스키마","테이블","원본행","적재행","Supabase행","초","상태"]];
+    (lastMig.tables||[]).forEach(function(r){rows.push([r.result,r.schema,r.table,r.src,r.loaded,r.tgt,r.seconds,r.status]);});
+    var s=lastMig.summary||{};
+    rows.push([]); rows.push(["요약","대상 "+s.tables,"일치 "+s.matched,"불일치 "+s.mismatched,"에러 "+s.errored,"특수 "+s.special,"원본 "+s.src_total,"적재 "+s.loaded_total]);
+    toExcel("migration_report.xls","이관 리포트 — 구 MySQL → Supabase ("+esc(lastMig.mode)+")",rows);
+  });
+
+  // ── 동기화 탭 배선 ──────────────────────────────────────────────────
+  document.getElementById("opsSyncLoad").addEventListener("click",function(){document.getElementById("opsSyncFile").click();});
+  document.getElementById("opsSyncFile").addEventListener("change",function(){ loadJSON(this,function(j){ renderSync(j, document.getElementById("opsSyncDate").value); }); });
+  document.getElementById("opsSyncRun").addEventListener("click",function(){
+    var d=document.getElementById("opsSyncDate").value;
+    if(!d){ alert("대상일을 선택하세요."); return; }
+    requireOpsAuth("일일 동기화 실행 ("+d+" · Supabase → 구 MySQL)", function(){
+      var cmd="cd migration\nexport PG_PASS=... MYSQL_HOST=... MYSQL_USER=... MYSQL_PASS=... MYSQL_DB=...\n"+
+        "# 미리보기:\n./run_daily_sync.sh "+d+"\n# 실제 반영:\nCOMMIT=1 ./run_daily_sync.sh "+d;
+      runOrShow(window.OPS_SYNC_URL, {date:d}, cmd, document.getElementById("opsSyncCmd"),
+        function(j){ renderSync(j&&j.changes?j.changes:(Array.isArray(j)?j:[]), d); });
+      if(window.adminAuthLog) window.adminAuthLog("ops_sync_run",{date:d},"update");
+    });
+  });
+  document.getElementById("opsSyncXls").addEventListener("click",function(){
+    if(!lastSync) return;
+    var rows=[["#","테이블","PK","변경 컬럼"]];
+    (lastSync.list||[]).forEach(function(c,i){ rows.push([i+1,c.table,JSON.stringify(c.pk),Object.keys(c.set||{}).map(function(k){return k+"="+c.set[k];}).join("; ")]); });
+    toExcel("daily_sync_"+(lastSync.day||"report")+".xls","일일 동기화 — Supabase → 구 MySQL"+(lastSync.day?" ("+lastSync.day+")":""),rows);
+  });
+
+  // 초기 날짜 = 오늘
+  try{ document.getElementById("opsSyncDate").value=new Date().toISOString().slice(0,10); }catch(e){}
+
+  // 아이콘 주입(로그인 카드는 항상, 바는 진입 후 표시). 살짝 지연으로 게이트 렌더 후 주입.
+  if(document.readyState!=="loading") setTimeout(inject,60); else document.addEventListener("DOMContentLoaded",function(){setTimeout(inject,60);});
+  setTimeout(inject,400);
+})();
+</script>
+<!-- ═══════════════ 운영 콘솔 끝 ═══════════════ -->
+
 <!-- ═══════════════ 모바일 버전 안내 배너 ═══════════════ -->
 <style>
 #mvSuggest{position:fixed;left:10px;right:10px;bottom:10px;z-index:9000;display:none;
