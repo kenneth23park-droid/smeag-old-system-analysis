@@ -279,3 +279,9 @@
 - **2026-07-23** 남은 메뉴 마무리 — Financial 변형 4종 + Agency 통계 3종:
   ① Financial 필터 모드(FIN_MODES): 등록금·인보이스(전체 12,150) / 한국학생(5,139) / 외국학생(7,011) / 연장학생(279) / 변경환불홀딩(1,782). URL(m.u)→모드 매핑(FIN_URLMODE), 화면 제목·대상행 모드연동. finFiltered에 모드필터 삽입.
   ② Agency 통계(R.agencystat): BRANCH RECORD·GROUP RECORD(유학원×캠퍼스 ENCANTO/CLASSIC/CAPITAL/기타) + EACH NATIONALITY(유학원×국적 KOR/CHI/JAP/TWA/VTN/ETC). studentsFull에서 실시간 집계, DICT.uhak로 유학원명 해석, 총계순 상위 80. Playwright 검증: 3화면 렌더·80행·필터카운트 정확·무오류. 배포·별칭 완료.
+
+- **2026-07-25** 신전산(Supabase) → 구전산(MySQL) **역방향 일일 동기화** 파이프라인 신설(migration/):
+  ① `legacy_writeback.py`(기존, 안전모드) = import 실행부. UPDATE 전용·화이트리스트 테이블(student_info/student_change/reserve_info/student_payment)·PK SET 금지·before-image 백업·감사로그·멱등·트랜잭션·DRY-RUN 기본(--commit --yes 시만 실반영).
+  ② `export_daily_changes.py`(신규) = 그날 반영된 Supabase 변경분 → `changes.json` 생성기(**Supabase 읽기전용**, 원본·Supabase 모두 미변경). source 2방식: (기본)`changelog`=앱이 저장 시 남기는 app.change_log(target_table/target_pk/changed_cols/changed_at) 그날치 추출 / (폴백)`column`=updated_at류 컬럼 기준 지정컬럼 export. 매핑은 충실리프트라 identity 기본(MAPPING으로 재정의). writeback과 동일 화이트리스트로 사전 검증. py_compile OK, 검증 4케이스(정상/PK-SET거부/허용외테이블/PK누락) 통과.
+  ③ `run_daily_sync.sh`(신규) = export→import 래퍼. import는 DRY-RUN 기본, `COMMIT=1`일 때만 --commit --yes. 접속정보는 env(PG_PASS / MYSQL_*)로만. bash -n OK.
+  ⚠ 전제: (a) 이는 기존 원칙 '단방향·원본 불가침'을 의도적으로 벗어남(정책 확인 필요). (b) 실행은 구전산 라이브 MySQL 접속정보 + 앱이 Supabase에 변경로그(app.change_log)를 남기는 배선이 있어야 함 — 아직 미배선(Supabase anon 키 대기와 동일 임계경로). 코드만 제공, 실행 안 함.
