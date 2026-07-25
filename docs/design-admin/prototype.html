@@ -993,7 +993,7 @@ function paintPaged(box,cols,rows,name,opts){const st=pgState[name]||(pgState[na
   if(nc>=0&&opts&&typeof opts.getFull==='function')box.querySelectorAll('td.sp-name').forEach(td=>td.onclick=()=>{
     const row=opts.getFull(+td.dataset.abs);if(row)openStudentEdit(row,'edit');});}
 function stdView(cfg){
-  const wk=cfg.dateWeek?pickupWeek():[cfg.from||'2025-01-01',cfg.to||'2027-12-31'];
+  const wk=[cfg.from||'',cfg.to||''];  // 기본 전체(레거시처럼 날짜 미필터) — 픽업주간은 List Preset으로 선택
   stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:wk[0],to:wk[1],searchBy:'',mine:false,noRoom:false,sex:'',ageFrom:'',ageTo:'',campus:'',courses:[],room:'',actions:!!cfg.actions,pickup:!!cfg.pickup};
   const src=REAL&&REAL.studentsFull;const total=src?src.rows.length:0;
   // COURSE 다중선택 옵션: 데이터의 distinct 연수코스(col12)
