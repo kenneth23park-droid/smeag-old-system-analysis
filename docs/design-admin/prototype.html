@@ -997,9 +997,8 @@ function stdView(cfg){
   stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:wk[0],to:wk[1],searchBy:'',mine:false,noRoom:false,sex:'',ageFrom:'',ageTo:'',campus:'',courses:[],room:'',actions:!!cfg.actions,pickup:!!cfg.pickup};
   const src=REAL&&REAL.studentsFull;const total=src?src.rows.length:0;
   // COURSE 다중선택 옵션: 데이터의 distinct 연수코스(col12)
-  const courseList=src?[...new Set(src.rows.map(r=>(r[12]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})):[];
-  const _cname=code=>{const o=(DICT.course_info1||[]).find(x=>x.v===code);return o?o.t:code;};
-  const courseOptsHtml=courseList.map(c=>{const nm=_cname(c);return `<label class="msel-opt"><input type="checkbox" class="fCourseChk" value="${esc(c)}">${esc(nm)}${nm!==c?` <span style="color:var(--dim);font-size:11px">(${esc(c)})</span>`:''}</label>`;}).join('');
+  const courseList=courseAllCodes(); // 코스 마스터 전체 ∪ 데이터
+  const courseOptsHtml=courseList.map(c=>{const nm=courseNameOf(c);const off=courseInMaster(c)&&!courseActiveOf(c);return `<label class="msel-opt"><input type="checkbox" class="fCourseChk" value="${esc(c)}">${esc(nm)}${nm!==c?` <span style="color:var(--dim);font-size:11px">(${esc(c)})</span>`:''}${off?' <span style="color:var(--faint);font-size:10px">·off</span>':''}</label>`;}).join('');
   return `
   <div class="ph"><h1>${cfg.title}</h1><span class="sub">${cfg.sub}</span><span class="url">${cfg.url}</span>
     <span class="actions" style="margin-left:auto">${cfg.extraBtn||''}<button class="btn" data-stdexcel="1">📊 EXCEL</button></span></div>
@@ -2443,6 +2442,20 @@ function savePerms(){try{localStorage.setItem('smeag-perms',JSON.stringify(PERMS
 function setDept(d){curDept=d;try{localStorage.setItem('smeag-dept',d);}catch(e){}}
 
 // ─── 인보이스/문서 PDF 생성(외부 라이브러리 없이 인쇄→PDF 저장) ───
+// 코스 마스터(course_list.php) 코드→영문명 매핑(캐시). 필터·표시에 사용.
+let _courseNameCache=null, _courseActiveCache=null;
+function _buildCourseCache(){_courseNameCache={};_courseActiveCache={};
+  const t=REAL&&REAL.tables&&REAL.tables['course_list.php'];
+  if(t&&t.cols){const iC=t.cols.indexOf('#'),iK=t.cols.indexOf('코스명'),iE=t.cols.indexOf('COURSE(EN)'),iS=t.cols.indexOf('상태');
+    t.rows.forEach(r=>{const c=(''+(r[iC]==null?'':r[iC])).trim();if(c){_courseNameCache[c]=(r[iE]||r[iK]||c);_courseActiveCache[c]=(''+(r[iS]||'')).toUpperCase()==='Y';}});}}
+function courseNameOf(code){if(_courseNameCache===null)_buildCourseCache();const k=(''+code).trim();return _courseNameCache[k]||k;}
+function courseActiveOf(code){if(_courseActiveCache===null)_buildCourseCache();return !!_courseActiveCache[(''+code).trim()];}
+function courseInMaster(code){if(_courseNameCache===null)_buildCourseCache();return (''+code).trim() in _courseNameCache;}
+function courseAllCodes(){ // 마스터 ∪ 학생데이터 코스코드
+  if(_courseNameCache===null)_buildCourseCache();
+  const set=new Set(Object.keys(_courseNameCache));
+  const sf=REAL&&REAL.studentsFull;if(sf)sf.rows.forEach(r=>{const c=(''+(r[12]||'')).trim();if(c)set.add(c);});
+  return [...set].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));}
 // 배치도 이름 표시용: EN(studentsFull col2) → KOR(col3) 매핑. 한글 KOR 있으면 그걸로 표시(없으면 원문).
 let _nameKor=null;
 function korDisp(nm){
@@ -2608,7 +2621,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     // COURSE 다중선택(체크박스) 필터
     (function(){const btn=m.querySelector('#fCourseBtn'),pop=m.querySelector('#fCoursePop');if(!btn||!pop)return;
       const chks=()=>[...m.querySelectorAll('.fCourseChk')];
-      const cname=code=>{const o=(DICT.course_info1||[]).find(x=>x.v===code);return o?o.t:code;};
+      const cname=code=>courseNameOf(code);
       const syncLabel=()=>{const sel=chks().filter(c=>c.checked).map(c=>c.value);
         btn.textContent=sel.length===0?T('전체 코스','All courses'):(sel.length===1?cname(sel[0]):sel.length+T('개 코스',' courses'));};
       const applyCourses=()=>{stdState.courses=chks().filter(c=>c.checked).map(c=>c.value);stdState.page=0;paintStd();syncLabel();};
