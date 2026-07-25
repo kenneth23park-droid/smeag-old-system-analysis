@@ -285,3 +285,6 @@
   ② `export_daily_changes.py`(신규) = 그날 반영된 Supabase 변경분 → `changes.json` 생성기(**Supabase 읽기전용**, 원본·Supabase 모두 미변경). source 2방식: (기본)`changelog`=앱이 저장 시 남기는 app.change_log(target_table/target_pk/changed_cols/changed_at) 그날치 추출 / (폴백)`column`=updated_at류 컬럼 기준 지정컬럼 export. 매핑은 충실리프트라 identity 기본(MAPPING으로 재정의). writeback과 동일 화이트리스트로 사전 검증. py_compile OK, 검증 4케이스(정상/PK-SET거부/허용외테이블/PK누락) 통과.
   ③ `run_daily_sync.sh`(신규) = export→import 래퍼. import는 DRY-RUN 기본, `COMMIT=1`일 때만 --commit --yes. 접속정보는 env(PG_PASS / MYSQL_*)로만. bash -n OK.
   ⚠ 전제: (a) 이는 기존 원칙 '단방향·원본 불가침'을 의도적으로 벗어남(정책 확인 필요). (b) 실행은 구전산 라이브 MySQL 접속정보 + 앱이 Supabase에 변경로그(app.change_log)를 남기는 배선이 있어야 함 — 아직 미배선(Supabase anon 키 대기와 동일 임계경로). 코드만 제공, 실행 안 함.
+
+- **2026-07-25** 역방향 동기화 **소스 DDL** 추가 `migration/schema/change_log.sql`(멱등):
+  ① `app.change_log`(target_table/target_pk/changed_cols/op/changed_at) = export_daily_changes.py 가 읽는 그날 변경분 원장. changed_at::date·미반영 인덱스. ② `app.log_change()` RPC = 앱/기존 RPC에서 구전산 정체성(예: student_info, {s_idx})으로 명시 로깅(화이트리스트 검증+PK 자동제외). ③ `app.tg_change_log()` = legacy.* 직접 UPDATE 시 변경컬럼만 자동 로깅하는 제네릭 트리거. RLS/grant 포함. → 이로써 export→import 파이프라인의 **소스까지 코드로 완결**(단, 앱 저장 로직에서 log_change 호출 배선은 Supabase 쓰기 연동 시 연결 필요). psql 미접속 환경이라 DB 실행검증은 미실시(문법·타입 정합만 검토).
