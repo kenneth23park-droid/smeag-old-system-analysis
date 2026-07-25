@@ -288,3 +288,5 @@
 
 - **2026-07-25** 역방향 동기화 **소스 DDL** 추가 `migration/schema/change_log.sql`(멱등):
   ① `app.change_log`(target_table/target_pk/changed_cols/op/changed_at) = export_daily_changes.py 가 읽는 그날 변경분 원장. changed_at::date·미반영 인덱스. ② `app.log_change()` RPC = 앱/기존 RPC에서 구전산 정체성(예: student_info, {s_idx})으로 명시 로깅(화이트리스트 검증+PK 자동제외). ③ `app.tg_change_log()` = legacy.* 직접 UPDATE 시 변경컬럼만 자동 로깅하는 제네릭 트리거. RLS/grant 포함. → 이로써 export→import 파이프라인의 **소스까지 코드로 완결**(단, 앱 저장 로직에서 log_change 호출 배선은 Supabase 쓰기 연동 시 연결 필요). psql 미접속 환경이라 DB 실행검증은 미실시(문법·타입 정합만 검토).
+
+- **2026-07-25** **정방향 최종 이관 원샷화** `migration/migrate_all.py`(+run.sh `all`/`all-exec`): 구 MySQL 백업(sql 디렉터리 또는 단일 통합 .sql 자동분할) → Supabase 전체를 한 번에 이관(phase0 스키마→1~3 병렬적재→4 모델링·보안 후처리) + **100% 검증**(테이블별 원본행=적재행=Supabase행 대조) + **이관 리포트**(reports/*.md·json) 자동생성. 불일치/에러 시 종료코드1로 '에러없는 100% 이전' 강제. 원본(sql/*.sql) 읽기전용·기본 DRY-RUN. DRY-RUN 검증: 63파일→대상55개, 원본 총 3,930,211행 집계 정확(student_info 90,524·room_elec 1,670,841·room_reserve 627,174·g4_point 146,387·g4_score 14,271[특수EAV·1:1검증제외]), 리포트 생성 정상. reports/는 gitignore. 실제 적재는 PG_PASS+--execute 필요(미실행).

@@ -31,3 +31,6 @@ docs/LEGACY_COMPARE_*.html
 docs/LEGACY_ONLY_*.html
 docs/LEGACY_ALLMENU_*.html
 docs/AGENCY_PORTAL_*.html
+
+# 이관 리포트(운영 산출물)
+migration/reports/
