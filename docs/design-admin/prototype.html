@@ -830,8 +830,17 @@ let stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:'2025-01-01',to:'2027
 function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let f=src.rows;const s=stdState;
   // 날짜(등록/출발/시작/종료 중 하나) 범위 — 기본 2025년~현재
   const dts=r=>[r[6],r[7],r[8],r[9]].filter(d=>d&&d.length>=7);
-  if(s.from)f=f.filter(r=>dts(r).some(d=>d>=s.from));
-  if(s.to)f=f.filter(r=>dts(r).some(d=>d<=s.to));
+  const DFI={apply:6,depart:7,begin:8,end:9}; // 검색기준(날짜필드)
+  if(s.searchBy&&DFI[s.searchBy]!=null){const di=DFI[s.searchBy];
+    if(s.from)f=f.filter(r=>(r[di]||'')&&(r[di]||'')>=s.from);
+    if(s.to)f=f.filter(r=>(r[di]||'')&&(r[di]||'')<=s.to);
+  }else{
+    if(s.from)f=f.filter(r=>dts(r).some(d=>d>=s.from));
+    if(s.to)f=f.filter(r=>dts(r).some(d=>d<=s.to));
+  }
+  if(s.noRoom)f=f.filter(r=>!(''+(r[13]||'')).trim());   // 기숙사 미배정(객실 없음)
+  if(s.mine){const su=(sessionUser()||'').toLowerCase();  // 본인(kenneth) — 유학원 계정이면 해당 유학원만
+    if((DICT.uhak||[]).some(o=>o.v&&o.v.toLowerCase()===su))f=f.filter(r=>(''+(r[0]||'')).toLowerCase()===su);}
   if(s.ag)f=f.filter(r=>r[0]===s.ag);
   if(s.nat)f=f.filter(r=>(r[1]||'').toLowerCase()===s.nat.toLowerCase());
   if(s.cond)f=f.filter(r=>(r[11]||'')===s.cond);
@@ -985,7 +994,7 @@ function paintPaged(box,cols,rows,name,opts){const st=pgState[name]||(pgState[na
     const row=opts.getFull(+td.dataset.abs);if(row)openStudentEdit(row,'edit');});}
 function stdView(cfg){
   const wk=cfg.dateWeek?pickupWeek():[cfg.from||'2025-01-01',cfg.to||'2027-12-31'];
-  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:wk[0],to:wk[1],sex:'',ageFrom:'',ageTo:'',campus:'',courses:[],room:'',actions:!!cfg.actions,pickup:!!cfg.pickup};
+  stdState={page:0,per:50,ag:'',nat:'',cond:'',q:'',from:wk[0],to:wk[1],searchBy:'',mine:false,noRoom:false,sex:'',ageFrom:'',ageTo:'',campus:'',courses:[],room:'',actions:!!cfg.actions,pickup:!!cfg.pickup};
   const src=REAL&&REAL.studentsFull;const total=src?src.rows.length:0;
   // COURSE 다중선택 옵션: 데이터의 distinct 연수코스(col12)
   const courseList=src?[...new Set(src.rows.map(r=>(r[12]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})):[];
@@ -996,6 +1005,9 @@ function stdView(cfg){
     <span class="actions" style="margin-left:auto">${cfg.extraBtn||''}<button class="btn" data-stdexcel="1">📊 EXCEL</button></span></div>
   <div class="filters">
     <div class="field"><label>리스트 프리셋</label><select id="preset"><option value="">기본(직접선택)</option><option value="pickup">🛬 픽업 주간 (목→다음주 수)</option></select></div>
+    <div class="field"><label>${T('검색기준','Search by')}</label><select id="fSearchBy"><option value="">${T('전체 날짜','Any date')}</option><option value="apply">${T('등록일','APPLY')}</option><option value="depart">${T('출발일','DEPARTURE')}</option><option value="begin">${T('시작일','BEGIN')}</option><option value="end">${T('종료일','END')}</option></select></div>
+    <div class="field"><label>&nbsp;</label><label class="dl-chk" title="${T('본인 담당 학생만(유학원 계정)','My students only (agency account)')}"><input type="checkbox" id="fMine"> ${esc(sessionUser()||'me')}(${T('본인','mine')})</label></div>
+    <div class="field"><label>&nbsp;</label><label class="dl-chk" title="${T('객실 미배정 학생만','Room-unassigned only')}"><input type="checkbox" id="fNoRoom"> ${T('기숙사 미배정','Dorm unassigned')}</label></div>
     <div class="field"><label>기간 시작${cfg.dateWeek?'(목)':'(등록/출발)'}</label><input id="depFrom" type="date" value="${stdState.from}"${cfg.dateWeek?' data-weekauto="1"':''}></div>
     <div class="field"><label>기간 종료${cfg.dateWeek?'(다음주 수)':''}</label><input id="depTo" type="date" value="${stdState.to}"></div>
     <div class="field"><label>AGENCY</label><select id="fAg">${ddOpts(DICT.uhak,'ALL')}</select></div>
@@ -2580,15 +2592,17 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   // STUDENT LIST 전체 학생 페이지네이션·필터·검색
   if(m.querySelector('#stdBody')){
     const v=sel=>(m.querySelector(sel)||{}).value||'';
+    const chk=sel=>{const e=m.querySelector(sel);return !!(e&&e.checked);};
     const upd=()=>{stdState.ag=v('#fAg');stdState.nat=v('#fNat');stdState.cond=v('#fCond');stdState.q=v('#fq');
-      stdState.from=v('#depFrom');stdState.to=v('#depTo');
+      stdState.from=v('#depFrom');stdState.to=v('#depTo');stdState.searchBy=v('#fSearchBy');
+      stdState.mine=chk('#fMine');stdState.noRoom=chk('#fNoRoom');
       stdState.sex=v('#fSex');stdState.ageFrom=v('#fAgeF');stdState.ageTo=v('#fAgeT');
       stdState.campus=v('#fCampus');stdState.room=v('#fRoom');
       stdState.page=0;paintStd();};
     // 수강등록관리: FROM(목) 변경 시 TO=FROM+6(다음주 수) 자동
     const df=m.querySelector('#depFrom');
     if(df&&df.dataset.weekauto)df.addEventListener('change',()=>{if(df.value){const d=new Date(df.value);d.setDate(d.getDate()+6);const to=m.querySelector('#depTo');if(to)to.value=d.toISOString().slice(0,10);}});
-    ['#fAg','#fNat','#fCond','#depFrom','#depTo','#fSex','#fCampus'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('change',upd);});
+    ['#fAg','#fNat','#fCond','#depFrom','#depTo','#fSex','#fCampus','#fSearchBy','#fMine','#fNoRoom'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('change',upd);});
     ['#fq','#fRoom','#fAgeF','#fAgeT'].forEach(sel=>{const e=m.querySelector(sel);if(e)e.addEventListener('input',()=>{clearTimeout(window._sq);window._sq=setTimeout(upd,250);});});
     const sb=m.querySelector('#fSearch');if(sb)sb.addEventListener('click',upd);
     // COURSE 다중선택(체크박스) 필터
