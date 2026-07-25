@@ -838,7 +838,7 @@ function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let
     if(s.from)f=f.filter(r=>dts(r).some(d=>d>=s.from));
     if(s.to)f=f.filter(r=>dts(r).some(d=>d<=s.to));
   }
-  if(s.noRoom)f=f.filter(r=>!(''+(r[13]||'')).trim());   // 기숙사 미배정(객실 없음)
+  if(s.noRoom)f=f.filter(r=>!stuRoom(r));   // 기숙사 미배정(객실 없음 — 배치도 도출 포함)
   if(s.mine){const su=(sessionUser()||'').toLowerCase();  // 본인(kenneth) — 유학원 계정이면 해당 유학원만
     if((DICT.uhak||[]).some(o=>o.v&&o.v.toLowerCase()===su))f=f.filter(r=>(''+(r[0]||'')).toLowerCase()===su);}
   if(s.ag)f=f.filter(r=>r[0]===s.ag);
@@ -849,7 +849,7 @@ function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let
   if(s.ageTo)f=f.filter(r=>(+r[4]||0)<=+s.ageTo);
   if(s.campus)f=f.filter(r=>(r[14]||'').toUpperCase().includes(s.campus.toUpperCase()));
   if(s.courses&&s.courses.length){f=f.filter(r=>s.courses.indexOf((r[12]||'').trim())>-1);}
-  if(s.room){const rq=s.room.toLowerCase();f=f.filter(r=>(''+(r[13]||'')).toLowerCase().includes(rq));}
+  if(s.room){const rq=s.room.toLowerCase();f=f.filter(r=>stuRoom(r).toLowerCase().includes(rq));}
   if(s.q){const q=s.q.toLowerCase();f=f.filter(r=>(r[2]||'').toLowerCase().includes(q)||(''+(r[3]||'')).includes(s.q));}
   // 최근순(내림차순): 출발일(도착) 우선, 없으면 등록/시작/종료 최신
   const key=r=>(r[7]&&r[7].length>=7)?r[7]:dts(r).reduce((mm,d)=>d>mm?d:mm,'');
@@ -865,7 +865,7 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   window._stdPage=pg;  // 액션 상세폼에서 전체 행 참조
   const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">${T('수정','Edit')}</button><button class="btn xs" data-sact="move">${T('변경','Move')}</button><button class="btn xs" data-sact="extend">${T('연장','Extend')}</button><button class="btn xs" data-sact="counsel">${T('상담','Consult')}</button><button class="btn xs" data-sact="brief">${T('약식','Brief')}</button></td>`;
   const docCells=i=>`<td><button class="btn xs" data-doc="log" data-i="${i}">${T('상담이력','Log')}</button></td><td><button class="btn xs" data-doc="medical" data-i="${i}">${T('진단서','Medical')}</button></td><td><button class="btn xs" data-doc="consent" data-i="${i}">${T('동의서','Consent')}</button></td><td><button class="btn xs" data-doc="report" data-i="${i}">${T('성적표','Report')}</button></td>`;
-  const roomCell=(r,i)=>r[13]?`<td class="mono rmc">${esc(r[13])}</td>`:`<td><button class="btn xs std-assign" data-sact="move" data-i="${i}" style="color:var(--male);border-color:var(--male)">${T('방배정','Assign')}</button></td>`;
+  const roomCell=(r,i)=>{const rm=stuRoom(r);return rm?`<td class="mono rmc">${esc(rm)}</td>`:`<td><button class="btn xs std-assign" data-sact="move" data-i="${i}" style="color:var(--male);border-color:var(--male)">${T('방배정','Assign')}</button></td>`;};
   const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="클릭 → 상세정보 · ${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="mono" title="${esc(r[17]||'')}">${r[17]?d8(r[17]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td><td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td><td>${esc(r[12])||'—'}</td>${roomCell(r,i)}${stdState.actions?actCell(i)+docCells(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
@@ -2456,6 +2456,14 @@ function courseAllCodes(){ // 마스터 ∪ 학생데이터 코스코드
   const set=new Set(Object.keys(_courseNameCache));
   const sf=REAL&&REAL.studentsFull;if(sf)sf.rows.forEach(r=>{const c=(''+(r[12]||'')).trim();if(c)set.add(c);});
   return [...set].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));}
+// 학생 현재 객실 보완: studentsFull 객실(col13)이 비어 있어 배치도(roomstat)에서 이름매칭으로 방 도출(81%).
+let _stuRoom=null;
+function studentRoomOf(name){
+  if(_stuRoom===null){_stuRoom={};const grs=REAL&&REAL.roomstat&&REAL.roomstat.groups;
+    if(grs)grs.forEach(g=>{const cat=(g.name||'').split('/')[0].trim();(g.rooms||[]).forEach(r=>{(r.beds||[]).forEach(bed=>{(bed.segs||[]).forEach(s=>{const nm=(''+(s.nm||'')).trim();if(nm&&!(nm in _stuRoom))_stuRoom[nm]=cat+' '+r.no;});});});});}
+  const t=(''+(name==null?'':name)).trim();return _stuRoom[t]||'';
+}
+function stuRoom(r){return (''+(r[13]||'')).trim()||studentRoomOf(r[2]);} // 원본 col13 우선, 없으면 배치도 도출
 // 배치도 이름 표시용: EN(studentsFull col2) → KOR(col3) 매핑. 한글 KOR 있으면 그걸로 표시(없으면 원문).
 let _nameKor=null;
 function korDisp(nm){
