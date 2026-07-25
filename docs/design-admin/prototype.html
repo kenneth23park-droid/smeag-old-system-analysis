@@ -139,6 +139,7 @@
   .msel-btn{border:1px solid var(--border);background:var(--surface-2);color:var(--text);font:inherit;font-size:12.5px;padding:6px 9px;border-radius:7px;min-width:150px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .msel-btn::after{content:"▾";margin-left:6px;color:var(--dim)}
   .msel-pop{position:absolute;z-index:40;top:calc(100% + 4px);left:0;width:250px;max-width:80vw;background:var(--surface);border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow);padding:8px;display:flex;flex-direction:column;gap:6px}
+  .msel-pop[hidden]{display:none} /* hidden 속성이 display:flex 를 이기도록 */
   .msel-search{width:100%}
   .msel-list{max-height:240px;overflow:auto;display:flex;flex-direction:column;gap:1px}
   .msel-opt{display:flex;align-items:center;gap:7px;font-size:12.5px;padding:5px 6px;border-radius:6px;cursor:pointer;color:var(--text);white-space:nowrap}
