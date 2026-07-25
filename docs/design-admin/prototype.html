@@ -847,14 +847,17 @@ function stdFiltered(){const src=REAL&&REAL.studentsFull;if(!src)return null;let
   f=f.slice().sort((a,b)=>key(b).localeCompare(key(a)));
   return f;}
 function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
-  const cols=`<thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th class="num">AGE</th><th>BIRTH</th><th>SEX</th><th>APPLY</th><th>DEPA</th>${stdState.pickup?'<th>PICKUP</th>':''}<th>BEGIN</th><th>END</th><th>PERI</th><th>COURSE</th><th>ROOM</th><th>COND</th>${stdState.actions?'<th>ACTION</th>':''}</tr></thead>`;
+  const docHead=stdState.actions?'<th>CONSULT LOG</th><th>MEDICAL</th><th>CONSENT</th><th>REPORT</th>':'';
+  const cols=`<thead><tr><th>AGENCY</th><th>NAT</th><th>NAME(EN)</th><th>KOR</th><th>BIRTH</th><th class="num">AGE</th><th>SEX</th><th>APPLY</th><th>DEPA</th><th>BEGIN</th>${stdState.pickup?'<th>PICKUP</th>':''}<th>END</th><th>PERI</th><th>STATUS</th><th>COURSE</th><th>ROOM</th>${stdState.actions?'<th>ACTION</th>'+docHead:''}</tr></thead>`;
   const f=stdFiltered();
   if(!f){box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${rowsStudents(12)}</tbody></table></div>`;makeSortable(box);return;}
   const s=stdState;const pages=Math.max(1,Math.ceil(f.length/s.per));if(s.page>=pages)s.page=pages-1;if(s.page<0)s.page=0;
   const pg=f.slice(s.page*s.per,s.page*s.per+s.per);
   window._stdPage=pg;  // 액션 상세폼에서 전체 행 참조
-  const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">수정</button><button class="btn xs" data-sact="move">변경</button><button class="btn xs" data-sact="extend">연장</button><button class="btn xs" data-sact="counsel">상담</button><button class="btn xs" data-sact="brief">약식</button></td>`;
-  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="클릭 → 상세정보 · ${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td class="mono" title="${esc(r[17]||'')}">${r[17]?d8(r[17]):'—'}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td><td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td>${esc(r[12])||'—'}</td><td class="mono">${esc(r[13])||'—'}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td>${stdState.actions?actCell(i):''}</tr>`).join('');
+  const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">${T('수정','Edit')}</button><button class="btn xs" data-sact="move">${T('변경','Move')}</button><button class="btn xs" data-sact="extend">${T('연장','Extend')}</button><button class="btn xs" data-sact="counsel">${T('상담','Consult')}</button><button class="btn xs" data-sact="brief">${T('약식','Brief')}</button></td>`;
+  const docCells=i=>`<td><button class="btn xs" data-doc="log" data-i="${i}">${T('상담이력','Log')}</button></td><td><button class="btn xs" data-doc="medical" data-i="${i}">${T('진단서','Medical')}</button></td><td><button class="btn xs" data-doc="consent" data-i="${i}">${T('동의서','Consent')}</button></td><td><button class="btn xs" data-doc="report" data-i="${i}">${T('성적표','Report')}</button></td>`;
+  const roomCell=(r,i)=>r[13]?`<td class="mono rmc">${esc(r[13])}</td>`:`<td><button class="btn xs std-assign" data-sact="move" data-i="${i}" style="color:var(--male);border-color:var(--male)">${T('방배정','Assign')}</button></td>`;
+  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="클릭 → 상세정보 · ${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="mono" title="${esc(r[17]||'')}">${r[17]?d8(r[17]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td><td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td><td>${esc(r[12])||'—'}</td>${roomCell(r,i)}${stdState.actions?actCell(i)+docCells(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -2611,11 +2614,17 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
       const nmc=e.target.closest('.std-name');           // 이름 클릭 → 상세정보 화면
       if(nmc){const row=(window._stdPage||[])[+nmc.dataset.i];if(row)openStudentEdit(row,'edit');return;}
       const b=e.target.closest('button[data-sact]');
-      if(b){const cell=b.closest('.std-act');const row=(window._stdPage||[])[+cell.dataset.i]||[];
+      if(b){const cell=b.closest('[data-i]');const row=(window._stdPage||[])[+cell.dataset.i]||[];
         const nm=row[2]||row[3]||'',rm=row[13]||'',dp=row[7]||'';const act=b.dataset.sact;
         const KIND={edit:'update',move:'update',extend:'update',counsel:'read',brief:'read'};
         if(act==='move')openRoomReplace(null,rm,nm,dp);else openStudentEdit(row,act);
         if(window.adminAuthLog)try{window.adminAuthLog('student_'+act,{name:nm,room:rm},KIND[act]);}catch(_){}
+        return;}
+      const doc=e.target.closest('button[data-doc]');   // 상담이력·진단서·동의서·성적표(문서) — 레거시 컬럼
+      if(doc){const row=(window._stdPage||[])[+doc.dataset.i]||[];const nm=row[2]||row[3]||'';
+        const L={log:T('상담이력','Consult Log'),medical:T('진단서','Medical certificate'),consent:T('동의서','Consent form'),report:T('성적표','Report card')}[doc.dataset.doc];
+        toast(L,`${esc(nm)} · ${T('문서 화면 준비중(placeholder)','document screen — placeholder')}`,true);
+        if(window.adminAuthLog)try{window.adminAuthLog('student_doc_'+doc.dataset.doc,{name:nm},'read');}catch(_){}
         return;}
       // 행 클릭 팝업 없음 — 오른쪽 ACTION 버튼(수정·변경·연장·상담·약식)으로만 진행, 이름은 선택·복사 가능
     });
