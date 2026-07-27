@@ -641,7 +641,6 @@ const MENU={
     {k:'agencylist',t:'AGENCY LIST',u:'uhak_agency_list.php',note:'유학원 목록(dict_options)'},
     {k:'spec',t:'COMMISSION',u:'uhak_agency_commission.php',cols:['NO','UHAK','구분','%','금액','담당','확인일','상태','학생']},
     {k:'commrules',t:'COMMISSION RULES (수수료 규칙)',u:'commission_rules',note:'나라 정율%·코스 정액·빌딩 정액 (편집가능·합산)'},
-    {k:'spec',t:'유학원 방문(VISIT)',u:'uhak_day_info.php',cols:['#','방문일','유학원','연락처','시간','내용','상태']},
     {k:'agencystat',t:'BRANCH RECORD',u:'uhak_agency_stat22.php',note:'지사 유학원 통계(캠퍼스별)'},
     {k:'agencystat',t:'GROUP RECORD',u:'uhak_agency_stat33.php',note:'대표 유학원 통계(캠퍼스별)'},
     {k:'agencystat',t:'EACH NATIONALITY',u:'uhak_agency_stat34.php',note:'유학원별 국적 통계'},
@@ -1301,7 +1300,7 @@ R.roomstat=()=>{
     if(roomFilter.center&&roomFilter.center!=='ALL')base=base.filter(g=>campusOf(g.name)===roomFilter.center);
     if(roomFilter.gender&&roomFilter.gender!=='ALL')base=base.filter(g=>genderOf(g.name)===roomFilter.gender);
     const seen=new Set();base.forEach(g=>{const n=(g.name||'').trim();if(n&&!seen.has(n)){seen.add(n);grpOpts.push(n);}});}
-  const rsReady=roomFilter.center&&roomFilter.gender&&roomFilter.per; // 센터+성별+방구분 모두 선택돼야 표시
+  const rsReady=roomFilter.center&&roomFilter.gender&&roomFilter.group; // 센터+성별+그룹 선택 시 조회(방구분은 선택적 추가필터)
   if(rsReady){
     if(roomFilter.per==='TEMP'){
       // 임시방(TEMPORARY): 센터·성별 무관 · TEMPORARY 카테고리 전체
@@ -1309,8 +1308,8 @@ R.roomstat=()=>{
     }else{
     if(roomFilter.center!=='ALL')groups=groups.filter(g=>campusOf(g.name)===roomFilter.center);
     if(roomFilter.gender!=='ALL')groups=groups.filter(g=>genderOf(g.name)===roomFilter.gender);
-    if(roomFilter.group)groups=groups.filter(g=>(g.name||'').trim()===roomFilter.group); // 구분(그룹) 선택 시 해당 그룹만(전체명 일치)
-    if(roomFilter.per!=='ALL')groups=groups.map(g=>({name:g.name,rooms:g.rooms.filter(r=>(''+(r.per||'')).replace(/[^0-9]/g,'')===roomFilter.per)})).filter(g=>g.rooms.length);
+    if(roomFilter.group&&roomFilter.group!=='ALL')groups=groups.filter(g=>(g.name||'').trim()===roomFilter.group); // 구분(그룹) 선택 시 해당 그룹만(ALL=전체)
+    if(roomFilter.per&&roomFilter.per!=='ALL')groups=groups.map(g=>({name:g.name,rooms:g.rooms.filter(r=>(''+(r.per||'')).replace(/[^0-9]/g,'')===roomFilter.per)})).filter(g=>g.rooms.length); // 방구분(인실)은 선택적
     }
   }else groups=[]; // 초기/미선택 → 렌더 안 함(선택 안내)
   if(roomFilter.sortPer){const pn=p=>parseInt(p)||0;groups=groups.map(g=>({name:g.name,rooms:[...g.rooms].sort((a,b)=>roomFilter.sortPer==='asc'?pn(a.per)-pn(b.per):pn(b.per)-pn(a.per))}));}
@@ -1363,7 +1362,7 @@ R.roomstat=()=>{
     <div style="display:flex;gap:8px;align-items:center">
       <select id="rsCenter" class="rs-ctrl" title="${T('센터','Center')}">${[['',T('::센터를 선택하세요::','::Select center::')],['ALL',T('전체 센터','All centers')],['ENCANTO','ENCANTO CENTER'],['CAPITAL','CAPITAL CENTER']].map(([v,l])=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsGender" class="rs-ctrl" title="${T('성별','Gender')}">${[['',T('::성별을 선택하세요::','::Select gender::')],['ALL',T('전체 성별','All gender')],['MALE',T('남 (MALE)','MALE')],['FEMALE',T('여 (FEMALE)','FEMALE')],['FAMILY',T('공용 (FAMILY)','FAMILY')]].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
-      <select id="rsGroup" class="rs-ctrl" title="${T('구분(그룹)','Group')}"${grpOpts.length?'':' disabled'}><option value="">${T('전체 그룹 (SELECT ALL)','All groups (SELECT ALL)')}</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
+      <select id="rsGroup" class="rs-ctrl" title="${T('구분(그룹)','Group')}"${grpOpts.length?'':' disabled'}><option value="">${T('::그룹을 선택하세요::','::Select group::')}</option><option value="ALL" ${roomFilter.group==='ALL'?'selected':''}>${T('전체 그룹 (SELECT ALL)','All groups (SELECT ALL)')}</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
       <select id="rsPer" class="rs-ctrl" title="${T('방구분(인실)','Room type')}">${[['',T('::방구분을 선택하세요::','::Select room type::')],['ALL',T('방구분 전체','All types')],['1',T('1인실','1-person')],['2',T('2인실','2-person')],['3',T('3인실','3-person')],['4',T('4인실','4-person')],['5',T('5인실','5-person')],['TEMP',T('임시방(TEMPORARY)','Temporary')]].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="${T('인실 정렬','Sort by room type')}"><option value="">${T('인실 정렬','Room-type sort')}</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>${T('인실 ↑ 적은순','Type ↑ fewest')}</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>${T('인실 ↓ 많은순','Type ↓ most')}</option></select>
       <select id="rsNameW" class="rs-ctrl" title="${T('이름 컬럼 폭','Name column width')}">${[['160',T('이름 좁게','Name: narrow')],['230',T('이름 보통','Name: normal')],['320',T('이름 넓게','Name: wide')],['460',T('이름 아주넓게','Name: x-wide')]].map(([v,l])=>`<option value="${v}" ${nameW==+v?'selected':''}>${l}</option>`).join('')}</select>
@@ -1380,7 +1379,7 @@ R.roomstat=()=>{
     <span><i style="background:var(--surface);border:1px solid var(--border)"></i> ${T('빈방 (VACANT)','VACANT')}</span>
   </div>
   <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}" data-cellw="${CELLW}"><table class="gantt" style="width:${INFOW+TOTAL*CELLW}px">${colg}${head}${body}</table><div class="rs-botpad" aria-hidden="true"></div></div>`
-  :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>${T('센터 · 성별 · 방구분을 선택하세요','Select Center · Gender · Room type')}</b><div class="rs-ph-sub">${T('상단에서 <b>센터</b>(ENCANTO·CAPITAL) · <b>성별</b> · <b>방구분</b> <b>3가지를 모두 선택</b>하면 배치도가 표시됩니다.<br>초기엔 전체를 불러오지 않아 빠릅니다 · 전체 성별·방구분 전체도 선택으로 인정 · 연월/검색 병행 가능.','Select all <b>3</b> — <b>Center</b>(ENCANTO·CAPITAL) · <b>Gender</b> · <b>Room type</b> — to show the batch calendar.<br>Nothing is loaded initially for speed · All gender / All types also count · year-month & search supported.')}</div></div>`}
+  :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>${T('센터 · 성별 · 그룹을 선택하세요','Select Center · Gender · Group')}</b><div class="rs-ph-sub">${T('상단에서 <b>센터</b>(ENCANTO·CAPITAL) · <b>성별</b> · <b>그룹</b> <b>3가지를 모두 선택</b>하면 배치도가 표시됩니다.<br>그룹은 <b>Select group</b>에서 특정 그룹 또는 <b>전체 그룹(SELECT ALL)</b> 선택 · 방구분(인실)은 선택적 추가필터 · 초기엔 전체를 불러오지 않아 빠릅니다 · 연월/검색 병행.','Select all <b>3</b> — <b>Center</b>(ENCANTO·CAPITAL) · <b>Gender</b> · <b>Group</b> — to show the batch calendar.<br>Group: pick a specific one or <b>All groups (SELECT ALL)</b> · Room type is an optional filter · nothing loaded initially for speed · year-month & search supported.')}</div></div>`}
   <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}${T('레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬 · 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b>.','Legacy <span class="mono">room_stat3.php</span> room×date calendar — shows <b>±6 months</b> around selected month, click a month to <b>center</b> it · horizontal scroll · <b>frozen header</b> · <b>cell click → check-in/out·assign·move</b>.')} ${REAL&&REAL.roomstat?T(`<b>실 MySQL 예약데이터</b> (${REAL.roomstat.from}~${REAL.roomstat.to})`,`<b>Real MySQL reservations</b> (${REAL.roomstat.from}~${REAL.roomstat.to})`):T('가상 샘플','sample data')}.</div>`;};
 
 R.changelog=()=>{let rows='';const mg=['kenneth','katie','anna','joon','doris'];
@@ -3413,25 +3412,84 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
      - 기존 스크립트와 충돌 방지: IIFE, 모든 id/class 접두사 'adminAuth'.
      ═══════════════════════════════════════════════════════════════════════ -->
 <style>
+  /* ── 레거시 SMEAG Agency Page 로그인 CSS 근접 재현(외부 이미지 없음·통일 스킨) ── */
   #adminAuthOverlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;
-    justify-content:center;background:#0f172a;background:linear-gradient(135deg,#0f172a,#1e293b);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;}
+    justify-content:center;overflow:auto;padding:20px;box-sizing:border-box;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;
+    background:linear-gradient(180deg,#57a9e6 0%,#8ec8ee 34%,#cfe8f7 62%,#eef7fc 82%,#ffffff 100%);}
+  /* 구름(라디얼 근사) */
+  #adminAuthOverlay::before{content:"";position:fixed;inset:0;pointer-events:none;
+    background:
+      radial-gradient(60px 26px at 18% 16%,rgba(255,255,255,.95),transparent 70%),
+      radial-gradient(90px 34px at 26% 20%,rgba(255,255,255,.85),transparent 72%),
+      radial-gradient(70px 28px at 72% 12%,rgba(255,255,255,.9),transparent 70%),
+      radial-gradient(120px 40px at 84% 22%,rgba(255,255,255,.8),transparent 74%);}
   #adminAuthOverlay.adminAuth-hidden{display:none;}
-  .adminAuth-card{width:340px;max-width:90vw;background:#fff;border-radius:14px;padding:28px 26px;
-    box-shadow:0 20px 60px rgba(0,0,0,.45);box-sizing:border-box;}
-  .adminAuth-title{margin:0 0 4px;font-size:20px;font-weight:700;color:#0f172a;text-align:center;}
-  .adminAuth-sub{margin:0 0 20px;font-size:12px;color:#64748b;text-align:center;}
+  .aa-page{position:relative;width:min(920px,96vw);}
+  /* 상단 브랜드 헤더 */
+  .aa-top{display:flex;align-items:center;gap:16px;margin-bottom:26px;padding:0 6px;}
+  .aa-globe{width:96px;height:96px;border-radius:50%;flex:none;position:relative;
+    background:radial-gradient(circle at 36% 30%,#7fc3ef,#2f7fbf 60%,#155a95);
+    box-shadow:inset -6px -8px 16px rgba(0,0,0,.25),0 6px 14px rgba(0,0,0,.18);}
+  .aa-globe::after{content:"e";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font:italic 800 60px Georgia,serif;color:#eaf5ff;text-shadow:0 2px 4px rgba(0,0,0,.35);}
+  .aa-brand{display:flex;align-items:baseline;flex-wrap:wrap;gap:0 4px;line-height:1;}
+  .aa-sme{font-size:40px;font-weight:900;color:#1f5fa8;letter-spacing:-1px;}
+  .aa-ag{font-size:40px;font-weight:900;color:#ea6a1e;letter-spacing:-1px;}
+  .aa-ge{flex-basis:100%;font-size:11px;font-weight:700;color:#5b6b74;letter-spacing:3px;margin-top:2px;}
+  .aa-agency{font:italic 800 40px "Segoe UI",sans-serif;color:#6b7780;margin-left:6px;text-shadow:0 1px 0 #fff;}
+  .aa-thumbs{display:flex;gap:8px;margin-left:auto;}
+  .aa-thumbs span{width:46px;height:46px;border-radius:50%;border:2px solid #d7e2ea;
+    background:linear-gradient(160deg,#b9c6cf,#7f939f);box-shadow:0 3px 8px rgba(0,0,0,.2);}
+  /* 로그인 카드(2단) */
+  .adminAuth-card.aa-card{width:100%;background:#fff;border:1px solid #dfe6ea;border-radius:6px;
+    padding:22px 26px;box-shadow:0 14px 40px rgba(30,70,110,.28);box-sizing:border-box;}
+  .aa-cols{display:flex;gap:0;align-items:stretch;}
+  .aa-left{flex:0 0 40%;border-right:1px dashed #d3dde3;padding:22px 26px 22px 8px;
+    display:flex;flex-direction:column;justify-content:center;}
+  .aa-member{margin-top:18px;font-size:20px;font-weight:800;color:#4a5a63;letter-spacing:1px;}
+  .aa-agency2{font-size:20px;font-weight:800;color:#2f8fd6;letter-spacing:1px;}
+  .aa-right{flex:1;padding:14px 8px 14px 30px;min-width:0;}
+  .aa-welcome{margin:0 0 14px;font-size:13px;font-weight:700;color:#5b6b74;line-height:1.55;}
+  .aa-welcome b{color:#ea6a1e;}
+  .aa-form{background:linear-gradient(180deg,#f3efe3,#efe9d8);border:1px solid #e2dcc9;border-radius:4px;
+    padding:22px 18px;box-shadow:inset 0 1px 0 #fff,0 2px 6px rgba(0,0,0,.06);}
+  .aa-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+  .aa-row label{width:34px;font-size:13px;font-weight:800;color:#4a5a63;letter-spacing:1px;}
+  .aa-row input{flex:1;box-sizing:border-box;padding:9px 11px;border:1px solid #c7ccd1;border-radius:2px;
+    font-size:14px;background:#fff;outline:none;}
+  .aa-row input:focus{border-color:#2f8fd6;box-shadow:0 0 0 2px rgba(47,143,214,.18);}
+  .aa-login{display:block;width:150px;margin:6px auto 0;padding:12px;border:0;border-radius:5px;cursor:pointer;
+    background:linear-gradient(180deg,#f7a940,#e8801a);
+    color:#fff;font-size:15px;font-weight:800;letter-spacing:1px;text-shadow:0 1px 1px rgba(0,0,0,.25);
+    box-shadow:0 3px 0 #c9690f,0 5px 10px rgba(0,0,0,.2);}
+  .aa-login:hover{filter:brightness(1.05);}
+  .aa-login:active{transform:translateY(2px);box-shadow:0 1px 0 #c9690f;}
+  /* 로그인 후 상태(Welcome + MY PAGE/ADMIN) */
+  .aa-post{display:none;text-align:center;}
+  .aa-post.on{display:block;}
+  .aa-post .aa-hi{padding:26px 10px;font-size:15px;font-weight:800;color:#1f2937;}
+  .aa-post .aa-hi b{color:#2f8fd6;}
+  .aa-post .aa-mypage{display:inline-block;margin-top:10px;padding:12px 30px;border-radius:5px;border:0;cursor:pointer;
+    background:linear-gradient(180deg,#3f6fa5,#2b527d);color:#fff;font-size:18px;font-weight:800;letter-spacing:1px;
+    box-shadow:0 3px 8px rgba(0,0,0,.25);}
   .adminAuth-field{margin-bottom:12px;}
   .adminAuth-field label{display:block;font-size:12px;color:#475569;margin-bottom:4px;}
   .adminAuth-field input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;
-    border-radius:8px;font-size:14px;outline:none;transition:border .15s;}
-  .adminAuth-field input:focus{border-color:#2563eb;}
-  .adminAuth-btn{width:100%;padding:11px;border:0;border-radius:8px;background:#2563eb;color:#fff;
-    font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;}
-  .adminAuth-btn:hover{background:#1d4ed8;}
+    border-radius:4px;font-size:14px;outline:none;}
+  .adminAuth-btn{width:100%;padding:11px;border:0;border-radius:5px;background:#e8801a;color:#fff;
+    font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;}
+  .adminAuth-btn:hover{filter:brightness(1.05);}
   .adminAuth-msg{min-height:16px;margin-top:10px;font-size:12px;text-align:center;color:#dc2626;}
   .adminAuth-msg.adminAuth-ok{color:#16a34a;}
-  .adminAuth-hint{margin-top:14px;font-size:11px;color:#94a3b8;text-align:center;line-height:1.5;}
+  .adminAuth-hint{margin-top:12px;font-size:11px;color:#94a3b8;text-align:center;line-height:1.5;}
+  /* 하단 링크 */
+  .aa-footer{display:flex;justify-content:space-around;gap:12px;margin-top:16px;padding:0 10px;flex-wrap:wrap;}
+  .aa-footer span{font-size:13px;font-weight:800;color:#33424c;text-shadow:0 1px 0 rgba(255,255,255,.7);cursor:default;}
+  /* ops 콘솔 아이콘 박스: 카드 하단 전체폭 */
+  .aa-card .adminAuth-ops{width:100%;box-sizing:border-box;}
+  @media(max-width:640px){.aa-cols{flex-direction:column;}.aa-left{border-right:0;border-bottom:1px dashed #d3dde3;}
+    .aa-right{padding-left:8px;}.aa-top{flex-wrap:wrap;}.aa-agency{font-size:30px;}}
   #adminAuthBar{position:fixed;bottom:14px;right:14px;z-index:2147482000;display:none;align-items:center;gap:10px;
     padding:7px 13px;background:rgba(15,23,42,.92);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:.92;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;}
@@ -3445,38 +3503,65 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
 </style>
 
 <div id="adminAuthOverlay">
-  <div class="adminAuth-card">
-    <h1 class="adminAuth-title">관리자 로그인</h1>
-    <p class="adminAuth-sub" id="adminAuthCardSub">SMEAG 기숙사 예약 관리</p>
+  <div class="aa-page">
+    <!-- 상단 브랜드 헤더 -->
+    <div class="aa-top">
+      <div class="aa-globe"></div>
+      <div class="aa-brand"><span class="aa-sme">SME</span><span class="aa-ag">AG</span><span class="aa-ge">GLOBAL EDUCATION</span></div>
+      <div class="aa-agency">Agency Page</div>
+      <div class="aa-thumbs"><span></span><span></span><span></span></div>
+    </div>
 
-    <!-- 로그인 폼 -->
-    <form id="adminAuthLoginForm" autocomplete="off">
-      <div class="adminAuth-field">
-        <label for="adminAuthUser">아이디</label>
-        <input id="adminAuthUser" type="text" autocomplete="username" />
-      </div>
-      <div class="adminAuth-field">
-        <label for="adminAuthPass">비밀번호</label>
-        <input id="adminAuthPass" type="password" autocomplete="current-password" />
-      </div>
-      <button class="adminAuth-btn" type="submit">로그인</button>
-      <div class="adminAuth-msg" id="adminAuthLoginMsg"></div>
-      <div class="adminAuth-hint">계정: admin1 · admin2 · master · manager<br>초기 비밀번호는 아이디와 동일합니다.</div>
-    </form>
+    <div class="adminAuth-card aa-card">
+      <div class="aa-cols">
+        <!-- 좌: 브랜드 -->
+        <div class="aa-left">
+          <div class="aa-brand"><span class="aa-sme">SME</span><span class="aa-ag">AG</span><span class="aa-ge">GLOBAL EDUCATION</span></div>
+          <div class="aa-member">MEMBER LOGIN</div>
+          <div class="aa-agency2">SMEAG AGENCY</div>
+        </div>
+        <!-- 우: 로그인 -->
+        <div class="aa-right">
+          <p class="aa-welcome">WELCOME TO <b>SMEAG AGENCY PAGE</b>.<br>PLEASE WRITE YOUR ID AND PASSWORD</p>
 
-    <!-- 비밀번호 변경 폼(최초 로그인/must_change 시) -->
-    <form id="adminAuthChangeForm" autocomplete="off" style="display:none;">
-      <div class="adminAuth-field">
-        <label for="adminAuthNew">새 비밀번호 (아이디와 다르게)</label>
-        <input id="adminAuthNew" type="password" autocomplete="new-password" />
+          <!-- 로그인 폼 -->
+          <form id="adminAuthLoginForm" autocomplete="off" class="aa-form">
+            <div class="aa-row"><label for="adminAuthUser">ID</label><input id="adminAuthUser" type="text" autocomplete="username" /></div>
+            <div class="aa-row"><label for="adminAuthPass">PW</label><input id="adminAuthPass" type="password" autocomplete="current-password" /></div>
+            <button class="aa-login" type="submit">LOG-IN</button>
+            <div class="adminAuth-msg" id="adminAuthLoginMsg"></div>
+            <div class="adminAuth-hint">admin1 · admin2 · master · manager · kenneth<br>초기 비밀번호는 아이디와 동일합니다.</div>
+          </form>
+
+          <!-- 로그인 후 상태(Welcome + MY PAGE) -->
+          <div class="aa-post" id="adminAuthPost">
+            <div class="aa-hi">Welcome! <b id="adminAuthPostWho"></b></div>
+            <button class="aa-mypage" id="adminAuthMyPage" type="button">MY PAGE</button>
+          </div>
+
+          <!-- 비밀번호 변경 폼(최초 로그인/must_change 시) -->
+          <form id="adminAuthChangeForm" autocomplete="off" style="display:none;">
+            <div class="adminAuth-field">
+              <label for="adminAuthNew">새 비밀번호 (아이디와 다르게)</label>
+              <input id="adminAuthNew" type="password" autocomplete="new-password" />
+            </div>
+            <div class="adminAuth-field">
+              <label for="adminAuthNew2">새 비밀번호 확인</label>
+              <input id="adminAuthNew2" type="password" autocomplete="new-password" />
+            </div>
+            <button class="adminAuth-btn" type="submit">비밀번호 변경 후 진입</button>
+            <div class="adminAuth-msg" id="adminAuthChangeMsg"></div>
+          </form>
+        </div>
       </div>
-      <div class="adminAuth-field">
-        <label for="adminAuthNew2">새 비밀번호 확인</label>
-        <input id="adminAuthNew2" type="password" autocomplete="new-password" />
-      </div>
-      <button class="adminAuth-btn" type="submit">비밀번호 변경 후 진입</button>
-      <div class="adminAuth-msg" id="adminAuthChangeMsg"></div>
-    </form>
+    </div>
+
+    <!-- 하단 링크(레거시) -->
+    <div class="aa-footer">
+      <span>Agency Application Page Info(eng)!</span>
+      <span>PDF PRINTER(Free Ware)!</span>
+      <span>Agency Application Page Info(kor)!</span>
+    </div>
   </div>
 </div>
 

@@ -293,3 +293,5 @@
 
 - **2026-07-25** 로그인 화면 **운영 콘솔(데이터 이관/일일 동기화)** 추가 `prototype.html`(자기완결·인라인·접두사 ops*):
   ① 로그인 카드 + 하단 관리자 바에 아이콘 2개 주입(🗄️ 데이터 이관 · 🔄 일일 동기화). ② 이관 콘솔: migrate_all.py 산출 `migration_report_*.json` 불러오기→테이블별 원본=적재=Supabase 검증표·요약·후처리·판정 렌더 + **엑셀 export**(HTML→.xls UTF-8 BOM). ③ 동기화 콘솔: 날짜선택+실행+`changes_*.json` 불러오기→테이블별 변경분 표 + 엑셀. ④ 실행(위험작업)은 러너 엔드포인트(window.OPS_MIGRATE_URL/OPS_SYNC_URL) 설정 시 호출, 없으면 실행명령 표시·복사. ⑤ **실행 인증 게이트: `kenneth / 2300555` 통과해야만 이관/동기화 실행**(오답 차단·로그 기록). Playwright 검증: 아이콘 카드2·바2, 모달·탭, 인증(오답 차단/정답 진행), 리포트 렌더(2행·PASS)·엑셀 활성, 동기화 렌더·엑셀, 콘솔에러 0. ⚠ 배포는 real 데이터 주입 소스 확인 후 진행(미배포).
+
+- **2026-07-26** 배치도(Dormitory Status) 그룹 필터 개선: ① 그룹 드롭다운에 **`::Select group::` placeholder**(미선택 기본) 추가 — "All groups (SELECT ALL)"(value=ALL) 위. ② **조회 게이트를 center+gender+group** 으로 변경(방구분/인실은 선택적 추가필터로 강등) → 그룹까지 선택해야 배치도 렌더. 필터 로직 group!=='ALL' 가드, placeholder 안내문 갱신. Playwright 검증: placeholder·ALL 옵션·게이트(센터+성별만=미표시, 그룹선택=조회)·콘솔에러0.
