@@ -34,3 +34,6 @@ docs/AGENCY_PORTAL_*.html
 
 # 이관 리포트(운영 산출물)
 migration/reports/
+
+# 연결테스트(실 anon 키 포함) — 커밋 금지
+legacy-bridge/conn_test.php

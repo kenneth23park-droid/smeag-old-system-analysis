@@ -1,4 +1,7 @@
 <?php
+require __DIR__ . '/auth.php';
+require_login();                 // 로그인 필수 — 미로그인 시 login.php 로
+$ME = current_user();
 require __DIR__ . '/db.php';
 
 // 어떤 예약 테이블이 있는지 감지 (room_reserve / room_reserve_2026)
@@ -78,7 +81,14 @@ $TYPE_KO = array('I'=>'재실','E'=>'퇴실','S'=>'입실','R'=>'대기');
  .pg .cur{background:#1F4E78;color:#fff} .warn{background:#fff3cd;border:1px solid #ffe08a;padding:14px;border-radius:8px}
  .t-I{color:#2a7} .t-E{color:#c33} .t-S{color:#27c} .t-R{color:#e80}
 </style></head><body>
-<header><h1>🏠 SMEAG 레거시 예약 시스템 (조회 전용)</h1></header>
+<header style="display:flex;align-items:center;justify-content:space-between">
+  <h1>🏠 SMEAG 레거시 예약 시스템 (조회 전용)</h1>
+  <div style="font-size:13px;color:#cfe0f0">
+    <b style="color:#fff"><?php echo h($ME['mb_name']); ?></b>
+    (<?php echo h($ME['mb_id']); ?> · Lv<?php echo (int)$ME['mb_level']; ?>)
+    <a href="logout.php" style="color:#fff;margin-left:10px;text-decoration:underline">로그아웃</a>
+  </div>
+</header>
 <div class="wrap">
 <?php if (!count($tables)): ?>
   <div class="warn"><b>예약 테이블이 없습니다.</b> 덤프 import를 먼저 실행하세요. (QUICKSTART.md 3단계)</div>

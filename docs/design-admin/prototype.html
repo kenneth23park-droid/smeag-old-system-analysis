@@ -397,6 +397,23 @@
   .twrap.dorm-scroll.blkmode *{cursor:crosshair !important;user-select:none}
   .gantt tbody.room-block.rs-blocked td{background:color-mix(in srgb,var(--female) 12%,var(--surface))}
   .gantt tbody.room-block.rs-blocked td.dcell{background:color-mix(in srgb,var(--female) 16%,var(--surface))}
+  /* ── 구간막대 렌더(하루=셀 대체). 날짜 격자는 배경, X 는 막대 무늬 ── */
+  .gantt td.dlane{padding:0;position:relative;height:21px;border-right:0;cursor:pointer;
+    background:repeating-linear-gradient(90deg,var(--surface) 0 18px,var(--gline) 18px 19px)}
+  .gantt td.dlane .dlanein{position:absolute;left:0;top:0;bottom:0;display:block}
+  .gantt .dbar{position:absolute;top:0;bottom:0;background-color:var(--surface);
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='19' height='21'><text x='9.5' y='15' font-family='Helvetica,Arial' font-size='11' font-weight='700' fill='%23888' text-anchor='middle'>X</text><path d='M18.5 0 L18.5 21' stroke='%23d9dee5' stroke-width='1'/></svg>");
+    background-repeat:repeat-x}
+  .gantt .dcap{position:absolute;top:0;bottom:0;text-align:center;font-size:10.5px;font-weight:800;
+    line-height:21px;color:#fff}
+  .gantt .dcap.bin{background:var(--female)}    /* 입실(S) */
+  .gantt .dcap.bout{background:var(--return)}   /* 퇴실(E) */
+  .gantt .dcap.brsv{background:var(--good)}     /* 예약(R) */
+  .gantt .dcap.bhold{background:color-mix(in srgb,var(--return) 60%,var(--surface))}
+  /* 같은 날 퇴실+입실 → 좌상단 퇴실 / 우하단 입실 대각선 분할 */
+  .gantt .dcap.boutin{background:linear-gradient(to bottom right,var(--return) 0 49%,
+    color-mix(in srgb,var(--surface) 85%,transparent) 49% 51%,var(--female) 51% 100%)}
+  .gantt tbody.room-block.rs-blocked td.dlane{background:color-mix(in srgb,var(--female) 16%,var(--surface))}
   .gantt tbody.room-block.rs-blocked td.c1{box-shadow:inset 3px 0 0 var(--female)}
   .gantt .rs-lock{margin-right:2px;font-size:9px;vertical-align:middle}
   .twrap.dorm-scroll.panning{cursor:grabbing;scroll-behavior:auto;user-select:none}
@@ -1220,13 +1237,18 @@ R.roomstat=()=>{
   // 실데이터 예약 세그먼트 → 날짜별 상태(입실/재실/퇴실/빈방)
   // 레거시 room_stat3 색: rr_type S(입실)=red, E(퇴실)=purple, R(예약)=green, I(재실)=흰X
   const RRK={S:'in',E:'out',R:'rsv'};
-  const realPat=(segs)=>dateLabels.map(d=>{for(const sg of (segs||[])){
-    if(d<sg.s||d>sg.e)continue;
-    if(sg.s===sg.e)return RRK[sg.st]||'x';
-    if(d===sg.s)return RRK[sg.st]||'x';
-    if(d===sg.e)return RRK[sg.et]||'x';
-    return 'x';
-  }return 'e';});
+  const realPat=(segs)=>dateLabels.map(d=>{
+    let endHit=null,startHit=null,stay=false;
+    for(const sg of (segs||[])){
+      if(d<sg.s||d>sg.e)continue;
+      if(sg.s===sg.e){startHit=RRK[sg.st]||'x';continue;}
+      if(d===sg.s)startHit=RRK[sg.st]||'x';
+      else if(d===sg.e)endHit=RRK[sg.et]||'x';
+      else stay=true;
+    }
+    if(endHit&&startHit)return 'outin';           // 같은 날 퇴실+입실 → 대각선 반반
+    return endHit||startHit||(stay?'x':'e');
+  });
   // 이름칸(레거시 room_stat3 규칙): 선택월(중앙월)의 "현재 점유자"부터 앞으로 전개.
   //   - 첫 점유자(현재 방 사용자)는 staff/홀딩이어도 표시(준블락_single use 등).
   //   - 이후 세그먼트는 예약(R)·홀딩(h)에서 중단(실학생 뒤 임시홀딩 Tammy 등 제외).
@@ -1315,7 +1337,22 @@ R.roomstat=()=>{
   if(roomFilter.sortPer){const pn=p=>parseInt(p)||0;groups=groups.map(g=>({name:g.name,rooms:[...g.rooms].sort((a,b)=>roomFilter.sortPer==='asc'?pn(a.per)-pn(b.per):pn(b.per)-pn(a.per))}));}
   else{groups=groups.map(g=>({name:g.name,rooms:[...g.rooms].sort((a,b)=>(''+(a.no||'')).localeCompare(''+(b.no||''),undefined,{numeric:true,sensitivity:'base'}))}));} // 방번호 자연정렬(숫자·대소문자 무시)
   const CLS={x:'cx',in:'cin',out:'cout',rsv:'crsv',hold:'chold',e:'cempty'};
-  const dcells=(p)=>p.map((st,i)=>`<td class="dcell ${CLS[st]}" data-date="${dateLabels[i]}">${st==='e'?'':'X'}</td>`).join('');
+  // 구간막대 렌더: 연속 재실 구간 1개 = <span> 1개(X 무늬는 배경), 입/퇴실만 1일짜리 캡.
+  // 하루당 <td> 를 만들지 않아 대량 조회(전체 방)에서 렌더 비용이 10배 이상 줄어든다.
+  const BARCLS={in:'bin',out:'bout',rsv:'brsv',hold:'bhold',outin:'boutin'};
+  const dcells=(p)=>{
+    let out='',i=0;
+    while(i<p.length){
+      if(p[i]==='e'){i++;continue;}
+      let j=i; while(j+1<p.length && p[j+1]!=='e') j++;
+      out+=`<span class="dbar" style="left:${i*CELLW}px;width:${(j-i+1)*CELLW}px"></span>`;
+      for(let k=i;k<=j;k++){
+        if(p[k]!=='x') out+=`<span class="dcap ${BARCLS[p[k]]||''}" style="left:${k*CELLW}px;width:${CELLW}px" data-date="${dateLabels[k]}">X</span>`;
+      }
+      i=j+1;
+    }
+    return `<td class="dlane" colspan="${TOTAL}"><span class="dlanein" style="width:${TOTAL*CELLW}px">${out}</span></td>`;
+  };
   const colg=`<colgroup><col style="width:86px"><col style="width:58px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
   const monRow=months.map(mo=>`<th class="mon${mo.off===0?' mon-cur':''}" colspan="${mo.days}">${mo.y} 년 ${pad(mo.m)} 월</th>`).join('');
   const dayRow=months.map(mo=>Array.from({length:mo.days},(_,i)=>`<th class="dh">${i+1}</th>`).join('')).join('');
@@ -1331,8 +1368,12 @@ R.roomstat=()=>{
       const bxk='BX|'+bldg.toUpperCase()+'|'+(''+r.no).toUpperCase(); const rblk=_blkSet.has(bxk);
       body+=`<tbody class="room-block${rblk?' rs-blocked':''}" data-bx="${esc(bxk)}" style="contain-intrinsic-size:auto ${h}px">`;
       r.beds.forEach((bed,bi)=>{
-        body+=`<tr><td class="info rno c1${bi===0?' rs-room':''}" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="${bi===0?'클릭 → ROOM REPLACEMENT':''}">${bi===0?`${rblk?'<span class="rs-lock">🔒</span>':''}<span class="bldg">${esc(bldg)}</span>${r.no}`:''}</td>`
-            +`<td class="info c2 rs-room" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
+        const rs=r.beds.length; // 같은 방(모든 침대)에서 방번호·인실 셀을 하나로 병합(rowspan)
+        const lead=bi===0
+          ? `<td class="info rno c1 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT">${rblk?'<span class="rs-lock">🔒</span>':''}<span class="bldg">${esc(bldg)}</span>${r.no}</td>`
+            +`<td class="info c2 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
+          : '';
+        body+=`<tr>${lead}`
             +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?'<div class="rs-nmwrap">'+bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(korDisp(nm.trim()))}</span>`).join('<span class="rs-sep"> - </span>')+'</div>':''}</td>`
             +dcells(bed.pat)+`</tr>`;
       });
@@ -2747,6 +2788,21 @@ function _rsOccNameAt(list,refIdx){
     if(out.length>=6)break;
   }
   return out;}
+// 구간막대용 헬퍼 — 레인의 마우스 X → 날짜 열 번호, 그 열의 실제 점유자 이름
+function rsLaneIdx(lane,clientX){
+  const inner=lane.querySelector('.dlanein')||lane;
+  const cw=+((lane.closest('.twrap')||{}).dataset||{}).cellw||19;
+  let i=Math.floor((clientX-inner.getBoundingClientRect().left)/cw);
+  const max=(typeof roomstatCtx!=='undefined'&&roomstatCtx&&roomstatCtx.dateLabels?roomstatCtx.dateLabels.length:0)-1;
+  if(i<0)i=0; if(max>=0&&i>max)i=max;
+  return i;}
+function rsDateAt(i){const d=(typeof roomstatCtx!=='undefined'&&roomstatCtx)?roomstatCtx.dateLabels:null;return (d&&d[i])||'';}
+function rsOccAt(tr,i){                       // 그 날짜를 실제로 점유한 학생 1명(없으면 '')
+  const c=tr&&tr.querySelector('td.name[data-occ]');if(!c)return '';
+  const list=(window._rsOcc||[])[+c.dataset.occ];if(!list)return '';
+  for(const it of list){if(i>=it[1]&&i<=it[2])return it[0];}
+  return '';}
+
 // 현재 스크롤 위치(좌측 가시일)를 기준으로 각 이름칸 재계산 — 값이 바뀐 칸만 갱신
 function rsUpdateNames(tw){
   const store=window._rsOcc;if(!store||!tw)return;
@@ -3034,10 +3090,15 @@ function cellCtx(cell,room,name,date,op){
   return {room,date,bed,cap,occupied,isDup:op==='insert'&&cur,exists:cur,hasRoom:!!room,hasStudent,selfOverlap:false,id:Math.floor(Math.random()*1e6)};
 }
 function closeCellPop(){const p=document.getElementById('cellpop');if(p)p.remove();}
+// 쓰기 성공 후 화면 반영 — 구간막대는 셀 단위 수정이 불가하므로 배치도를 다시 그린다
+function rsAfterWrite(cell,cls){
+  if(cell&&cell.classList&&cell.classList.contains('dcell')){   // 구버전 셀 렌더 호환
+    cell.className='dcell '+cls;cell.textContent=(cls==='cempty')?'':'X';return;}
+  if(typeof renderMain==='function')renderMain();}
 function openCellPop(cell,ev){
   closeCellPop();
   const tr=cell.closest('tr');
-  const name=(tr.querySelector('.name')||{}).textContent||'(빈 침대)';
+  const name=(cell.dataset.occname!=null?cell.dataset.occname:((tr.querySelector('.name')||{}).textContent||''))||'(빈 침대)';
   let room=(tr.querySelector('.rno')||{}).textContent||'';
   if(!room){const blk=cell.closest('tbody.room-block');if(blk)room=(blk.querySelector('.rno')||{}).textContent||'';}
   const date=cell.dataset.date||'';
@@ -3055,7 +3116,7 @@ function openCellPop(cell,ev){
       const op=OPMAP[word]||'update';
       const ctx=cellCtx(cell,room,name,date,op);
       const verb=({'입실':'입실','퇴실':'퇴실','방배정':'배정','홀딩':'홀딩','빈방':'취소'})[word]||'변경';
-      runWrite(op,word,ctx,()=>{cell.className='dcell '+cls;cell.textContent=(cls==='cempty')?'':'X';},{alwaysConfirm:true,verb});};
+      runWrite(op,word,ctx,()=>{rsAfterWrite(cell,cls);},{alwaysConfirm:true,verb});};
     pop.appendChild(b);
   });
   document.body.appendChild(pop);
@@ -3144,7 +3205,7 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
     const op=OPMAP[w]||'update';
     const verb=({'입실':'입실','퇴실':'퇴실','예약':'예약','방배정':'배정','홀딩':'홀딩','빈방':'취소'})[w]||'변경';
     const ctx=cellCtx(srcCell,room,name,date,op);
-    runWrite(op,w,ctx,()=>{if(srcCell){srcCell.className='dcell '+cls;srcCell.textContent=(cls==='cempty')?'':'X';}ov.remove();},{alwaysConfirm:true,verb});});
+    runWrite(op,w,ctx,()=>{rsAfterWrite(srcCell,cls);ov.remove();},{alwaysConfirm:true,verb});});
   ov.querySelectorAll('.rp-move').forEach(b=>b.onclick=async()=>{
     // 대상 방 정원/사용 추정(후보행 CAPA 파싱), 이동은 신규 방 기준 프리플라이트
     const capTxt=b.closest('tr').querySelector('td:nth-child(3)')?.textContent||'';
@@ -3153,7 +3214,7 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
       hasRoom:true,hasStudent:!!(name&&name.trim()),selfOverlap:false,
       id:Math.floor(Math.random()*1e6),rpc:{p_new_room_id:0}};
     await runWrite('move','방변경',ctx,()=>{
-      if(srcCell){srcCell.className='dcell chold';srcCell.textContent='X';}
+      rsAfterWrite(srcCell,'chold');
       ov.remove();},{alwaysConfirm:true,verb:'변경'});});
 }
 
@@ -3332,8 +3393,12 @@ document.addEventListener('click',(e)=>{
     room=(''+room).replace(/\s+/g,' ').trim();
     const st=findStudent(name);const date=st?((st[7]||st[8])||''):'';
     openRoomReplace(null,room,name,date,isName);return;}   // 이름 클릭=infoOnly
-  const cell=e.target.closest('.gantt td.dcell');
-  if(cell){e.stopPropagation();openCellPop(cell,e);return;}
+  const lane=e.target.closest('.gantt td.dlane');
+  if(lane){e.stopPropagation();
+    const i=rsLaneIdx(lane,e.clientX);
+    lane.dataset.date=rsDateAt(i);
+    lane.dataset.occname=rsOccAt(lane.closest('tr'),i);   // 빈 날이면 '' → 셀 액션 팝업
+    openCellPop(lane,e);return;}
   if(!e.target.closest('#cellpop'))closeCellPop();
 });
 document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();closeDropdowns();}});
@@ -3345,14 +3410,19 @@ document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();cl
   [v,h,tip,hint].forEach(x=>{x.style.display='none';document.body.appendChild(x);});
   function move(e){
     const u=document.elementFromPoint(e.clientX,e.clientY);
-    const dc=u&&u.closest&&u.closest('.gantt td.dcell');
+    const dc=u&&u.closest&&u.closest('.gantt td.dlane');
     if(!dc){v.style.display=h.style.display=tip.style.display='none';return;}
     const r=dc.getBoundingClientRect();
-    v.style.left=(r.left+r.width/2)+'px';v.style.display='block';
+    const inner=dc.querySelector('.dlanein')||dc;
+    const cw=+((dc.closest('.twrap')||{}).dataset||{}).cellw||19;
+    const i=rsLaneIdx(dc,e.clientX);
+    const cx=inner.getBoundingClientRect().left+i*cw+cw/2;   // 그 날짜 열의 중앙
+    v.style.left=cx+'px';v.style.display='block';
     h.style.top=(r.top+r.height/2)+'px';h.style.display='block';
-    const tr=dc.closest('tr');const name=(tr.querySelector('.name')||{}).textContent||'';
+    const tr=dc.closest('tr');
+    const name=rsOccAt(tr,i);                                // 그 날짜의 점유자만
     let room=(tr.querySelector('.rno')||{}).textContent||'';if(!room){const bl=dc.closest('tbody.room-block');if(bl)room=(bl.querySelector('.rno')||{}).textContent||'';}
-    tip.innerHTML=`📅 ${dc.dataset.date||''}${room?' · 🏠 '+room:''}${name?' · 👤 '+name:''}`;
+    tip.innerHTML=`📅 ${rsDateAt(i)}${room?' · 🏠 '+room:''} · ${name?'👤 '+name:'<span style="opacity:.7">공실</span>'}`;
     tip.style.display='block';
     let lx=e.clientX+16;if(lx+tip.offsetWidth>innerWidth-8)lx=e.clientX-tip.offsetWidth-16;
     tip.style.left=lx+'px';tip.style.top=(e.clientY+18)+'px';}
