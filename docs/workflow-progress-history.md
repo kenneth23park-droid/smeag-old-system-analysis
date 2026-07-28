@@ -326,3 +326,16 @@
   ② **재실인데 공실 표시 수정**: 재실(X)은 패턴(dbar)로 그려지나 점유판정이 이름저장소만 봐서 이름 전개 멈춘 날이 공실로 오표시 → `rsBarOccAt()`(dbar 기준 재실 판정) 추가, 툴팁·셀팝업이 이름 없어도 '재실(이름 미상)'으로 처리.
   ③ **룰러 기본 ON**: `__xhRuler` 로드 시 set(true)(안내배너는 숨김).
   Playwright 검증: 룰러 기본ON·재실판정(막대내 true/밖 false)·콘솔에러0.
+
+- **2026-07-29** **Vercel 배포 완료 — 로그인 라이브** (smeag-bay.vercel.app):
+  ① 실 배포 구조 확인: 사이트는 Vercel 프로젝트 `smeag-bay`(정적 `deploy/index.html` + `deploy/api/*` 서버리스). 로그인은 Supabase Edge Function 대신 **동일 도메인 Vercel 함수**로 감(쿠키 정상 작동). service_role 키 미보유 → 함수가 **pg(pooler) 직접 접속**해 RPC 호출(키 불필요, PG_* env만).
+  ② `deploy/api/auth.js`(Node 서버리스, 의존성 pg): app.member_authenticate/member_set_password 호출, HS256 httpOnly·Secure 쿠키 세션, 로그인/관리자강제변경/로그아웃/`?me`. `deploy/vercel.json` 에 `/login→/api/auth` 리라이트. `deploy/package.json` pg 의존성.
+  ③ Vercel env(production) 설정: PG_HOST/PORT/DB/USER/PASS + AUTH_SESSION_SECRET(openssl rand -hex 32). `vercel deploy --prod` 배포(READY) 후 `smeag-bay.vercel.app` 별칭을 신배포로 재지정.
+  ④ **실 배포 검증(라이브 DB)**: 유학원 fss_gn/1234→303+httpOnly세션쿠키 / 관리자 cebusme00/1234→강제변경화면 / 오답→401. `smeag-bay.vercel.app/login` 200. (초기 404는 CDN 캐시, 재지정 후 정상)
+  ⚠ 홈(`index.html`)의 기존 프로토타입 로그인 게이트는 아직 `/api/auth` 미연결 — 작동 로그인은 `/login`(=`/api/auth`). 홈 게이트 연결은 후속.
+
+- **2026-07-29** 배치도 그룹을 **별도 첫 컬럼(Group)** 으로 분리 + 같은 그룹 시각적 셀 병합:
+  · 좌측 고정 컬럼 c0(Group) 신설(sticky left:0, c1/c2/c3 오프셋 96/182/240으로 이동), 헤더 'Group' 추가.
+  · 그룹의 **첫 방에만 그룹명 표시**, 이후 방은 빈칸 + 그룹칸 위 경계선 제거 → **한 칸으로 병합돼 보임**(rowspan은 tbody 못 넘으므로 방1개=tbody·드래그방막기 구조 유지하면서 시각적 병합).
+  · 그룹 첫 방은 상단 accent 경계선(그룹 구분). **방번호 컬럼에서 그룹 접두어(.bldg) 제거 → 번호만**. 기존 grp-head 밴드 제거(검색필터·셀/방 판정 영향 없음 확인).
+  Playwright 검증: Group 헤더·첫방 그룹명·후속방 빈칸(병합)·방번호 번호만·콘솔에러0.

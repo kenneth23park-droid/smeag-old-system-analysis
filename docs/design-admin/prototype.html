@@ -302,7 +302,7 @@
   table.gantt thead th.mon{font-size:12px;color:var(--text);font-weight:800;height:24px}
   /* 월 행(top:0) 아래에 일 행을 고정 → 세로 스크롤 시 월·일 2행 모두 프리즈 */
   .gantt thead th.dh{position:sticky;top:24px;z-index:2;color:var(--text);font-weight:800}
-  .gantt thead th.c1,.gantt thead th.c2,.gantt thead th.c3{top:0}
+  .gantt thead th.c0,.gantt thead th.c1,.gantt thead th.c2,.gantt thead th.c3{top:0}
   .gantt .dh{font-size:10px;padding:3px 0}
   .gantt td.dcell{height:21px;text-align:center;font-weight:800;font-size:10.5px;color:color-mix(in srgb,var(--dim) 45%,var(--text));padding:0;cursor:pointer}
   .gantt td.dcell:hover{outline:2px solid var(--accent);outline-offset:-2px}
@@ -373,12 +373,13 @@
   .gantt td.chold{background:color-mix(in srgb,var(--return) 60%,var(--surface));color:#fff}
   .gantt td.cempty{background:var(--surface)}
   /* 틀고정: 좌측 3열 (방번호/인실/이름) — 가로 스크롤 시 실시간 고정 */
-  .gantt .c1{position:sticky;left:0;z-index:1}
-  .gantt .c2{position:sticky;left:86px;z-index:1}
-  .gantt .c3{position:sticky;left:144px;z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
+  .gantt .c0{position:sticky;left:0;z-index:1;vertical-align:top;font-weight:800;color:var(--accent-ink);font-size:11px;letter-spacing:.3px;text-align:left}
+  .gantt .c1{position:sticky;left:96px;z-index:1}
+  .gantt .c2{position:sticky;left:182px;z-index:1}
+  .gantt .c3{position:sticky;left:240px;z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
   .gantt thead .c3{z-index:3}
-  .gantt thead .c1,.gantt thead .c2,.gantt thead .c3{z-index:3}
-  .gantt td.c1,.gantt td.c2,.gantt td.c3{background:var(--surface)}
+  .gantt thead .c0,.gantt thead .c1,.gantt thead .c2,.gantt thead .c3{z-index:3}
+  .gantt td.c0,.gantt td.c1,.gantt td.c2,.gantt td.c3{background:var(--surface)}
   /* 구분 그룹 구분행 (rowspan 제거 대체) */
   .gantt tbody.grp-head td{background:var(--surface-2);border-bottom:2px solid var(--border);padding:0}
   .gantt .grp-label{position:sticky;left:0;display:inline-block;padding:7px 12px;font-weight:800;letter-spacing:.4px;color:var(--text)}
@@ -386,6 +387,8 @@
   .gantt tbody.room-block{content-visibility:auto}
   .gantt tbody.room-block>tr>td{border-top:0}
   .gantt tbody.room-block>tr:first-child>td.info{border-top:2px solid var(--border)}
+  .gantt tbody.room-block>tr:first-child>td.c0{border-top:0}                                   /* 같은 그룹 내: 그룹칸 경계 제거(시각적 병합) */
+  .gantt tbody.room-block.grp-first>tr:first-child>td.info{border-top:2px solid var(--accent)} /* 그룹 첫 방: 그룹 구분선(강조) */
   .gantt tbody.room-block>tr:first-child>td.c1{box-shadow:inset 3px 0 0 var(--accent-weak)}
   /* 표 자체 스크롤 영역 → 세로로 내려가도 헤더/월버튼 고정, 월클릭 시 컬럼 가로스크롤 */
   .twrap.dorm-scroll{max-height:calc(100vh - 300px);overflow:auto}
@@ -505,8 +508,7 @@
   /* 첫 컬럼(AGENCY)만 좌측 정렬 — 레거시와 동일 */
   #stdBody table.grid td:first-child,#stdBody table.grid th:first-child{text-align:left}
   /* 이름 클릭 → 상세정보. 링크처럼 보이게(밑줄·포인터), 드래그 복사도 유지 */
-  #stdBody table.grid td.std-name{font-weight:600;color:var(--accent-ink);cursor:pointer;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:2px}
-  #stdBody table.grid td.std-name:hover{color:var(--accent);text-decoration-color:var(--accent)}
+  #stdBody table.grid td.std-name{font-weight:600;color:var(--text)}
   .std-name-ag{cursor:pointer}
   .std-name-ag:hover b{text-decoration:underline}
   #specBody table.grid td.sp-name{cursor:pointer;color:var(--accent-ink);font-weight:600;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:2px}
@@ -882,7 +884,7 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">${T('수정','Edit')}</button><button class="btn xs" data-sact="move">${T('변경','Move')}</button><button class="btn xs" data-sact="extend">${T('연장','Extend')}</button><button class="btn xs" data-sact="counsel">${T('상담','Consult')}</button><button class="btn xs" data-sact="brief">${T('약식','Brief')}</button></td>`;
   const docCells=i=>`<td><button class="btn xs" data-doc="log" data-i="${i}">${T('상담이력','Log')}</button></td><td><button class="btn xs" data-doc="medical" data-i="${i}">${T('진단서','Medical')}</button></td><td><button class="btn xs" data-doc="consent" data-i="${i}">${T('동의서','Consent')}</button></td><td><button class="btn xs" data-doc="report" data-i="${i}">${T('성적표','Report')}</button></td>`;
   const roomCell=(r,i)=>{const rm=stuRoom(r);return rm?`<td class="mono rmc">${esc(rm)}</td>`:`<td><button class="btn xs std-assign" data-sact="move" data-i="${i}" style="color:var(--male);border-color:var(--male)">${T('방배정','Assign')}</button></td>`;};
-  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="클릭 → 상세정보 · ${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="mono" title="${esc(r[17]||'')}">${r[17]?d8(r[17]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td><td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td><td>${esc(r[12])||'—'}</td>${roomCell(r,i)}${stdState.actions?actCell(i)+docCells(i):''}</tr>`).join('');
+  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="mono" title="${esc(r[17]||'')}">${r[17]?d8(r[17]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td><td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td><td>${esc(r[12])||'—'}</td>${roomCell(r,i)}${stdState.actions?actCell(i)+docCells(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -1353,24 +1355,25 @@ R.roomstat=()=>{
     }
     return `<td class="dlane" colspan="${TOTAL}"><span class="dlanein" style="width:${TOTAL*CELLW}px">${out}</span></td>`;
   };
-  const colg=`<colgroup><col style="width:86px"><col style="width:58px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
+  const colg=`<colgroup><col style="width:96px"><col style="width:86px"><col style="width:58px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
   const monRow=months.map(mo=>`<th class="mon${mo.off===0?' mon-cur':''}" colspan="${mo.days}">${mo.y} 년 ${pad(mo.m)} 월</th>`).join('');
   const dayRow=months.map(mo=>Array.from({length:mo.days},(_,i)=>`<th class="dh">${i+1}</th>`).join('')).join('');
-  const head=`<thead><tr><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
+  const head=`<thead><tr><th class="c0" rowspan="2">${T('그룹','Group')}</th><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
 
   let body='';
   const _blkSet=blockedRooms(); // 방막기(BX 키) 세트
   groups.forEach(g=>{
     const bldg=(g.name||'').split('/')[0].trim(); // 그룹명 '건물/성별' 중 건물 부분(예 CAPITAL3)
-    body+=`<tbody class="grp-head"><tr><td colspan="${3+TOTAL}"><span class="grp-label">${g.name}</span></td></tr></tbody>`;
-    g.rooms.forEach(r=>{
+    g.rooms.forEach((r,ri)=>{
       const h=r.beds.length*22;
       const bxk='BX|'+bldg.toUpperCase()+'|'+(''+r.no).toUpperCase(); const rblk=_blkSet.has(bxk);
-      body+=`<tbody class="room-block${rblk?' rs-blocked':''}" data-bx="${esc(bxk)}" style="contain-intrinsic-size:auto ${h}px">`;
+      const gfirst=ri===0; // 그룹의 첫 방 → 그룹칸에 그룹명 표시(그 외 방은 빈칸+경계없음=시각적 병합)
+      body+=`<tbody class="room-block${rblk?' rs-blocked':''}${gfirst?' grp-first':''}" data-bx="${esc(bxk)}" style="contain-intrinsic-size:auto ${h}px">`;
       r.beds.forEach((bed,bi)=>{
-        const rs=r.beds.length; // 같은 방(모든 침대)에서 방번호·인실 셀을 하나로 병합(rowspan)
+        const rs=r.beds.length; // 같은 방(모든 침대)에서 그룹·방번호·인실 셀을 하나로 병합(rowspan)
         const lead=bi===0
-          ? `<td class="info rno c1 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT">${rblk?'<span class="rs-lock">🔒</span>':''}<span class="bldg">${esc(bldg)}</span>${r.no}</td>`
+          ? `<td class="info grp c0" rowspan="${rs}" title="${esc(g.name)}">${gfirst?esc(bldg):''}</td>`
+            +`<td class="info rno c1 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT">${rblk?'<span class="rs-lock">🔒</span>':''}${r.no}</td>`
             +`<td class="info c2 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
           : '';
         body+=`<tr>${lead}`
@@ -2686,8 +2689,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     // ACTION 버튼(수정/변경/연장/상담/약식) — 이벤트 위임
     const body=m.querySelector('#stdBody');
     body.addEventListener('click',e=>{
-      const nmc=e.target.closest('.std-name');           // 이름 클릭 → 상세정보 화면
-      if(nmc){const row=(window._stdPage||[])[+nmc.dataset.i];if(row)openStudentEdit(row,'edit');return;}
+      // 이름 클릭 → 상세정보: 비활성화(요청) — 이름 클릭해도 학생정보 안 뜸
       const b=e.target.closest('button[data-sact]');
       if(b){const cell=b.closest('[data-i]');const row=(window._stdPage||[])[+cell.dataset.i]||[];
         const nm=row[2]||row[3]||'',rm=row[13]||'',dp=row[7]||'';const act=b.dataset.sact;
