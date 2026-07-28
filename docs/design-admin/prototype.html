@@ -2802,6 +2802,13 @@ function rsOccAt(tr,i){                       // 그 날짜를 실제로 점유�
   const list=(window._rsOcc||[])[+c.dataset.occ];if(!list)return '';
   for(const it of list){if(i>=it[1]&&i<=it[2])return it[0];}
   return '';}
+function rsBarOccAt(tr,i){                    // 그 날짜가 '재실(패턴 X)' 구간인지 — dbar 기준(이름 미상이어도 점유로 판정)
+  const inner=tr&&tr.querySelector('td.dlane .dlanein');if(!inner)return false;
+  const cw=+((tr.closest('.twrap')||{}).dataset||{}).cellw||19;
+  const bars=inner.querySelectorAll('.dbar');
+  for(const b of bars){var l=parseFloat(b.style.left)||0,w=parseFloat(b.style.width)||0;
+    if(i>=Math.round(l/cw)&&i<Math.round((l+w)/cw))return true;}
+  return false;}
 
 // 현재 스크롤 위치(좌측 가시일)를 기준으로 각 이름칸 재계산 — 값이 바뀐 칸만 갱신
 function rsUpdateNames(tw){
@@ -3103,7 +3110,7 @@ function openCellPop(cell,ev){
   if(!room){const blk=cell.closest('tbody.room-block');if(blk)room=(blk.querySelector('.rno')||{}).textContent||'';}
   const date=cell.dataset.date||'';
   // 점유된 셀(재실 학생 존재) → 레거시처럼 ROOM REPLACEMENT 화면을 바로 표시
-  const occupied=name && name!=='(빈 침대)' && name.trim()!=='' && name.trim()!=='-';
+  const occupied=(cell.dataset&&cell.dataset.occbar==='1') || (name && name!=='(빈 침대)' && name.trim()!=='' && name.trim()!=='-');
   if(occupied){openRoomReplace(cell,room,name,date);return;}
   const pop=el('div','cellpop');pop.id='cellpop';
   pop.appendChild(el('div','cp-h',`<b>${room||'-'}</b> · ${date}<br>${name}`));
@@ -3398,6 +3405,7 @@ document.addEventListener('click',(e)=>{
     const i=rsLaneIdx(lane,e.clientX);
     lane.dataset.date=rsDateAt(i);
     lane.dataset.occname=rsOccAt(lane.closest('tr'),i);   // 빈 날이면 '' → 셀 액션 팝업
+    lane.dataset.occbar=rsBarOccAt(lane.closest('tr'),i)?'1':'';  // 이름 미상이어도 패턴상 재실이면 점유 처리
     openCellPop(lane,e);return;}
   if(!e.target.closest('#cellpop'))closeCellPop();
 });
@@ -3420,9 +3428,10 @@ document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();cl
     v.style.left=cx+'px';v.style.display='block';
     h.style.top=(r.top+r.height/2)+'px';h.style.display='block';
     const tr=dc.closest('tr');
-    const name=rsOccAt(tr,i);                                // 그 날짜의 점유자만
+    const name=rsOccAt(tr,i);                                // 그 날짜의 점유자(이름)
+    const occ=name||(rsBarOccAt(tr,i)?'재실(이름 미상)':'');  // 이름 없어도 패턴상 X면 재실
     let room=(tr.querySelector('.rno')||{}).textContent||'';if(!room){const bl=dc.closest('tbody.room-block');if(bl)room=(bl.querySelector('.rno')||{}).textContent||'';}
-    tip.innerHTML=`📅 ${rsDateAt(i)}${room?' · 🏠 '+room:''} · ${name?'👤 '+name:'<span style="opacity:.7">공실</span>'}`;
+    tip.innerHTML=`📅 ${rsDateAt(i)}${room?' · 🏠 '+room:''} · ${occ?'👤 '+occ:'<span style="opacity:.7">공실</span>'}`;
     tip.style.display='block';
     let lx=e.clientX+16;if(lx+tip.offsetWidth>innerWidth-8)lx=e.clientX-tip.offsetWidth-16;
     tip.style.left=lx+'px';tip.style.top=(e.clientY+18)+'px';}
@@ -3440,6 +3449,7 @@ document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();cl
   // 룰러 토글 버튼(배치도 재렌더 시마다 위임으로 처리) + 렌더 후 버튼 상태 동기화
   document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#rsRuler');if(b){e.preventDefault();set(!on);}});
   window.__xhRuler={set,toggle:()=>set(!on),isOn:()=>on,sync:syncBtn};
+  try{ set(true); hint.style.display='none'; }catch(e){}   // 기본 룰러 ON(안내배너는 숨김)
 })();
 
 // ─── 배치도 휠(가운데) 버튼 드래그 패닝 — 상하좌우 이동 ───
@@ -3703,6 +3713,26 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     });
   }
 
+  // ── Supabase Auth 로그인(2단계 가) — email/password → access_token ──
+  function supaAuthLogin(email, pw){
+    return fetch(window.SUPA_URL.replace(/\/+$/,"")+"/auth/v1/token?grant_type=password", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "apikey":window.SUPA_ANON },
+      body: JSON.stringify({ email:email, password:pw })
+    }).then(function(r){ return r.json().then(function(j){ return { ok:r.ok, body:j }; }); });
+  }
+  // 인증 데이터 조회 헬퍼 — 로그인 토큰(authenticated)으로 REST 호출. 화면에서 window.supaFetch(path) 사용.
+  //   토큰 없으면 anon 으로 폴백(공개 데이터만). v_students 같은 로그인전용 뷰는 토큰 필요.
+  window.supaFetch = function(path, opts){
+    opts = opts || {};
+    var s = session();
+    var token = (s && s.token) || window.SUPA_ANON;
+    var h = Object.assign({ "apikey":window.SUPA_ANON, "Authorization":"Bearer "+token }, opts.headers||{});
+    return fetch(window.SUPA_URL.replace(/\/+$/,"")+"/rest/v1/"+path, {
+      method: opts.method||"GET", headers:h, body: opts.body||undefined
+    });
+  };
+
   // ── 로그 기록 ───────────────────────────────────────────────────────
   function logLocal(user, action, detail, kind){
     var arr = readJSON(localStorage, LS_LOG, []);
@@ -3727,7 +3757,7 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
 
   // ── 세션 ────────────────────────────────────────────────────────────
   function session(){ return readJSON(sessionStorage, SS_KEY, null); }
-  function setSession(user){ writeJSON(sessionStorage, SS_KEY, { username:user, since:new Date().toISOString() }); }
+  function setSession(user, extra){ writeJSON(sessionStorage, SS_KEY, Object.assign({ username:user, since:new Date().toISOString() }, extra||{})); }
   function clearSession(){ try{ sessionStorage.removeItem(SS_KEY); }catch(e){} }
 
   // ── DOM ─────────────────────────────────────────────────────────────
@@ -3765,8 +3795,8 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     showMsg(changeMsg, "최초 로그인입니다. 비밀번호를 변경하세요.", false);
     setTimeout(function(){ elNew.focus(); }, 30);
   }
-  function enter(user){
-    setSession(user);
+  function enter(user, extra){
+    setSession(user, extra);
     overlay.classList.add("adminAuth-hidden");
     barWho.textContent = user;
     bar.classList.add("adminAuth-show");
@@ -3786,18 +3816,23 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     ev.preventDefault();
     var user = (elUser.value||"").trim();
     var pw   = elPass.value||"";
-    if(USERS.indexOf(user) < 0){ showMsg(loginMsg,"등록되지 않은 아이디입니다."); return; }
     if(!pw){ showMsg(loginMsg,"비밀번호를 입력하세요."); return; }
 
     if(supaReady()){
-      rpc("admin_login", { p_user:user, p_pw:pw }).then(function(res){
-        if(!res || res.ok !== true){ showMsg(loginMsg, (res&&res.message)||"로그인 실패"); return; }
-        enter(user);   // 비밀번호 변경 강제 화면 비활성 — 로그인 즉시 진입
-      })["catch"](function(){
-        // Supabase 오류 → 폴백으로 재시도
-        doLoginFallback(user, pw);
-      });
+      // 2단계(가): Supabase Auth 로그인 — ID 칸에 이메일 입력. 성공 시 access_token 보관.
+      showMsg(loginMsg,"로그인 중…", true);
+      supaAuthLogin(user, pw).then(function(res){
+        if(res.ok && res.body && res.body.access_token){
+          logLocal(user, "login", { via:"supabase-auth" });
+          enter(user, { token:res.body.access_token, refresh:res.body.refresh_token||null });
+        } else {
+          showMsg(loginMsg, (res.body && (res.body.error_description||res.body.msg))
+                            || "아이디(이메일) 또는 비밀번호가 올바르지 않습니다.");
+        }
+      })["catch"](function(){ showMsg(loginMsg,"연결 오류 — 잠시 후 다시 시도하세요."); });
     } else {
+      // Supabase 미설정: 기존 로컬 화이트리스트 + 폴백
+      if(USERS.indexOf(user) < 0){ showMsg(loginMsg,"등록되지 않은 아이디입니다."); return; }
       doLoginFallback(user, pw);
     }
   });
@@ -3864,9 +3899,16 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     showLogin();
   });
 
-  // ── 초기화: 로그인 없이 바로 실행(게이트 비활성) ─────────────────
+  // ── 초기화 ─────────────────────────────────────────────
+  //   · Supabase 설정 시: 로그인 필수(유효 토큰 세션 있으면 통과, 없으면 로그인 화면)
+  //   · 미설정 시: 기존대로 로그인 없이 바로 진입(게이트 비활성)
   (function init(){
     var s = session();
+    if(supaReady()){
+      if(s && s.token){ enter(s.username, { token:s.token, refresh:s.refresh }); }
+      else { showLogin(); }
+      return;
+    }
     var user = (s && USERS.indexOf(s.username) >= 0) ? s.username : "admin";
     if(!s) setSession(user);            // 기본 관리자 세션 자동 발급
     enter(user);                        // 로그인 화면 없이 즉시 진입

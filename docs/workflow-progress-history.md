@@ -315,3 +315,14 @@
   ② Edge Function `supabase/functions/auth/index.ts`(Deno, **의존성 0**, Web Crypto만): GET=로그인폼/랜딩, POST login=검증→**httpOnly·Secure 쿠키 JWT(HS256) 발급**→303, POST logout=쿠키파기, GET ?me=세션JSON. 검증은 service_role 로 RPC 호출(키·로직 서버측 은닉). 레거시 로그인 화면(아이디/비번/자동로그인) 재현.
   ③ `supabase/config.toml`(verify_jwt=false, 공개 로그인) + `functions/auth/README.md`(배포순서: CLI설치→link→`secrets set AUTH_SESSION_SECRET`→`functions deploy auth --no-verify-jwt`, 접속 `…supabase.co/functions/v1/auth`).
   ⚠ 로컬에 supabase CLI·Deno 없어 함수 실행검증은 미실시(코드·DB계층은 실검증). 배포는 사용자 CLI 인증 필요 → 가이드 제공. ⚠ 기존 `src/*.php`(login/auth/logout/index/db) + web(php) 컨테이너는 **사표(死票)** — 정리 대상. ⚠ 배포 전 약한 비번(1234 등) 관리자단 must_change 강제 권장.
+
+- **2026-07-28** **PHP 정리 + 관리자(Lv8+) 강제 비밀번호 변경** 추가:
+  ① PHP 폐기 정리: `src/{login,auth,logout}.php` 삭제, `src/index.php`(조회앱)에 넣었던 로그인 가드·사용자바 원복(기존 예약 조회앱 상태로). 로그인은 전부 Edge Function 이관.
+  ② 강제변경 정책 `migration/schema/member_auth_forcechange.sql`(적용·테스트 완료): member_authenticate 재정의 — **앱 자격증명(admin_users) 우선·독점**(must_change=false면 레거시 폴백 차단) + 레거시 g4_member 성공 시 **mb_level≥8이면 must_change=true**(강제). `app.member_set_password(id,old,new,ip)` 신설 — 현재비번 검증→새비번 정책(8자+·아이디≠·단순값 금지·기존≠)→**app.admin_users bcrypt upsert(원본 g4_member 불가침)**→이후 레거시 무력화. seed 되었던 legacy 관리자행(초기비번=아이디) 제거. service_role 전용. 실DB 검증 6케이스 통과: 관리자 강제(must_change=true)/유학원 비강제(false)/약한새비번 거부/정상설정/새비번 로그인 성공/**옛 1234 무력화 거부**. 테스트 데이터 롤백.
+  ③ Edge Function `auth/index.ts` 확장: must_change 시 세션발급 전 **변경 화면(changePage)** 유도 + `action=change` 처리(member_set_password 호출→성공 시 쿠키 발급). README 라우팅·강제변경 문서화. 괄호균형·라우팅 정합 확인(로컬 Deno 없어 실행검증은 미실시).
+
+- **2026-07-27** 2단계(가) Supabase Auth 배선 + 배치도 버그 2건:
+  ① **Supabase Auth 로그인**: 로그인 폼 → `/auth/v1/token?grant_type=password`(email/pw)→access_token 세션 보관, `window.supaFetch(path)`(토큰 Bearer) 헬퍼, init은 supaReady 시 로그인 요구. **config-gated**(window.SUPA_URL/ANON 미설정 시 기존 동작 유지).
+  ② **재실인데 공실 표시 수정**: 재실(X)은 패턴(dbar)로 그려지나 점유판정이 이름저장소만 봐서 이름 전개 멈춘 날이 공실로 오표시 → `rsBarOccAt()`(dbar 기준 재실 판정) 추가, 툴팁·셀팝업이 이름 없어도 '재실(이름 미상)'으로 처리.
+  ③ **룰러 기본 ON**: `__xhRuler` 로드 시 set(true)(안내배너는 숨김).
+  Playwright 검증: 룰러 기본ON·재실판정(막대내 true/밖 false)·콘솔에러0.
