@@ -42,6 +42,10 @@ create table if not exists app.admin_users (
   must_change boolean not null default true,
   created_at  timestamptz not null default now()
 );
+-- 이전 버전 테이블이 이미 있던 경우 대비(컬럼 누락 보강) — 재실행 안전
+alter table app.admin_users add column if not exists role        text    not null default 'admin';
+alter table app.admin_users add column if not exists must_change boolean not null default true;
+alter table app.admin_users add column if not exists created_at  timestamptz not null default now();
 
 -- 기본 계정 시드 (비번=아이디, 최초 로그인 후 변경 권장) · 이미 있으면 유지
 insert into app.admin_users(username, pw_hash, must_change) values
