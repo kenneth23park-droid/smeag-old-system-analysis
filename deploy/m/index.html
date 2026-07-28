@@ -193,6 +193,7 @@ main.mv-main.has-search{top:calc(105px + env(safe-area-inset-top,0px))}
 <div class="mv-appbar">
   <div class="ttl"><span class="logo">S</span><span><span id="mvTitle">홈</span> <span class="sub" id="mvSub"></span></span></div>
   <span class="sp"></span>
+  <button class="mv-ibtn" id="mvLangBtn" title="Language" style="font-size:12px;font-weight:800">EN</button>
   <button class="mv-ibtn" id="mvSearchBtn" title="검색">🔍</button>
   <button class="mv-ibtn" id="mvThemeBtn" title="테마">◑</button>
   <button class="mv-ibtn" id="mvMenuBtn" title="전체메뉴">☰</button>
@@ -223,6 +224,68 @@ let REAL=null; /*__REALDATA__*/
 /* let/const 는 window 프로퍼티가 아니므로 window.REAL/window.DICT 접근 섹션을 위해 브리지 */
 setTimeout(function(){try{window.REAL=REAL;window.DICT=DICT;}catch(e){}},0);
 const DICT=/*__DICT__*/{"uhak":[{"v":"","t":"AGENCY"},{"v":"doa","t":"\"DELGER OD AND\" LLC"},{"v":"amahn","t":"(1)AMAHN"},{"v":"ames","t":"(1)AMES"},{"v":"blueocean","t":"(1)BLUE OCEAN GROUP"},{"v":"OEA","t":"(1)BrainClick Vietnam/OEA Vietnam"},{"v":"bridgeblue","t":"(1)Bridge Blue"},{"v":"bbblue","t":"(1)Bridge Blue"},{"v":"catta","t":"(1)CATTA"},{"v":"EBVN","t":"(1)EduBridge Viet Nam"},{"v":"eduvietglobal","t":"(1)Eduviet Global"},{"v":"eduzone","t":"(1)Eduzone"},{"v":"Futurelink","t":"(1)Futurelink"},{"v":"gitizen","t":"(1)gitizen"},{"v":"hathai","t":"(1)Ha Thai Tour and Travel"},{"v":"hungcuong","t":"(1)Hung Cuong"},{"v":"idc","t":"(1)IDC"},{"v":"indec","t":"(1)INTELLECTUAL DEVELOPMENT COMPANY (IND"},{"v":"Interconex","t":"(1)Interconex"},{"v":"isd","t":"(1)International Study Development JSC."},{"v":"Jellyfish","t":"(1)Jellyfish"},{"v":"ladeco","t":"(1)LADECO CORP"},{"v":"lienchau","t":"(1)Lien Chau Company, Ltd."},{"v":"megastudy","t":"(1)MEGA STUDY FPT"},{"v":"newstar","t":"(1)newstar"},{"v":"AIT","t":"(1)PHUONG ANH"},{"v":"queensland","t":"(1)Queensland"},{"v":"sunmoon","t":"(1)sunmoon"},{"v":"sunrisevietnam","t":"(1)Sunrise Vietnam Agency"},{"v":"tve","t":"(1)Tan Viet Education"},{"v":"tec","t":"(1)TEC Academy"},{"v":"viet","t":"(1)Viet Vision"},{"v":"aauco","t":"(2)A Au Co"},{"v":"AMA","t":"(2)AMA"},{"v":"coc","t":"(2)COC Vietnam"},{"v":"compass","t":"(2)COMPASS EDU"},{"v":"dtu","t":"(2)Duc Tu Trading Corporation-DTU"},{"v":"edulinks","t":"(2)EDULINKS"},{"v":"GOLDENWAY","t":"(2)GOLDENWAY"},{"v":"icsa","t":"(2)ICSA"},{"v":"inec","t":"(2)INEC"},{"v":"mice","t":"(2)MICE"},{"v":"newsky","t":"(2)New Sky"},{"v":"newworld","t":"(2)New World"},{"v":"saigontourist","t":"(2)Saigon Tourist"},{"v":"udc","t":"(2)United Education Corporation"},{"v":"VINAM","t":"(2)VI NAM INTERNATIONAL COMPANY"},{"v":"vicom","t":"(2)VICOM"},{"v":"vietclever","t":"(2)Vietclever"}],"nation":[{"v":"","t":"COUNTRY"},{"v":"kor","t":"KOR[한국]"},{"v":"chi","t":"CHI[중국]"},{"v":"jap","t":"JAP[일본]"},{"v":"twa","t":"TWA[대만]"},{"v":"vtn","t":"VTN[베트남]"},{"v":"tha","t":"THA[태국]"},{"v":"rus","t":"RUS[러시아]"},{"v":"mgl","t":"MGL[몽고]"},{"v":"om","t":"OM[오만]"},{"v":"etc","t":"ETC[기타]"}],"now_status":[{"v":"","t":"CONDITION"},{"v":"normal","t":"NORMAL[정상]"},{"v":"extend","t":"EXTEND[연장]"},{"v":"refund","t":"REFUND[환불]"},{"v":"exchange","t":"EXCHANGE[변경]"},{"v":"out","t":"OUT[퇴교]"},{"v":"holding","t":"HOLDING[홀딩]"},{"v":"holdinguse","t":"HOLDINGUSE[홀딩사용]"},{"v":"graduated","t":"GRADUATED[졸업]"},{"v":"cancel","t":"취소"},{"v":"paycancel","t":"납부취소"},{"v":"waiting","t":"보류"},{"v":"checking","t":"관리"},{"v":"etc","t":"ETC[기타]"}],"campus":[{"v":"","t":"::캠퍼스::"},{"v":"sparta","t":"엔칸토"},{"v":"classic","t":"클래식"},{"v":"capital","t":"캐피탈"}],"pay_status":[{"v":"","t":"납부상태"},{"v":"N","t":"미납(UNPAID)"},{"v":"Y","t":"완납(PAID)"},{"v":"X","t":"분납(INSTALL)"},{"v":"R","t":"반환(RETURN)"}],"pay_channel":[{"v":"","t":"납부방법"},{"v":"center","t":"센터수금(center)"},{"v":"account","t":"계좌수금(account)"}],"room_gubun":[{"v":"1","t":"TEMPORARY/FAMILY"},{"v":"68","t":"CAPITAL1/MALE"},{"v":"71","t":"CAPITAL1/FEMALE"},{"v":"69","t":"CAPITAL2/MALE"},{"v":"75","t":"CAPITAL2/FEMALE"},{"v":"82","t":"S hotel(H)_M/MALE"},{"v":"83","t":"S hotel(H)_F/FEMALE"},{"v":"137","t":"Amethyst(AM)_F/FEMALE"},{"v":"130","t":"ENCANTO2/FAMILY"},{"v":"133","t":"ENCANTO(VIP)/FAMILY"}],"course_info1":[{"v":"","t":"::FIRST COURSE::"},{"v":"14","t":"ESL(CAPITAL)"},{"v":"16","t":"Pre-IELTS"},{"v":"17","t":"IELTS 5.5"},{"v":"18","t":"IELTS 6.0"},{"v":"31","t":"IELTS 6.5"},{"v":"32","t":"IELTS 7.0"},{"v":"25","t":"TOEIC 600"},{"v":"26","t":"TOEIC 700"},{"v":"50","t":"TOEFL 4.0(80)"},{"v":"38","t":"GAC Level 1"},{"v":"52","t":"Business"}],"pay_result":[{"v":"","t":"::비용처리::"},{"v":"center","t":"센터수납미처리(Center not yet)"},{"v":"account","t":"계좌수납미처리(Account not yet)"},{"v":"collection","t":"수금완료(Paid)"},{"v":"refund","t":"환급완료(Refunded)"},{"v":"holding","t":"홀딩확정(Holding)"},{"v":"cancel","t":"취소(Cancel)"}],"r_limit":[{"v":"","t":"::per/room::"},{"v":"1","t":"1per/room"},{"v":"2","t":"2per/room"},{"v":"3","t":"3per/room"},{"v":"4","t":"4per/room"},{"v":"5","t":"5per/room"}]};
+
+/* ================= 런타임 번역(기본 영어) — 데스크톱과 동일 방식 ================= */
+let LANG=(function(){try{return localStorage.getItem('smeag-lang')||'en';}catch(e){return 'en';}})();
+const I18N_EN={
+ "검색":"Search","테마":"Theme","전체메뉴":"All Menus","전체 메뉴":"Full Menu","이름·방·항공편 검색…":"Search name·room·flight…",
+ "관리":"Manage","섹션 준비중":"Section in preparation","렌더 오류:":"Render error:","🖥 PC(데스크톱) 버전으로 보기":"🖥 View PC (Desktop) version","데이터를 불러오는 중입니다":"Loading data",
+ "재학생":"Current students","전체 재학생":"Total current students","기숙사 재실":"Dormitory stay","오늘 입/퇴실":"Today check-in/out","입실":"Check-in","· 퇴실":"· Check-out","· 주간픽업":"· Weekly pickup","미납":"Unpaid","미결제 대기 · 탭하여 보기":"Pending payments · tap to view","미납 없음":"No unpaid","캠퍼스별 재실률":"Occupancy by campus","샘플 데이터 (roomstat 미제공)":"Sample data (roomstat not provided)","샘플":"Sample","국적 분포":"Nationality distribution","상위":"Top","명 표본":"person sample","최근 방변경 내역 없음":"No recent room changes","최근 방변경 로그":"Recent room change log",
+ "KOR[한국]":"KOR[Korea]","VTN[베트남]":"VTN[Vietnam]","JAP[일본]":"JAP[Japan]","CHI[중국]":"CHI[China]","ETC[기타]":"ETC[Other]","THA[태국]":"THA[Thailand]","RUS[러시아]":"RUS[Russia]","MGL[몽고]":"MGL[Mongolia]","OM[오만]":"OM[Oman]","TWA[대만]":"TWA[Taiwan]",
+ "NORMAL[정상]":"NORMAL[Normal]","EXTEND[연장]":"EXTEND[Extend]","REFUND[환불]":"REFUND[Refund]","EXCHANGE[변경]":"EXCHANGE[Move]","OUT[퇴교]":"OUT[Withdrawal]","HOLDING[홀딩]":"HOLDING[Holding]","HOLDINGUSE[홀딩사용]":"HOLDINGUSE[Holding Use]","GRADUATED[졸업]":"GRADUATED[Graduated]","취소":"Cancel","납부취소":"Payment Cancel","보류":"Hold",
+ "엔칸토":"ENCANTO","클래식":"CLASSIC","캐피탈":"CAPITAL","::캠퍼스::":"::Campus::",
+ "미납(UNPAID)":"UNPAID","완납(PAID)":"PAID","분납(INSTALL)":"INSTALL","반환(RETURN)":"RETURN","납부상태":"Payment status",
+ "기간":"Period","이전 객실":"Room before","변경 객실":"Room after","이전 코스":"Course before","변경 코스":"Course after","담당":"Manager","신청":"Apply","학생 IDX":"Student IDX","방변경 상세":"Room change details","미배정":"Unassigned",
+ "미납 건이 없습니다":"No unpaid items","M[남]":"M[Male]","F[여]":"F[Female]","데이터가 없습니다.":"No data.","조건에 맞는 학생이 없습니다.":"No students match.",
+ "국적":"Nationality","상태":"Status","성별":"Gender","캠퍼스":"Campus","한글명":"Korean name","나이":"Age","등록일":"Apply date","출발일":"Departure","시작일":"Start date","종료일":"End date","연수코스":"Course","객실":"Room","이전 PICKUP":"Prev PICKUP",
+ "수정":"Edit","연장":"Extend","상담":"Consult","픽업":"Pickup","학생 데이터가 없습니다.":"No student data.","데이터 연결을 확인해 주세요.":"Please check data connection.","수강등록관리":"Course Registration","이름(EN)·한글명 검색":"Search name(EN)·Korean name","데이터 행":"Data rows","필터":"Filter","적용":"Apply","초기화":"Reset",
+ "건물/성별":"Building/Gender","남자":"Male","여자":"Female","공용":"Family","재실":"Stay","퇴실":"Check-out","예약":"Reserved","남":"M","여":"F","빈방":"Empty","배정정보 없음":"No assignment info","기숙사 배치 데이터가 없습니다.":"No dormitory layout data.","센터·성별·인실을 선택하세요":"Select Center·Gender·Room type","조건에 맞는 방이 없습니다.":"No rooms match.","기준월":"Base month","배정 이력 없음":"No assignment history","배정 정보가 없습니다.":"No assignment info.","메모":"Memo","방 변경":"Room change","이동 사유 / 메모 (placeholder)":"Move reason / memo (placeholder)","이동 기능은 준비 중입니다 (placeholder)":"Move feature in preparation (placeholder)",
+ "인실":"Room type","전체":"All","그룹 선택":"Select group","센터":"Center","전체 센터":"All centers","기숙사현황":"Dormitory Status","배치도":"Batch",
+ "일":"Sun","월":"Mon","화":"Tue","수":"Wed","목":"Thu","금":"Fri","토":"Sat",
+ "미정":"TBD","항공정보 없음":"No flight info","해당 조건의 픽업 없음":"No pickup for this filter","다른 필터를 선택해 보세요.":"Try another filter.","NEW만":"NEW only","캠퍼스별":"By campus","데이터 없음":"No data","픽업 데이터를 불러올 수 없습니다.":"Cannot load pickup data.","주간 픽업":"Weekly pickup","도착일":"Arrival date","미지정":"Unspecified","에이전시":"Agency","항공편":"Flight","항공 원본":"Flight (raw)","항공 조회":"Flight query","픽업 상세":"Pickup details","— 실시간 항공정보는 서버에서 조회됩니다.":"— Real-time flight info is fetched on the server.","✈ 항공 조회":"✈ Flight query","✈ 항공정보 없음":"✈ No flight info",
+ "입금 데이터 없음 (No deposit data)":"No deposit data","건수":"Count","현금 관리 데이터 없음 (No cash records)":"No cash records","입금":"Deposit","현금관리":"Manage cash","데이터 로딩 대기 (No data)":"Waiting for data",
+ "일치하는 데이터 없음":"No matching data","테이블":"Table","검색 결과 없음":"No search results",
+ "방변경 이력 데이터가 없습니다.":"No room change log data.","학생 Student":"Student","학생IDX sidx":"Student IDX (sidx)","기간 Period":"Period","기존 코스 oldc":"Course before (oldc)","변경 코스 newc":"Course after (newc)","기존 객실 oldr":"Room before (oldr)","변경 객실 newr":"Room after (newr)","신청일 Apply":"Apply date","담당자 Manager":"Manager","방변경 상세 · Back-up Log":"Room change detail · Back-up Log","백업로그":"Back-up Log",
+ "등록일 보유 학생 레코드":"Students with apply date","연결된 입학일 데이터셋이 없습니다.":"No admission dataset bound.","입학일 관리":"Admission Date Mgmt","읽기 전용 · Read-only reference":"Read-only reference",
+ "없는 관리자 아이디입니다.":"Unknown admin ID.","비밀번호가 올바르지 않습니다.":"Incorrect password.","로그인 성공":"Login success"
+};
+const I18N_RULES=[
+ [/^더 보기/,'Show more'],[/미납 목록/,'Unpaid list'],[/필터결과/,'Filter results'],[/학생 상세/,'Student detail'],
+ [/입금 상세/,'Deposit detail'],[/현금 상세/,'Cash detail'],[/가동/,'occupancy'],
+ [/(\d+)\s*인실/,'$1-person'],[/(\d+)\s*주/,'$1 wk'],[/개 방/,'rooms'],
+ [/명 · 표시/,'persons · shown'],[/명 표본/,'sample'],
+ [/([\d,]+)\s*실/,'$1 rooms'],[/([\d,]+)\s*명/,'$1'],
+ [/\(([일월화수목금토])\)/,function(m,d){return '('+({'일':'Sun','월':'Mon','화':'Tue','수':'Wed','목':'Thu','금':'Fri','토':'Sat'}[d])+')';}],
+ [/^총$/,'Total'],[/^명$/,' persons'],[/^건$/,' records'],[/^실$/,' rooms'],[/^주$/,' wk'],[/^전체$/,'All'],[/^표시$/,'Shown']
+];
+// 안전 토큰(복합 노드용) — 다음절 UI 전용어라 학생/유학원 이름과 겹치지 않음. 긴 것 우선.
+const SAFE_TOKENS=[
+ ["기숙사 재실","Dormitory stay"],["신규입실","New check-in"],["주간픽업","Weekly pickup"],
+ ["명 표본","sample"],["입실","Check-in"],["퇴실","Check-out"],["상위","Top"],["가동","occupancy"],
+ ["표본","sample"],["재실","Stay"],["남자","Male"],["여자","Female"],["공용","Family"],
+ ["출발일","Departure"],["시작일","Start date"],["종료일","End date"],["등록일","Apply date"],
+ ["연수코스","Course"],["한글명","Korean name"],["캠퍼스","Campus"],["국적","Nationality"],
+ ["상태","Status"],["성별","Gender"],["나이","Age"],["객실","Room"],
+ ["출발","Departure"],["시작","Start"],["종료","End"],["담당","Manager"],
+ ["엔칸토","ENCANTO"],["클래식","CLASSIC"],["캐피탈","CAPITAL"],["캠프","camp"]
+];
+function i18nStr(t){ if(t==null)return null; const orig=''+t; const s=orig.trim();
+ if(!s||!/[가-힣]/.test(s))return null;
+ if(I18N_EN[s])return orig.replace(s,I18N_EN[s]);        // 전체 노드 정확일치 우선
+ let out=orig, changed=false;
+ for(let i=0;i<I18N_RULES.length;i++){ const re=new RegExp(I18N_RULES[i][0].source,'g');
+   if(re.test(out)){ out=out.replace(new RegExp(I18N_RULES[i][0].source,'g'),I18N_RULES[i][1]); changed=true; } }
+ for(let i=0;i<SAFE_TOKENS.length;i++){ if(out.indexOf(SAFE_TOKENS[i][0])>-1){ out=out.split(SAFE_TOKENS[i][0]).join(SAFE_TOKENS[i][1]); changed=true; } }
+ return changed?out:null; }
+function i18nApply(root){ if(LANG!=='en')return; root=root||document.body; if(!root||root.nodeType!==1)return;
+ try{ const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); const list=[]; let n; while(n=w.nextNode())list.push(n);
+  list.forEach(x=>{const r=i18nStr(x.nodeValue); if(r!=null)x.nodeValue=r;});
+  root.querySelectorAll('[placeholder]').forEach(e=>{const r=i18nStr(e.getAttribute('placeholder')); if(r!=null)e.setAttribute('placeholder',r);});
+  root.querySelectorAll('[title]').forEach(e=>{const r=i18nStr(e.getAttribute('title')); if(r!=null)e.setAttribute('title',r);});
+ }catch(e){} }
+(function(){try{ new MutationObserver(muts=>{ if(LANG!=='en')return;
+  muts.forEach(mu=>mu.addedNodes&&mu.addedNodes.forEach(nd=>{ if(nd.nodeType===1)i18nApply(nd); else if(nd.nodeType===3){const r=i18nStr(nd.nodeValue); if(r!=null)nd.nodeValue=r;} }));
+ }).observe(document.documentElement,{childList:true,subtree:true}); }catch(e){}})();
 
 /* ================= 공용 헬퍼(섹션 렌더러가 사용) ================= */
 function esc(s){return (s==null?'':(''+s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -259,52 +322,94 @@ function mvDL(pairs){return '<dl class="mv-dl">'+pairs.filter(p=>p&&p[1]!=null&&
 
 /* ================= 메뉴/라우팅 ================= */
 /* 데스크톱 CATS/MENU 를 모바일 그룹으로 축약. handler 미지정 spec 계열은 M_table 로 폴백. */
+/* 데스크톱 전체 메뉴(7 카테고리) 반영. 전용 렌더러 없는 항목은 M_table 폴백. 라벨 영어 기본. */
 const MENU=[
   {id:'record',label:'Record',icon:'⌂',items:[
-    {k:'dash',t:'대시보드',u:'',tab:'home'},
+    {k:'dash',t:'Dashboard',u:'',tab:'home'},
+    {k:'table',t:'Permissions (by Dept)',u:'admin_perms'},
+  ]},
+  {id:'member',label:"Member's",icon:'🧑‍💼',items:[
+    {k:'table',t:'Member List',u:'member_list.php'},
+    {k:'table',t:'Point Mgmt',u:'point_list.php'},
+    {k:'table',t:'Visitors',u:'visit_list.php'},
+  ]},
+  {id:'agency',label:'Agency',icon:'🌐',items:[
+    {k:'table',t:'AGENCY LIST',u:'uhak_agency_list.php'},
+    {k:'table',t:'COMMISSION',u:'uhak_agency_commission.php'},
+    {k:'table',t:'Agency Visit',u:'uhak_day_info.php'},
+    {k:'table',t:'BRANCH RECORD',u:'uhak_agency_stat22.php'},
+    {k:'table',t:'GROUP RECORD',u:'uhak_agency_stat33.php'},
+    {k:'table',t:'EACH NATIONALITY',u:'uhak_agency_stat34.php'},
+  ]},
+  {id:'financial',label:'Financial',icon:'📑',items:[
+    {k:'table',t:'Tuition · Invoice',u:'student_tution_fee_list3.php'},
+    {k:'table',t:'Korean Students',u:'student_tution_fee_list2.php'},
+    {k:'table',t:'Foreign Students',u:'student_tution_fee_list_for2.php'},
+    {k:'table',t:'Extension Students',u:'student_tution_fee_list4.php'},
+    {k:'table',t:'Change/Refund/Hold',u:'student_tution_fee_list_change.php'},
+    {k:'table',t:'COURSE LIST',u:'course_list.php'},
+    {k:'table',t:'TUITION FEE',u:'tution_fee.php'},
   ]},
   {id:'student',label:"Student's",icon:'👤',items:[
-    {k:'enroll',t:'수강등록관리',u:'student_list.php',tab:'std'},
     {k:'stdlist',t:'STUDENT LIST',u:'student.php',tab:'std'},
-    {k:'table',t:'멀티수강관리',u:'student_list3.php'},
+    {k:'enroll',t:'Course Registration',u:'student_list.php',tab:'std'},
+    {k:'table',t:'Agency Page',u:'agency_page.php'},
+    {k:'table',t:'Multi-course Mgmt',u:'student_list3.php'},
+    {k:'table',t:'MC Report 1',u:'student_list3_en1.php'},
+    {k:'table',t:'MC Report 2',u:'student_list3_en2.php'},
+    {k:'table',t:'Graduate',u:'student_list3_en3.php'},
     {k:'table',t:'APPLY LIST',u:'student_list2.php'},
     {k:'table',t:'HISTORY',u:'student_history.php'},
-    {k:'table',t:'수금관리',u:'student_list_pay.php'},
-    {k:'table',t:'MC Report 1',u:'student_list3_en1.php'},
+    {k:'table',t:'Change/Refund/Hold',u:'student_list_change.php'},
+    {k:'table',t:'CHG-REF-HOLD',u:'student_list_change-back.php'},
+    {k:'table',t:'Collection Mgmt',u:'student_list_pay.php'},
+    {k:'cash',t:'DEPOSIT',u:'student_payment.php'},
     {k:'table',t:'FARM & GYM',u:'student_farm.php'},
-    {k:'table',t:'GYM 리포트',u:'student_gym.php'},
+    {k:'table',t:'GYM Report',u:'student_gym.php'},
+    {k:'table',t:'FARM Report',u:'student_farm2.php'},
     {k:'table',t:'POPULATION',u:'student_population.php'},
+    {k:'table',t:'POPULATION 2',u:'student_population2.php'},
+    {k:'table',t:'STUDENT STATUS',u:'student_present2.php'},
+    {k:'table',t:'REGISTER STATS',u:'student_register.php'},
+    {k:'table',t:'GAC BOARD',u:'bbs/board.php?bo_table=office_GAC'},
+    {k:'table',t:'Campus Holding',u:'bbs/board.php?bo_table=office_holding'},
   ]},
   {id:'dorm',label:'Dormitory',icon:'🏠',items:[
-    {k:'roomstat',t:'기숙사현황(배치도)',u:'room_stat3.php',tab:'dorm'},
-    {k:'pickup',t:'주간 픽업 리스트',u:'room_search2.php/pickup',tab:'pickup'},
-    {k:'table',t:'기숙사이동관리',u:'room_move_list.php',tab:'dorm'},
+    {k:'roomstat',t:'Dormitory Status (Batch)',u:'room_stat3.php',tab:'dorm'},
+    {k:'pickup',t:'Weekly Pickup List',u:'room_search2.php/pickup',tab:'pickup'},
+    {k:'table',t:'DORM STATUS',u:'room_stat2.php'},
+    {k:'table',t:'Dormitory Move Mgmt',u:'room_move_list.php',tab:'dorm'},
     {k:'table',t:'ROOM M-LIST',u:'room_move_list2.php',tab:'dorm'},
-    {k:'table',t:'일별 입실&퇴실',u:'room_use_count_list.php',tab:'dorm'},
-    {k:'table',t:'DORM SEARCH',u:'room_search2.php'},
-    {k:'table',t:'DORM LIST',u:'room_list.php'},
+    {k:'table',t:'Daily Check-in & out',u:'room_use_count_list.php',tab:'dorm'},
+    {k:'table',t:'DAY IN & OUT',u:'room_use_count_list2.php'},
     {k:'table',t:'ELEC & WATER',u:'room_elec.php'},
-    {k:'table',t:'VISIT',u:'uhak_agency_visit.php'},
+    {k:'table',t:'VISIT (detail)',u:'uhak_agency_visit.php'},
+    {k:'table',t:'VISIT (calendar)',u:'uhak_agency_schedule_list.php'},
+    {k:'table',t:'DORM LIST',u:'room_list.php'},
     {k:'changelog',t:'BACK-UP LOG',u:'room_change_log.php',tab:'dorm'},
+    {k:'table',t:'DAYOFF / Scheduler',u:'scheduler_index.php'},
     {k:'admission',t:'Admission Date',u:'smeag_admissiondate.php'},
+    {k:'table',t:'SME_BOARD',u:'bbs/board.php?bo_table=office_share'},
   ]},
   {id:'cash',label:'Cash Cards',icon:'💳',items:[
-    {k:'cash',t:'DEPOSIT / Manage Cash',u:'student_payment.php',tab:'more'},
+    {k:'cash',t:'Manage Cash',u:'student_cash_payment.php',tab:'more'},
+    {k:'table',t:'Group Students',u:'student_group_payment.php'},
+    {k:'table',t:'Pre-paid Info',u:'student_payment-2.php'},
   ]},
 ];
 /* 탭 정의 */
 const TABS=[
-  {tab:'home',ic:'⌂',label:'홈',route:{k:'dash'}},
-  {tab:'std',ic:'👤',label:'학생',route:{k:'enroll',u:'student_list.php'}},
-  {tab:'dorm',ic:'🏠',label:'기숙사',route:{k:'roomstat',u:'room_stat3.php'}},
-  {tab:'pickup',ic:'✈',label:'픽업',route:{k:'pickup'}},
-  {tab:'more',ic:'☰',label:'더보기',route:{k:'__more__'}},
+  {tab:'home',ic:'⌂',label:'Home',route:{k:'dash'}},
+  {tab:'std',ic:'👤',label:'Students',route:{k:'stdlist',u:'student.php'}},
+  {tab:'dorm',ic:'🏠',label:'Dormitory',route:{k:'roomstat',u:'room_stat3.php'}},
+  {tab:'pickup',ic:'✈',label:'Pickup',route:{k:'pickup'}},
+  {tab:'more',ic:'☰',label:'More',route:{k:'__more__'}},
 ];
 function itemsForTab(tab){const out=[];MENU.forEach(g=>g.items.forEach(it=>{if((it.tab||'more')===tab)out.push(it);}));return out;}
 
-let CUR={k:'dash',u:'',t:'대시보드',tab:'home'};
+let CUR={k:'dash',u:'',t:'Dashboard',tab:'home'};
 const SCOPE_FN={M_dash:'d',M_students:'s',M_roomstat:'r',M_pickup:'p',M_cash:'c',M_table:'t',M_changelog:'g',M_admission:'g'};
-function titleFor(it){return it.t||({dash:'대시보드',enroll:'수강등록관리',stdlist:'STUDENT LIST',roomstat:'기숙사현황',pickup:'주간 픽업',cash:'CASH',changelog:'BACK-UP LOG',admission:'Admission'}[it.k])||it.k;}
+function titleFor(it){return it.t||({dash:'Dashboard',enroll:'Course Registration',stdlist:'STUDENT LIST',roomstat:'Dormitory Status',pickup:'Weekly Pickup',cash:'CASH',changelog:'BACK-UP LOG',admission:'Admission'}[it.k])||it.k;}
 
 function render(it){
   CUR=Object.assign({},it);
@@ -357,7 +462,7 @@ function selectTab(tab){
 
 /* 전체메뉴 시트 */
 function openMenuSheet(){
-  const pcLink='<a class="mv-menu-item" href="../" style="justify-content:center;background:var(--accent-weak);border-color:var(--accent);color:var(--accent-ink)">🖥 PC(데스크톱) 버전으로 보기</a>';
+  const pcLink='<a class="mv-menu-item" href="../?pc=1" style="justify-content:center;background:var(--accent-weak);border-color:var(--accent);color:var(--accent-ink)">🖥 PC(데스크톱) 버전으로 보기</a>';
   const html=pcLink+MENU.map(g=>'<div class="mv-menu-grp"><div class="gt">'+g.icon+' '+esc(g.label)+'</div>'+
     g.items.map(it=>'<button class="mv-menu-item" data-nav=\''+esc(JSON.stringify(it))+'\'>'+esc(titleFor(it))+
       (it.u?'<span class="u">'+esc(it.u)+'</span>':'')+'</button>').join('')+'</div>').join('');
@@ -389,7 +494,7 @@ document.getElementById('mvThemeBtn').addEventListener('click',()=>{
   document.documentElement.setAttribute('data-theme',next);
   try{localStorage.setItem('mv-theme',next);}catch(e){}});
 document.getElementById('mvMenuBtn').addEventListener('click',openMenuSheet);
-(function(){try{const t=localStorage.getItem('mv-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+(function(){try{const t=localStorage.getItem('mv-theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();
 
 /* ================= 섹션 렌더러(에이전트 산출물) ================= */
 /* ===== M_dash ===== */
@@ -809,18 +914,29 @@ window.M_students=(function(){
 
 /* ===== M_roomstat ===== */
 (function(){
-  var state = { center:'', gender:'', per:'', month:'2026-07', limit:25 };
+  var state = { center:'', gender:'', group:'', per:'', month:'2026-07', limit:25 };
 
   function esc2(s){ return (typeof esc==='function') ? esc(s) : String(s==null?'':s); }
   function categoryOf(n){ return String(n||'').split('/')[0]; }
+  // 그룹(구분) — 데스크톱과 동일: '건물/성별' 전체명, 성별 라벨 한글화
+  function grpGender(n){ var g=String(n||'').split('/')[1]||''; g=g.trim().toUpperCase();
+    return g==='MALE'?'m':g==='FEMALE'?'f':g==='FAMILY'?'fam':''; }
+  function grpLabel(n){ var pt=String(n||'').split('/'); var bd=(pt[0]||'').trim(); var g=(pt[1]||'').trim().toUpperCase();
+    var gl=g==='MALE'?'남자':g==='FEMALE'?'여자':g==='FAMILY'?'공용':(pt[1]||'').trim();
+    return gl?(bd+'/'+gl):bd; }
+  function groupOpts(){ var groups=(REAL&&REAL.roomstat&&REAL.roomstat.groups)||[]; var seen={},out=[];
+    for(var i=0;i<groups.length;i++){ var nm=groups[i]&&groups[i].name; if(!nm)continue;
+      if(state.center && state.center!=='ALL' && centerOf(categoryOf(nm))!==state.center) continue;
+      if(state.gender && state.gender!=='all' && grpGender(nm)!==state.gender) continue;
+      if(!seen[nm]){ seen[nm]=1; out.push(nm); } }
+    return out; }
 
-  function centerOf(cat){
-    var c = String(cat||'').toUpperCase();
-    if(c.indexOf('ENCANTO')===0) return 'ENCANTO';
-    if(c.indexOf('CAPITAL')===0) return 'CAPITAL';
-    if(c.indexOf('AMETHYST')>-1 || c.indexOf('CANBERRY')>-1) return 'ENCANTO';
-    if(c.indexOf('S HOTEL')>-1 || c.indexOf('CASABLU')>-1 || c.indexOf('CITADINES')>-1 || c.indexOf('COMMERCIAL')>-1 || c.indexOf('TEMPORARY')>-1) return 'CAPITAL';
-    return 'CAPITAL';
+  function centerOf(cat){ // 데스크톱 campusOf 와 동일 규칙
+    var u = String(cat||'').toUpperCase();
+    if(u.indexOf('ENCANTO')===0) return 'ENCANTO';
+    if(u.indexOf('CLASSIC')===0) return 'CLASSIC';
+    if(u.indexOf('CAPITAL')===0 || /S ?HOTEL|AMETHYST|CANBERRY|CASABLU|CITADINES|COMMERCIAL|RECORD ROOM/.test(u)) return 'CAPITAL';
+    return 'ETC';
   }
   function segColor(st){
     switch(String(st||'').toUpperCase()){
@@ -857,7 +973,8 @@ window.M_students=(function(){
     for(var g=0; g<groups.length; g++){
       var grp=groups[g]; if(!grp) continue;
       var cat=categoryOf(grp.name);
-      if(centerOf(cat)!==state.center) continue;
+      if(state.center!=='ALL' && centerOf(cat)!==state.center) continue;
+      if(state.group && grp.name!==state.group) continue; // 그룹(구분) 선택 시 해당 그룹만
       var rooms=grp.rooms||[];
       for(var r=0;r<rooms.length;r++){
         var room=rooms[r]; if(!room) continue;
@@ -991,9 +1108,12 @@ window.M_students=(function(){
     ['1인실','2인실','3인실','4인실','5인실'].forEach(function(p){
       perOpts+='<option value="'+p+'"'+(state.per===p?' selected':'')+'>'+p+'</option>';
     });
+    var grpO='<option value="">그룹 선택</option>';
+    groupOpts().forEach(function(nm){ grpO+='<option value="'+esc2(nm)+'"'+(state.group===nm?' selected':'')+'>'+esc2(grpLabel(nm))+'</option>'; });
     return '<div class="mv-ctl">'
       +'<select class="mv-sel" data-ctl="center">'
         +'<option value="">센터</option>'
+        +'<option value="ALL"'+(state.center==='ALL'?' selected':'')+'>전체 센터</option>'
         +'<option value="ENCANTO"'+(state.center==='ENCANTO'?' selected':'')+'>ENCANTO</option>'
         +'<option value="CAPITAL"'+(state.center==='CAPITAL'?' selected':'')+'>CAPITAL</option>'
       +'</select>'
@@ -1004,6 +1124,7 @@ window.M_students=(function(){
         +'<option value="f"'+(state.gender==='f'?' selected':'')+'>여</option>'
         +'<option value="fam"'+(state.gender==='fam'?' selected':'')+'>공용</option>'
       +'</select>'
+      +'<select class="mv-sel" data-ctl="group">'+grpO+'</select>'
       +'<select class="mv-sel" data-ctl="per">'+perOpts+'</select>'
       +'<input class="mv-sel mv-month" type="month" data-ctl="month" value="'+esc2(state.month)+'">'
       +'</div>';
@@ -1026,6 +1147,11 @@ window.M_students=(function(){
       var k=s.getAttribute('data-ctl');
       state[k]=s.value;
       if(k!=='month') state.limit=25;
+      if(k==='center'||k==='gender'){ // 센터/성별 바뀌면 그룹 초기화 + 그룹 옵션 갱신
+        state.group='';
+        var ctl=root.querySelector('.mv-ctl');
+        if(ctl){ var tmp=document.createElement('div'); tmp.innerHTML=controls(); ctl.replaceWith(tmp.firstChild); }
+      }
       rerender();
     });
     root.addEventListener('click', function(e){
@@ -1780,7 +1906,7 @@ window.M_table = (function(){
 
 /* ================= 경량 로그인 게이트(데스크톱 클라이언트 폴백과 동일 정책) ================= */
 (function(){
-  const ACCTS=['admin1','admin2','master','manager'];
+  const ACCTS=['admin','master','admin1','admin2','manager'];
   const SS='smeag_admin_session', LS='smeag_admin_pw', LSLOG='smeag_admin_log';
   function sess(){try{return JSON.parse(sessionStorage.getItem(SS)||'null');}catch(e){return null;}}
   function pwStore(){try{return JSON.parse(localStorage.getItem(LS)||'{}');}catch(e){return {};}}
@@ -1790,8 +1916,15 @@ window.M_table = (function(){
   const gate=document.getElementById('mvGate'),msg=document.getElementById('mvGateMsg');
   function showGate(){gate.classList.add('on');}
   function hideGate(){gate.classList.remove('on');}
-  function boot(){buildTabs();selectTab('home');}
-  if(sess()){hideGate();boot();}else{showGate();}
+  function boot(){buildTabs();selectTab('home');try{i18nApply(document.body);}catch(e){}}
+  // 언어 토글(기본 영어) — 데스크톱과 동일 저장키
+  (function(){var lb=document.getElementById('mvLangBtn'); if(lb){ lb.textContent=(LANG==='en'?'EN':'한');
+    lb.addEventListener('click',function(){ LANG=(LANG==='en'?'ko':'en'); try{localStorage.setItem('smeag-lang',LANG);}catch(e){}
+      lb.textContent=(LANG==='en'?'EN':'한');
+      try{render(CUR);}catch(e){} try{i18nApply(document.body);}catch(e){} }); }})();
+  // 로그인 없이 바로 실행(게이트 비활성)
+  if(!sess())sessionStorage.setItem(SS,JSON.stringify({username:'admin',since:new Date().toISOString()}));
+  hideGate();boot();
   document.getElementById('mvGateForm').addEventListener('submit',function(ev){ev.preventDefault();
     const u=(document.getElementById('mvGateUser').value||'').trim().toLowerCase();
     const p=document.getElementById('mvGatePass').value||'';
