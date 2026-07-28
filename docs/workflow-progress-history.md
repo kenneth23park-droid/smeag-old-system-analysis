@@ -309,3 +309,9 @@
 - **2026-07-27** 배치도(room_stat3) 개선 커밋(2건 함께):
   ① 방번호·인실 셀 **rowspan 병합** — 같은 방(모든 침대)을 좌측 방번호/인실 1칸으로 합침(빌딩구분 CAPITAL1 등은 방번호 앞 표시 유지). Playwright 검증: 다침대방 10개 전부 병합·콘솔에러0.
   ② **구간막대(dlane) 렌더링**(기존 워킹트리 반영분): 하루당 `<td>` 대신 colspan 1칸 + 절대배치 막대(span) — 전체 방 조회 렌더비용 대폭↓. `.dlane/.dbar/.dcap` CSS, realPat(같은날 퇴실+입실 대각선 boutin), dcells 재작성, rsLaneIdx/rsOccAt 헬퍼, rsAfterWrite(쓰기 후 재렌더).
+
+- **2026-07-28** **PHP 전면 폐기 → Supabase 네이티브 로그인(Edge Function, 방식 B)** 전환. 사용자 지시 "PHP 절대 사용 안 함" 반영:
+  ① 인증 RPC `migration/schema/member_auth_edge.sql`(적용·테스트 완료): `app.member_authenticate(p_id,p_pw,p_ip)` = 기존 member_login 로직 + **레이트리밋(15분·10회, IP 또는 아이디 기준)** + **IP 로깅**. security definer·**service_role 전용**(anon 미노출 → 브루트포스 표면 제거). 구 2-arg member_login 은 anon 권한 회수(service_role만). 실DB 검증: 성공(cebusme00/1234 Lv10·admin1 bcrypt), 실패 거부, **잠금 동작 확인**(동일 IP 10회 후 정답도 차단·타 IP 정상·테스트로그 정리).
+  ② Edge Function `supabase/functions/auth/index.ts`(Deno, **의존성 0**, Web Crypto만): GET=로그인폼/랜딩, POST login=검증→**httpOnly·Secure 쿠키 JWT(HS256) 발급**→303, POST logout=쿠키파기, GET ?me=세션JSON. 검증은 service_role 로 RPC 호출(키·로직 서버측 은닉). 레거시 로그인 화면(아이디/비번/자동로그인) 재현.
+  ③ `supabase/config.toml`(verify_jwt=false, 공개 로그인) + `functions/auth/README.md`(배포순서: CLI설치→link→`secrets set AUTH_SESSION_SECRET`→`functions deploy auth --no-verify-jwt`, 접속 `…supabase.co/functions/v1/auth`).
+  ⚠ 로컬에 supabase CLI·Deno 없어 함수 실행검증은 미실시(코드·DB계층은 실검증). 배포는 사용자 CLI 인증 필요 → 가이드 제공. ⚠ 기존 `src/*.php`(login/auth/logout/index/db) + web(php) 컨테이너는 **사표(死票)** — 정리 대상. ⚠ 배포 전 약한 비번(1234 등) 관리자단 must_change 강제 권장.

@@ -1,0 +1,7 @@
+# Supabase 프로젝트 설정 (Edge Function 배포용 최소 구성)
+project_id = "bauhnnpioaephlwurxzg"
+
+# auth 함수는 "공개 로그인 페이지"라 Supabase JWT 검증을 끈다.
+# (세션은 이 함수가 자체 httpOnly 쿠키 JWT 로 관리)
+[functions.auth]
+verify_jwt = false
