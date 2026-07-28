@@ -305,3 +305,7 @@
   ④ 화면(`src/`): `login.php`(그누보드 flogin 재현—mb_id/mb_password/auto_login, PDO로 RPC 호출·세션·오픈리다이렉트 가드), `auth.php`(세션·require_login/require_level), `logout.php`, `index.php`에 `require_login()`+사용자바(이름·Lv·로그아웃) 주입. 컨테이너(web:8000, php8.2+pdo_pgsql)에서 구동. 로컬 PHP/도커 미가용으로 php -l 은 미실시(DB/RPC 계층은 실검증 완료).
 
 - **2026-07-27** 행정팀 5건 **작업 투두 파일** 생성 `docs/TODO_ADMIN_TEAM_2026-07-27.md`: 대시보드(ID·상태·선행·공수) + Q(확인 7건)·D(재이관 선행)·A3/A5/A1/A4/A2 항목별 체크리스트 40여개 + 진행로그. 상태표기 ☐대기/▶진행/✅완료/⛔차단. **현재 착수 가능한 것은 Q(회신)와 A3(센터수납, 단독) 둘뿐이고 나머지는 재이관(D)+anon키 대기로 ⛔.** 코드 변경 없음.
+
+- **2026-07-27** 배치도(room_stat3) 개선 커밋(2건 함께):
+  ① 방번호·인실 셀 **rowspan 병합** — 같은 방(모든 침대)을 좌측 방번호/인실 1칸으로 합침(빌딩구분 CAPITAL1 등은 방번호 앞 표시 유지). Playwright 검증: 다침대방 10개 전부 병합·콘솔에러0.
+  ② **구간막대(dlane) 렌더링**(기존 워킹트리 반영분): 하루당 `<td>` 대신 colspan 1칸 + 절대배치 막대(span) — 전체 방 조회 렌더비용 대폭↓. `.dlane/.dbar/.dcap` CSS, realPat(같은날 퇴실+입실 대각선 boutin), dcells 재작성, rsLaneIdx/rsOccAt 헬퍼, rsAfterWrite(쓰기 후 재렌더).
