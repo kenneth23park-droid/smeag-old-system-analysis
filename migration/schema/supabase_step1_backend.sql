@@ -100,25 +100,47 @@ grant execute on function public.admin_change_password(text, text, text) to anon
 
 
 -- ========================================================================
--- [C] 데이터 노출 뷰 — [A] 로 스키마/컬럼 확인한 뒤 실행
---     ⚠ 아래 컬럼명은 '예상값'입니다. [A] 결과와 다르면 이름을 맞추세요.
---     ⚠ 주민번호(s_jumin) 등 민감정보는 노출하지 않습니다.
---     ⚠ from 절의 스키마(legacy)를 [A]에서 확인한 실제 스키마로 바꾸세요.
+-- [C] 데이터 노출 뷰 — 실제 컬럼(legacy.student_info) 확인 반영본
+--     · 주민번호(s_jumin) 원문·전화·주소는 노출 안 함
+--     · 생년월일(birth)만 s_jumin 에서 안전 추출(에러 시 null)
 -- ========================================================================
+-- 생년월일 추출 헬퍼(주민 앞 6자리 → 날짜, 세기 보정, 실패 시 null)
+create or replace function app.jumin_to_birth(p text)
+returns date language plpgsql immutable as $$
+declare j text; c text; y text;
+begin
+  j := regexp_replace(coalesce(p,''), '[^0-9]', '', 'g');
+  if length(j) < 7 then return null; end if;
+  c := substr(j,7,1);
+  y := case when c in ('3','4','7','8') then '20'
+            when c in ('1','2','5','6') then '19'
+            when c in ('9','0') then '18' else '19' end;
+  begin
+    return to_date(y || substr(j,1,6), 'YYYYMMDD');
+  exception when others then return null; end;
+end $$;
+
 create or replace view public.v_students as
 select
   s_idx,
-  e_name       as name_en,       -- 영문이름
-  k_name       as name_kr,       -- 한글이름
-  s_gender     as gender,        -- 성별
-  s_age        as age,           -- 나이
-  s_date       as begin_date,    -- 시작일
-  s_departure  as departure_date,-- 출발일
-  s_regdate    as apply_date,    -- 등록일
-  s_room       as room,          -- 객실
-  course_info  as course,        -- 연수코스
-  now_status   as status         -- 상태
-from legacy.student_info;        -- ← [A]에서 확인한 실제 스키마로 조정
+  uhak_id                      as agency,          -- 유학원
+  s_nation                     as nationality,     -- 국적
+  e_name                       as name_en,         -- 영문이름
+  k_name                       as name_kr,         -- 한글이름
+  app.jumin_to_birth(s_jumin)  as birth,           -- 생년월일(주민에서 추출·원문 미노출)
+  s_age                        as age,             -- 나이
+  s_gender                     as gender,          -- 성별
+  s_regdate                    as apply_date,      -- 등록일(APPLY)
+  s_departure                  as departure_date,  -- 출발일(DEPA)
+  s_sdate                      as begin_date,      -- 시작일(BEGIN)
+  s_flight                     as pickup,          -- 픽업/항공(PICKUP)
+  s_edate                      as end_date,        -- 종료일(END)
+  s_period                     as period,          -- 기간(PERI)
+  now_status                   as status,          -- 상태(STATUS)
+  course_info                  as course,          -- 연수코스(COURSE)
+  s_room                       as room,            -- 객실(ROOM)
+  s_campus                     as campus           -- 캠퍼스
+from legacy.student_info;
 
 -- 보안(핵심): 비로그인(anon)은 차단, 로그인 사용자·서버만 조회
 revoke all on public.v_students from anon;
