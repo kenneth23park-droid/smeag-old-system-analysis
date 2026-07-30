@@ -420,3 +420,12 @@
   · z-index 미지정(DOM 순서상 막대·X캡 위, 좌측 고정열 z-index:1 아래) → **라벨이 구분/방번호/인실/이름 고정열을 덮지 않음**. X 무늬 위 가독성용 얇은 후광(text-shadow).
   · 검증(Playwright): 기본 OFF·라벨 273개 심김, 토글 ON→`display:block`, 10/25/50/90% 전환 시 `--dlabop`·표시값 동기화, 그룹 변경 재렌더 후 상태 유지, 페이지에러 0. 캡처 `exploration/shots/new_roomstat_dlab.png`.
   · 배포 + `smeag-bay.vercel.app` 별칭 재지정 완료.
+
+- **2026-07-30** 방막기(Block) **제약 2건 해소 — 공유 저장 + 기간 차단**:
+  ① **서버 원장 신설** `migration/schema/room_blocks.sql`(멱등) — `app.room_blocks`(room_key='BX|그룹|방번호' · bed_no 0=방전체 · from/to NULL=무기한 · reason MAINT/CLEAN/HOLD/ETC · created_by/verified · released_at/by 소프트해제로 이력보존) + RPC 3종(`room_block_list/_set/_release`). 중복 방지 3중(활성블록 UNIQUE 부분인덱스 · idem_key UNIQUE · ON CONFLICT). Supabase 실적용 후 12케이스 검증(기간차단/재전송replay/같은구간/다른구간/무기한/역순범위거부/잘못된사유보정/겹침조회/해제/재해제멱등) 통과.
+  ② **`/api/blocks` 서버리스**(deploy/api/blocks.js) — pg 풀러 직결(anon 키 불필요, /api/data 와 동일 패턴). GET 목록 · POST block/release. actor 는 JWT 세션쿠키 우선, 없으면 `X-SME-User` 헤더(verified=false 로 정직 표기) → 로그인 게이트가 꺼져 있는 현 상태에서도 동작하고, /api/auth 로그인을 켜면 무수정으로 승격.
+  ③ **프런트(배치도·DORM LIST, deploy/index.html + prototype.html 동기)** — localStorage 전용 저장을 서버 공유로 전환(`BLK` 캐시 + 오프라인 폴백 + 기존 localStorage 차단분 1회 자동 승격). **날짜축 가로 드래그 → 그 기간만 Block**(사유 선택·메모·2인실 이상은 침대/방전체 범위 선택), 간트에 사유별 색 빗금 막대 렌더, 막대 클릭 → 등록자·시각 표시 후 해제. 좌측 고정열 세로 드래그(방 전체 무기한)는 기존대로 유지.
+  ④ 부수 수정: DORM LIST 키를 `RL|<NO>` → 배치도와 같은 `BX|<그룹>|<방번호>`로 통일(두 화면 차단상태가 서로 안 보이던 문제) · 기간 막대 클릭이 ROOM REPLACEMENT 를 동시에 열던 문제 · 드래그 직후 click 이 해제 모달을 여는 문제.
+  ⑤ 검증: 로컬(dev server)·**라이브 모두 Playwright 통과** — 새 브라우저 프로필(localStorage 비어있음)에서 타인이 만든 블록이 보임(=공유 성립), 침대범위 선택, 같은 구간 재등록 시 막대 증가 없음(멱등), 막대 클릭 해제 후 제3 프로필에서도 해제 반영, 콘솔에러 0(잔여 401 은 기존 /api/data 세션 미연결 건).
+  ⑥ 배포 이슈 발견·해결: `smeag-bay.vercel.app` 별칭이 15분 전 배포(dpl c77sk1dfy)에 **고정**돼 있어 `vercel deploy --prod` 를 해도 라이브가 갱신되지 않았음 → `vercel alias set` 으로 최신 배포에 재지정. 이후 라이브 = 로컬 바이트 동일(1,561,081).
+  ⚠ 남은 것: 모바일 `/m/` 미반영 · 막힌 방에 배정 시 실제 차단(프리플라이트 연동) 미구현 · actor 가 로그인 게이트 비활성으로 'anonymous'(로그인 켜면 자동 해소).

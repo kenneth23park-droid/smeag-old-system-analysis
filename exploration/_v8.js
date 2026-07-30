@@ -1,0 +1,15 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1500,height:760}});
+await p.goto('file:///Users/kwangseobpark/smeag-old-system-analysis/deploy/index.html');await p.waitForTimeout(1800);
+await p.evaluate(()=>document.querySelector('#adminAuthOverlay')?.remove());
+await p.evaluate(()=>[...document.querySelectorAll('a,button,[data-u]')].find(x=>/Dormitory Status/i.test(x.textContent)).click());
+await p.waitForTimeout(900);
+await p.selectOption('#rsCenter','CAPITAL');await p.selectOption('#rsGender','MALE');await p.waitForTimeout(300);
+await p.selectOption('#rsGroup','CAPITAL1 - Male').catch(()=>p.selectOption('#rsGroup','CAPITAL1 / MALE'));
+await p.waitForTimeout(1800);
+await p.evaluate(()=>{const r=document.querySelector('#rsDlabOp');r.value=50;r.dispatchEvent(new Event('input',{bubbles:true}));});
+await p.waitForTimeout(600);
+const tw=await p.$('.twrap.dorm-scroll');await p.evaluate(()=>{const w=document.querySelector('.twrap.dorm-scroll');w.scrollLeft=+w.dataset.mstart-40;});
+await p.waitForTimeout(500);
+await p.screenshot({path:'shots/new_roomstat_dlab.png'});
+await b.close();})();

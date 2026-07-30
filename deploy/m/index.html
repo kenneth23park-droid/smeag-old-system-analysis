@@ -210,7 +210,7 @@ main.mv-main.has-search{top:calc(105px + env(safe-area-inset-top,0px))}
 
 <div id="mvGate"><div class="mv-gate-box">
   <h2><span class="logo">S</span> SMEAG 관리자</h2>
-  <p>모바일 · 승인된 관리자만 접근 (admin1 / admin2 / master / manager)</p>
+  <p>모바일 · 기존(레거시) 아이디 · 비밀번호로 로그인하세요</p>
   <div class="mv-gate-msg" id="mvGateMsg"></div>
   <form id="mvGateForm">
     <div class="mv-field"><label>아이디</label><input id="mvGateUser" autocomplete="username" autocapitalize="off" spellcheck="false"></div>
@@ -239,7 +239,14 @@ function mvLiveTag(state){
   if(state==='sync'){b.textContent='⟳';b.style.opacity='.45';b.title='DB에서 최신 데이터를 불러오는 중…';}
   else{b.style.opacity='1';
     b.textContent=state==='ok'?'⟳':(state==='err'?'⚠':'○');
-    b.title=state==='ok'?('DB 최신 '+t+' · 눌러서 다시 조회'):(state==='err'?('DB 오류: '+MVLIVE.err):'로그인 필요 — /login 에서 로그인하면 실데이터 조회');}
+    b.title=state==='ok'?('DB 최신 '+t+' · 눌러서 다시 조회'):(state==='err'?('DB 오류: '+MVLIVE.err):'로그인 필요 — 다시 로그인하면 실데이터를 조회합니다');}
+}
+/* 세션 만료(401) 안내 — 1회만 노출하고 로그인 게이트로 되돌린다(반복 토스트 방지) */
+let MVAUTHNOTED=false;
+function mvSessionExpired(){
+  if(MVAUTHNOTED)return;MVAUTHNOTED=true;
+  try{toast('세션이 만료되었습니다','보안을 위해 로그아웃되었습니다. 다시 로그인해 주세요.',false);}catch(e){}
+  setTimeout(function(){try{if(window.mvRelogin)window.mvRelogin('세션이 만료되었습니다 — 다시 로그인해 주세요.');}catch(e){}},600);
 }
 async function mvLiveSync(it,force){
   if(MVLIVE.off||!window.fetch)return 'skip';
@@ -255,7 +262,7 @@ async function mvLiveSync(it,force){
     try{
       const headers={};if(!force&&MVLIVE.etags[key])headers['If-None-Match']=MVLIVE.etags[key];
       const r=await fetch('/api/data?'+key,{credentials:'same-origin',cache:'no-store',headers});
-      if(r.status===401){MVLIVE.off=true;mvLiveTag('auth');return 'fail';}
+      if(r.status===401){MVLIVE.off=true;mvLiveTag('auth');mvSessionExpired();return 'fail';}
       if(r.status===304){need.forEach(p=>{MVLIVE.at[p]=Date.now();});MVLIVE.ts=Date.now();mvLiveTag('ok');return 'fresh';}
       if(!r.ok)throw new Error('HTTP '+r.status);
       const j=await r.json();if(!j||!j.ok)throw new Error((j&&j.message)||'bad response');
@@ -1978,12 +1985,13 @@ window.M_table = (function(){
   };
 })();
 
-/* ================= 경량 로그인 게이트(데스크톱 클라이언트 폴백과 동일 정책) ================= */
+/* ================= 로그인 게이트 — 서버 세션(httpOnly 쿠키) 전용 =================
+   · 데스크톱 index.html 의 init() 과 동일: GET /api/auth?me → 세션 있으면 바로 진입.
+   · 없으면 모바일 게이트 폼 → POST /api/auth (action=login, JSON 모드) 로 서버 인증.
+   · 로컬 폴백 로그인(초기 비번=아이디)은 제거됨 — 서버 인증만 허용한다.       */
 (function(){
-  const ACCTS=['admin','master','admin1','admin2','manager'];
-  const SS='smeag_admin_session', LS='smeag_admin_pw', LSLOG='smeag_admin_log';
+  const SS='smeag_admin_session', LSLOG='smeag_admin_log';
   function sess(){try{return JSON.parse(sessionStorage.getItem(SS)||'null');}catch(e){return null;}}
-  function pwStore(){try{return JSON.parse(localStorage.getItem(LS)||'{}');}catch(e){return {};}}
   window.adminAuthLog=function(action,detail,kind){try{const a=JSON.parse(localStorage.getItem(LSLOG)||'[]');
     const s=sess();a.push({username:s&&s.username,kind:kind||null,action:action,detail:detail||{},at:new Date().toISOString()});
     localStorage.setItem(LSLOG,JSON.stringify(a.slice(-5000)));}catch(e){}};
@@ -1993,28 +2001,81 @@ window.M_table = (function(){
   function boot(){buildTabs();selectTab('home');try{i18nApply(document.body);}catch(e){}
     const lb=document.getElementById('mvLiveBtn');   // ⟳ 수동 최신화(현재 화면)
     if(lb&&!lb._wired){lb._wired=1;lb.addEventListener('click',function(){
-      if(MVLIVE.off){toast('로그인 필요','/login 에서 로그인하면 DB 실데이터를 조회합니다.',false);return;}
+      if(MVLIVE.off){toast('로그인 필요','세션이 없습니다. 다시 로그인하면 DB 실데이터를 조회합니다.',false);
+        window.mvRelogin('세션이 없습니다 — 다시 로그인해 주세요.');return;}
       navRender(CUR);});}
   }
+  // 서버 세션으로 진입 + 라이브 조회 시작
+  function enter(s){
+    try{sessionStorage.setItem(SS,JSON.stringify({username:(s&&s.mb_id)||'',name:(s&&s.mb_name)||'',level:(s&&s.mb_level)||0,since:new Date().toISOString()}));}catch(e){}
+    MVLIVE.off=false;MVAUTHNOTED=false;MVLIVE.at={};MVLIVE.etags={};
+    msg.className='mv-gate-msg';msg.textContent='';
+    hideGate();boot();
+  }
+  // 세션 만료/부재 → 게이트 재표시(mvLiveSync 401 및 ⟳ 버튼에서 호출)
+  window.mvRelogin=function(note){
+    try{sessionStorage.removeItem(SS);}catch(e){}
+    MVLIVE.off=true;
+    const p=document.getElementById('mvGatePass');if(p)p.value='';
+    if(note){msg.className='mv-gate-msg err';msg.textContent=note;}
+    showGate();
+  };
   // 언어 토글(기본 영어) — 데스크톱과 동일 저장키
   (function(){var lb=document.getElementById('mvLangBtn'); if(lb){ lb.textContent=(LANG==='en'?'EN':'한');
     lb.addEventListener('click',function(){ LANG=(LANG==='en'?'ko':'en'); try{localStorage.setItem('smeag-lang',LANG);}catch(e){}
       lb.textContent=(LANG==='en'?'EN':'한');
       try{render(CUR);}catch(e){} try{i18nApply(document.body);}catch(e){} }); }})();
-  // 로그인 없이 바로 실행(게이트 비활성)
-  if(!sess())sessionStorage.setItem(SS,JSON.stringify({username:'admin',since:new Date().toISOString()}));
-  hideGate();boot();
-  document.getElementById('mvGateForm').addEventListener('submit',function(ev){ev.preventDefault();
-    const u=(document.getElementById('mvGateUser').value||'').trim().toLowerCase();
+  // ── /api/auth 호출(JSON 모드). 쿠키는 서버가 Set-Cookie 로 발급/파기 ──
+  function authApi(payload){
+    return fetch('/api/auth',{method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'},
+      credentials:'same-origin',body:new URLSearchParams(payload).toString()})
+      .then(function(r){return r.json().then(function(j){j=j||{};j._status=r.status;return j;},
+                                            function(){return {ok:false,_status:r.status,message:'서버 응답을 해석할 수 없습니다.'};});});
+  }
+  // ── 로그인 폼 제출 → 서버 인증만 ──
+  const form=document.getElementById('mvGateForm');
+  form.addEventListener('submit',function(ev){ev.preventDefault();
+    const u=(document.getElementById('mvGateUser').value||'').trim();
     const p=document.getElementById('mvGatePass').value||'';
-    if(ACCTS.indexOf(u)<0){msg.className='mv-gate-msg err';msg.textContent='없는 관리자 아이디입니다.';return;}
-    const pw=pwStore();const expect=pw[u]||u; /* 초기 비번=아이디 */
-    if(p!==expect){msg.className='mv-gate-msg err';msg.textContent='비밀번호가 올바르지 않습니다.';return;}
-    sessionStorage.setItem(SS,JSON.stringify({username:u,since:new Date().toISOString()}));
-    window.adminAuthLog('login',{u:u},'auth');
-    msg.className='mv-gate-msg ok';msg.textContent='로그인 성공';
-    setTimeout(function(){hideGate();boot();},250);
+    if(!u||!p){msg.className='mv-gate-msg err';msg.textContent='아이디와 비밀번호를 입력하세요.';return;}
+    const btn=form.querySelector('button[type=submit]');
+    if(btn){if(btn._busy)return;btn._busy=1;btn.disabled=true;}
+    msg.className='mv-gate-msg';msg.textContent='로그인 중…';
+    authApi({action:'login',mb_id:u,mb_password:p}).then(function(j){
+      if(j.ok&&j.must_change){
+        msg.className='mv-gate-msg err';
+        msg.textContent='비밀번호 변경이 필요합니다. PC(/login)에서 비밀번호를 변경한 뒤 다시 로그인하세요.';
+        return;
+      }
+      if(j.ok){
+        window.adminAuthLog('login',{u:j.mb_id||u},'auth');
+        msg.className='mv-gate-msg ok';msg.textContent='로그인 성공';
+        setTimeout(function(){enter(j);},200);
+        return;
+      }
+      msg.className='mv-gate-msg err';
+      msg.textContent=j.message||(j._status===401?'아이디 또는 비밀번호가 올바르지 않습니다.':'로그인에 실패했습니다. 잠시 후 다시 시도하세요.');
+    })['catch'](function(){
+      msg.className='mv-gate-msg err';
+      msg.textContent='서버에 연결할 수 없습니다. 네트워크 상태를 확인한 뒤 다시 시도하세요.';
+    })['finally'](function(){ if(btn){btn._busy=0;btn.disabled=false;} });
   });
+  // ── 로그아웃(있을 때만 배선) — 서버 쿠키도 파기 ──
+  (function(){var lo=document.getElementById('mvLogoutBtn'); if(!lo)return;
+    lo.addEventListener('click',function(){
+      window.adminAuthLog('logout',{},'auth');
+      authApi({action:'logout'})['catch'](function(){});
+      window.mvRelogin('로그아웃되었습니다.');
+    });})();
+  // ── 초기화: 서버 세션 확인 → 있으면 진입, 없으면 로그인 게이트 ──
+  (function init(){
+    if(!window.fetch){window.mvRelogin('');return;}
+    fetch('/api/auth?me',{credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}})
+      .then(function(r){return r.ok?r.json():null;})
+      .then(function(s){ if(s&&s.mb_id)enter(s); else window.mvRelogin(''); })
+      ['catch'](function(){ window.mvRelogin('서버에 연결할 수 없습니다. 다시 시도하세요.'); });
+  })();
 })();
 </script>
 </body>

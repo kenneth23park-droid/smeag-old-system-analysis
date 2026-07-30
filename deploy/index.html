@@ -424,6 +424,18 @@
   #rsBlockMode.on{background:var(--female);border-color:var(--female);color:#fff}
   .twrap.dorm-scroll.blkmode{cursor:crosshair}
   .twrap.dorm-scroll.blkmode *{cursor:crosshair !important;user-select:none}
+  /* 기간 블록(날짜축 가로 드래그) — 간트 위 빗금 막대 */
+  .gantt .dblk{position:absolute;top:1px;bottom:1px;z-index:4;border-radius:3px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;
+    font-size:9.5px;font-weight:800;color:#fff;letter-spacing:.2px;
+    background:repeating-linear-gradient(135deg,var(--blkc,var(--female)) 0 6px,color-mix(in srgb,var(--blkc,var(--female)) 58%,#000) 6px 12px);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+  .gantt .dblk:hover{filter:brightness(1.15)}
+  .gantt .dblk.r-MAINT{--blkc:#e11d48} .gantt .dblk.r-CLEAN{--blkc:#0284c7}
+  .gantt .dblk.r-HOLD{--blkc:#ca8a04}  .gantt .dblk.r-ETC{--blkc:#64748b}
+  .gantt .dblksel{position:absolute;top:1px;bottom:1px;z-index:6;pointer-events:none;border-radius:3px;
+    display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;color:var(--accent-ink);
+    background:color-mix(in srgb,var(--accent) 26%,transparent);box-shadow:inset 0 0 0 2px var(--accent)}
   .gantt tbody.room-block.rs-blocked td{background:color-mix(in srgb,var(--female) 12%,var(--surface))}
   .gantt tbody.room-block.rs-blocked td.dcell{background:color-mix(in srgb,var(--female) 16%,var(--surface))}
   /* ── 구간막대 렌더(하루=셀 대체). 날짜 격자는 배경, X 는 막대 무늬 ── */
@@ -445,7 +457,9 @@
   /* ── 방 셀 위 학생이름·기간 오버레이(반투명, 투명도 조절) ── */
   .gantt .dlab{position:absolute;top:0;bottom:0;display:none;padding:0 3px;font-size:10px;line-height:21px;
     font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);
-    opacity:var(--dlabop,.5);pointer-events:none;z-index:3;mix-blend-mode:normal}
+    opacity:var(--dlabop,.5);pointer-events:none;
+    text-shadow:0 0 2px var(--surface),0 0 2px var(--surface)}   /* X 무늬 위에서도 읽히도록 얇은 배경 후광 */
+  /* z-index 없음(DOM 순서상 막대·X캡 위, 좌측 고정열(z-index:1) 아래) → 라벨이 고정열을 덮지 않는다 */
   .gantt.rs-dlab .dlab{display:block}
   .rs-lblstack{display:inline-flex;flex-direction:column;gap:4px;align-items:stretch}
   .rs-lblrow{display:flex;gap:4px;align-items:center;justify-content:flex-start}
@@ -489,6 +503,12 @@
   .modal-h{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;
     border-bottom:1px solid var(--border);background:var(--surface-2);position:sticky;top:0;z-index:2}
   .modal-h b{font-size:15px;letter-spacing:.6px}
+  /* 세션만료 안내 — 살짝 페이드(동작 최소화 설정에서는 즉시 표시) */
+  @keyframes authFade{from{opacity:0}to{opacity:1}}
+  #authBox{animation:authFade .16s ease-out}
+  #authBox .auth-warn{color:var(--warn);font-weight:700}
+  #authBox .auth-msg{line-height:1.75;color:var(--text)}
+  @media(prefers-reduced-motion:reduce){#authBox{animation:none}}
   .modal-x{border:1px solid var(--border);background:var(--surface);color:var(--dim);
     border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:14px}
   .modal-body{display:grid;grid-template-columns:1fr 1.15fr;gap:18px;padding:18px}
@@ -504,6 +524,15 @@
   table.rp-info,table.rp-cand{border-collapse:collapse;width:100%;font-size:12px}
   table.rp-info th,table.rp-info td,table.rp-cand th,table.rp-cand td{border:1px solid var(--border);padding:7px 9px;text-align:left}
   table.rp-info th{background:var(--surface-2);color:var(--dim);white-space:nowrap;width:96px}
+  /* 레거시 reserve_move.php 학생정보 표 = 라벨·값·라벨·값 4칸 페어 레이아웃(한 줄에 두 항목) */
+  table.rp-info.pair th{width:118px;text-align:center;color:var(--text);font-weight:800}
+  table.rp-info.pair td{width:auto}
+  table.rp-info.pair th.rp-cmt-h{vertical-align:middle}
+  table.rp-info.pair td.rp-cmt{padding:4px}
+  .rp-ta{width:100%;min-height:84px;border:1px solid var(--border);background:var(--surface-2);
+    border-radius:6px;padding:6px 8px;font:inherit;font-size:12px;color:var(--text);resize:vertical}
+  /* 예약객실 표 — 레거시처럼 가운데 정렬 */
+  table.rp-info.dorm th,table.rp-info.dorm td{text-align:center;width:auto}
   table.rp-cand th{background:var(--surface-2);color:var(--dim);text-transform:uppercase;font-size:10.5px;text-align:center}
   table.rp-cand td{text-align:center}
   table.rp-cand td.cat{text-align:left}
@@ -744,7 +773,7 @@ const MENU={
     {k:'spec',t:'FARM & GYM',u:'student_farm.php',cols:['NAT','NAME','GYM START','GYM PERIOD','FARM ARRIVAL','FARM FLIGHT','COMMENTS','COMMISSION','APPLY']},
     {k:'spec',t:'GYM 리포트',u:'student_gym.php',cols:['NAT','NAME','GYM START','GYM PERIOD','GYM FEE','COMMISSION','APPLY','CAMPUS']},
     {k:'spec',t:'FARM 리포트',u:'student_farm2.php',cols:['NAT','NAME','FARM ARRIVAL','PAID','FARM FEE','COMMISSION','APPLY','CAMPUS']},
-    {k:'spec',t:'POPULATION',u:'student_population.php',note:'국적×캠퍼스(ENCANTO/CLASSIC/CAPITAL/TOTAL) 교차표'},
+    {k:'spec',t:'POPULATION',u:'student_population.php',note:'국적×캠퍼스(ENCANTO/CLASSIC/CAPITAL/TOTAL) 교차표 · 집계기준=활성 상태만(normal·extend·holding·holdinguse·checking) / 전체는 POPULATION2'},
     {k:'spec',t:'POPULATION2',u:'student_population2.php',note:'인구통계 변형뷰'},
     {k:'spec',t:'STDNT STATUS',u:'student_present2.php',note:'센터×국적×일자 매트릭스(인원·%)'},
     {k:'spec',t:'STDNT Fullsize/Encanto/Classic/Capital',u:'student_present2-*.php',note:'⚠ 4종 모두 홈(/) 리다이렉트 = 외부 에이전시 포털(관리기능 아님)'},
@@ -833,7 +862,10 @@ let REAL=JSON.parse('{"roomstat":{"groups":[{"name":"TEMPORARY / FAMILY","rooms"
 const LIVE={
   ttl:60000,            // 기본: 같은 조각을 60초 안에 다시 요청하면 캐시 사용(메뉴 왕복 시 재조회 방지)
   // 조각별 TTL — 자주 바뀌는 것은 짧게, 무거운 것(배치도 13개월)은 길게 잡아 DB 부하를 낮춘다.
-  ttls:{students:60000, roomstat:300000, pickup:120000, groups:600000, deposits:120000, changelog:60000},
+  ttls:{students:60000, roomstat:300000, pickup:120000, groups:600000, deposits:120000, changelog:60000,
+    // 신규 조각 — 게시판/방문은 짧게(수시 갱신), 코스·학비·전기요금 마스터는 길게(거의 안 변함)
+    boards:60000, agencyvisit:120000, points:120000, visits:120000, members:300000,
+    commission:300000, farmgym:300000, dayoff:300000, courses:600000, tuition:600000, elec:600000},
   at:{},                // 조각별 마지막 성공시각
   etags:{},             // 요청키별 ETag
   inflight:{},          // 진행 중 요청(같은 요청 중복 발사 방지)
@@ -852,6 +884,18 @@ const LIVE_PARTS_URL={
   'student_payment-2.php':['deposits','students'],     // Deposit(test)/Pre-paid
   'room_change_log.php':['changelog'],                 // BACK-UP LOG
 };
+// 신규 조각 ↔ 응답 out.tables 키(레거시 URL). LIVE_PARTS_URL 자동 역매핑 + liveHave 판정에 함께 쓴다.
+const PART_TABLES={
+  members:['member_list.php'], points:['point_list.php'], visits:['visit_list.php'],
+  commission:['uhak_agency_commission.php'], courses:['course_list.php'], tuition:['tution_fee.php'],
+  farmgym:['student_farm.php','student_gym.php'], elec:['room_elec.php'],
+  agencyvisit:['uhak_agency_visit.php'],
+  // MENU 의 실제 u 는 'scheduler_index(-all).php' 한 건이지만 개별 URL 로 들어와도 받도록 함께 등록
+  dayoff:['scheduler_index(-all).php','scheduler_index.php','scheduler_index-all.php'],
+  boards:['bbs/board.php?bo_table=office_GAC','bbs/board.php?bo_table=office_holding','bbs/board.php?bo_table=office_share'],
+};
+// 위 대응표를 URL→parts 로 뒤집어 등록(기존 수동 매핑이 있으면 그대로 둔다)
+Object.keys(PART_TABLES).forEach(p=>PART_TABLES[p].forEach(u=>{if(!LIVE_PARTS_URL[u])LIVE_PARTS_URL[u]=[p];}));
 function livePartsFor(key){
   const u=(curMenu&&curMenu.u)||'';
   return LIVE_PARTS_URL[u]||LIVE_PARTS[key]||['students'];
@@ -866,8 +910,12 @@ function liveHave(p){
   if(p==='groups')return !!(REAL.groups&&REAL.groups.length);
   if(p==='deposits')return !!(REAL.deposits&&REAL.deposits.length);
   if(p==='changelog')return !!(REAL.changelog&&REAL.changelog.length);
+  // 표(tables) 기반 신규 조각: 지금 보는 화면의 표가 있으면 그것만, 아니면 조각 내 아무 표라도 있으면 있다고 본다.
+  if(PART_TABLES[p]){const cu=(curMenu&&curMenu.u)||'';
+    return PART_TABLES[p].indexOf(cu)>=0?_liveTbl(cu):PART_TABLES[p].some(_liveTbl);}
   return false;
 }
+const _liveTbl=(u)=>!!(REAL&&REAL.tables&&REAL.tables[u]&&REAL.tables[u].rows&&REAL.tables[u].rows.length);
 const liveMonth=()=>`${roomCenter.y}-${String(roomCenter.m).padStart(2,'0')}`;
 function liveTag(state){
   const el=document.getElementById('liveTag');if(!el)return;
@@ -908,6 +956,7 @@ async function liveSync(o){
     const r=await fetch('/api/data?'+key,{credentials:'same-origin',cache:'no-store',headers,signal:ctl?ctl.signal:undefined});
     if(r.status===401){LIVE.off=true;liveTag('auth');
       toast(T('DB 조회 불가','Live data unavailable'),T('서버 세션이 없습니다. /login 으로 다시 로그인하면 실데이터가 표시됩니다.','No server session. Re-login at /login to see live data.'),false);
+      authExpiredBox();   // 표가 실데이터가 아님을 1회 모달로 분명히 알림
       return 'fail';}
     if(r.status===304){need.forEach(p=>{LIVE.at[p]=Date.now();});LIVE.ts=Date.now();LIVE.err='';liveTag('ok');return 'fresh';}
     if(!r.ok)throw new Error('HTTP '+r.status);
@@ -920,6 +969,9 @@ async function liveSync(o){
     if(j.pickup)REAL.pickup=j.pickup;
     if(j.deposits)REAL.deposits=j.deposits;
     if(j.changelog)REAL.changelog=j.changelog;
+    // out.tables = {"<레거시 URL>":{cols,rows}} → REAL.tables 에 병합(기존 키 유지, 같은 키는 최신값으로 교체)
+    if(j.tables&&typeof j.tables==='object')REAL.tables=Object.assign(REAL.tables||{},j.tables);
+    if(j.truncated)LIVE.truncated=j.truncated;   // 화면당 500행 상한에 걸린 조각 표시
     liveInvalidate();
     const et=r.headers&&r.headers.get&&r.headers.get('ETag');if(et)LIVE.etags[key]=et;
     LIVE.ver=j.version||'';LIVE.ts=Date.now();LIVE.err='';
@@ -1146,6 +1198,8 @@ function specDerived(url){
       const t=REAL&&REAL.tables&&REAL.tables['student_farm.php'];if(!t||!t.rows.length)return null;return {cols:t.cols,rows:t.rows};}
     case 'room_use_count_list2.php':{ // DAY IN&OUT — 일별 입퇴실 카운트 재사용
       const t=REAL&&REAL.tables&&REAL.tables['room_use_count_list.php'];if(!t||!t.rows.length)return null;return {cols:t.cols,rows:t.rows};}
+    case 'student_population.php': // POPULATION — 국적×캠퍼스(활성 상태만). 전체집계는 POPULATION2 와 구분.
+      return SF?_crossNationCampus(SF,['normal','extend','holding','holdinguse','checking']):null;
     case 'student_population2.php': // POPULATION2 — 국적×캠퍼스(전체)
       return SF?_crossNationCampus(SF,null):null;
     case 'student_present2.php': // STDNT STATUS — 재실(활성) 국적×캠퍼스
@@ -1408,6 +1462,9 @@ R.roomstat=()=>{
   const centerStart=daysBefore*CELLW, centerWidth=months[6].days*CELLW;
   // 전체 날짜 라벨(셀 클릭 액션용)
   const dateLabels=[];months.forEach(mo=>{for(let d=1;d<=mo.days;d++)dateLabels.push(`${mo.y}-${pad(mo.m)}-${pad(d)}`);});
+  const DIDX={};dateLabels.forEach((d,i)=>{DIDX[d]=i;});
+  window._rsDates=dateLabels;                     // 날짜축 드래그(기간 방막기)에서 인덱스→날짜 변환에 사용
+  if(!BLK.loaded)blkLoad(()=>renderMain());       // 방막기 공유 원장 최초 1회 로드 후 재렌더
 
   const nm=(n)=>Array.from({length:n},fakeName).join(' - ');
   const c=daysBefore;
@@ -1533,7 +1590,7 @@ R.roomstat=()=>{
   // 하루당 <td> 를 만들지 않아 대량 조회(전체 방)에서 렌더 비용이 10배 이상 줄어든다.
   const BARCLS={in:'bin',out:'bout',rsv:'brsv',hold:'bhold',outin:'boutin'};
   const md=d=>(d||'').slice(5).replace('-','/');   // 2026-07-05 → 07/05
-  const dcells=(p,occ)=>{
+  const dcells=(p,occ,blks)=>{
     let out='',i=0;
     while(i<p.length){
       if(p[i]==='e'){i++;continue;}
@@ -1547,6 +1604,15 @@ R.roomstat=()=>{
     // 학생이름·기간 오버레이(구간마다 1개, 표시는 CSS 클래스 rs-dlab 로 토글)
     (occ||[]).forEach(o=>{const nm=o&&o[0];if(!nm)return;const a=o[1],b=o[2];
       out+=`<span class="dlab" style="left:${a*CELLW}px;width:${(b-a+1)*CELLW}px">${esc(korDisp(nm))} · ${md(dateLabels[a])}~${md(dateLabels[b])}</span>`;});
+    // 기간 블록(app.room_blocks) — 창 밖 구간은 잘라서 표시
+    (blks||[]).forEach(b=>{
+      let a=DIDX[b.from_date],z=DIDX[b.to_date];
+      if(a==null&&z==null){if(b.from_date>dateLabels[TOTAL-1]||b.to_date<dateLabels[0])return;a=0;z=TOTAL-1;}
+      if(a==null)a=0; if(z==null)z=TOTAL-1;
+      if(z<a)return;
+      const lb=blkReasonLb(b.reason);
+      out+=`<span class="dblk r-${esc(b.reason)}" data-blkid="${b.id}" style="left:${a*CELLW}px;width:${(z-a+1)*CELLW}px" `
+         +`title="${esc(T('차단','BLOCKED'))} ${esc(b.from_date)}~${esc(b.to_date)} · ${esc(lb)}${b.memo?' · '+esc(b.memo):''} · ${esc(b.created_by)}${T(' — 클릭하면 해제',' — click to release')}">🔒 ${esc(lb)}</span>`;});
     return `<td class="dlane" colspan="${TOTAL}"><span class="dlanein" style="width:${TOTAL*CELLW}px">${out}</span></td>`;
   };
   const colg=`<colgroup><col style="width:${GRPW}px"><col style="width:86px"><col style="width:80px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
@@ -1570,9 +1636,9 @@ R.roomstat=()=>{
             +`<td class="info rno c1 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT">${rblk?'<span class="rs-lock">🔒</span>':''}${r.no}</td>`
             +`<td class="info c2 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
           : '';
-        body+=`<tr>${lead}`
+        body+=`<tr data-bed="${bi+1}">${lead}`
             +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?'<div class="rs-nmwrap">'+bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(korDisp(nm.trim()))}</span>`).join('<span class="rs-sep"> - </span>')+'</div>':''}</td>`
-            +dcells(bed.pat,(occStore||[])[bed.occ])+`</tr>`;
+            +dcells(bed.pat,(occStore||[])[bed.occ],blkPeriods(bxk,bi+1))+`</tr>`;
       });
       body+=`</tbody>`;
     });
@@ -1738,9 +1804,148 @@ function specReason(u){
   return '이 화면은 임베드 데이터로 파생 불가하여 골격만 표시합니다(핵심 화면은 실데이터 렌더 적용).';
 }
 
-// ─── DORM LIST 방 블로킹(배치 선택) — 방을 우선 배정제외(BLOCKED)로 표시 ───
-function blockedRooms(){try{return new Set(JSON.parse(localStorage.getItem('smeag-blocked-rooms')||'[]'));}catch(e){return new Set();}}
-function saveBlockedRooms(set){try{localStorage.setItem('smeag-blocked-rooms',JSON.stringify([...set]));}catch(e){}}
+// ═══ 방막기(Block) 공유 저장소 — 서버 원장(/api/blocks) + 로컬 폴백 ═══════════
+//  · 서버 원장: app.room_blocks (migration/schema/room_blocks.sql)
+//      → 직원 A가 막은 방이 직원 B 화면에도 보인다(공유) · 기간(from~to) 차단 · 해제 이력 보존
+//  · 서버가 없거나 실패하면 예전처럼 localStorage 로 폴백(무기한·방전체 차단만).
+//      기간 블록/침대 단위 블록은 원장이 필요하므로 폴백에서는 거부하고 안내한다.
+const BLK={list:[],server:false,loaded:false,loading:null,flight:false};
+const BLK_LS='smeag-blocked-rooms';                       // 폴백 겸 이전 버전 저장키
+function blkLocalSet(){try{return new Set(JSON.parse(localStorage.getItem(BLK_LS)||'[]'));}catch(e){return new Set();}}
+function blkLocalSave(set){try{localStorage.setItem(BLK_LS,JSON.stringify([...set]));}catch(e){}}
+function blkUser(){try{return (JSON.parse(sessionStorage.getItem('adminAuthSession')||'{}').username)||'anonymous';}catch(e){return 'anonymous';}}
+function blkHash(s){let h=5381;for(let i=0;i<s.length;i++){h=((h<<5)+h)^s.charCodeAt(i);h=h>>>0;}return 'k'+h.toString(36)+String(s.length);}
+const BLK_REASON={MAINT:['공사','Maintenance'],CLEAN:['청소','Cleaning'],HOLD:['보류','Hold'],ETC:['기타','Other']};
+const blkReasonLb=r=>{const x=BLK_REASON[r]||BLK_REASON.ETC;return T(x[0],x[1]);};
+
+// 무기한·방전체 블록 → 기존 Set 계약 유지(배치도 행 강조·DORM LIST 가 그대로 사용)
+function blockedRooms(){
+  if(BLK.server){const s=new Set();BLK.list.forEach(b=>{if(!b.bed_no&&!b.from_date)s.add(b.room_key);});return s;}
+  return blkLocalSet();
+}
+function saveBlockedRooms(set){blkLocalSave(set);}         // 폴백 전용(서버 모드에선 blkApply 가 원장)
+// 특정 방(+침대)의 기간 블록 — 간트 막대 렌더용. bed 는 1-base, 0/미지정이면 방 전체분만.
+function blkPeriods(roomKey,bed){return BLK.list.filter(b=>b.room_key===roomKey&&b.from_date&&(!b.bed_no||b.bed_no===bed));}
+
+async function blkFetch(){
+  const r=await fetch('/api/blocks',{headers:{'X-SME-User':blkUser()}});
+  if(!r.ok)throw new Error('http'+r.status);
+  const j=await r.json();
+  if(!j||!j.ok)throw new Error('bad');
+  BLK.list=j.blocks||[];BLK.server=true;BLK.actor=j.actor;BLK.verified=!!j.verified;
+  return j;
+}
+// 최초 1회 로드(실패해도 화면은 폴백으로 정상 동작). 로드되면 콜백으로 재렌더.
+function blkLoad(onReady){
+  if(BLK.loaded){if(onReady)onReady();return;}
+  if(BLK.loading){if(onReady)BLK.loading.then(onReady);return;}
+  BLK.loading=(async()=>{
+    try{await blkFetch();await blkMigrateLocal();}catch(e){BLK.server=false;}
+    BLK.loaded=true;BLK.loading=null;
+  })();
+  if(onReady)BLK.loading.then(onReady);
+}
+// 이전 버전에서 localStorage 에만 있던 차단분을 서버 원장으로 1회 승격
+async function blkMigrateLocal(){
+  if(!BLK.server)return;
+  try{if(localStorage.getItem(BLK_LS+'-migrated'))return;}catch(e){return;}
+  const have=new Set(BLK.list.filter(b=>!b.bed_no&&!b.from_date).map(b=>b.room_key));
+  const items=[...blkLocalSet()].filter(k=>k&&!have.has(k)).map(k=>{const p=(''+k).split('|');
+    return {room_key:k,bed_no:0,group_name:p[1]||'',room_no:p[2]||''};});
+  if(items.length){
+    try{await blkPost({op:'block',items,reason:'ETC',memo:'localStorage 이관(공유 원장 전환)',
+        idem:blkHash('migrate:'+blkUser()+':'+items.map(i=>i.room_key).sort().join(','))});
+      await blkFetch();}catch(e){return;}   // 실패 시 플래그를 세우지 않아 다음 기회에 재시도
+  }
+  try{localStorage.setItem(BLK_LS+'-migrated','1');}catch(e){}
+}
+async function blkPost(body){
+  const r=await fetch('/api/blocks',{method:'POST',
+    headers:{'Content-Type':'application/json','X-SME-User':blkUser()},body:JSON.stringify(body)});
+  return await r.json().catch(()=>({ok:false,error:'bad_json'}));
+}
+// 차단/해제 공통 진입점 — 중복 방지 3중(①UI 더블서밋 가드 ②멱등키 ③서버 UNIQUE)
+//   items: [{room_key,bed_no,campus,group_name,room_no}]  ·  opt: {from,to,reason,memo}
+async function blkApply(op,items,opt){
+  opt=opt||{};
+  if(!items||!items.length)return {ok:false,error:'no_items'};
+  if(BLK.flight)return {ok:false,busy:true};
+  BLK.flight=true;
+  try{
+    if(!BLK.server)throw new Error('offline');
+    const sig=op+':'+(opt.from||'-')+':'+(opt.to||'-')+':'+(opt.reason||'ETC')+':'
+             +items.map(i=>i.room_key+'#'+(i.bed_no||0)).sort().join(',');
+    const j=await blkPost({op,items,from:opt.from||null,to:opt.to||null,
+      reason:opt.reason||'ETC',memo:opt.memo||null,idem:blkHash(sig)});
+    if(!j||!j.ok)throw new Error((j&&j.error)||'server');
+    await blkFetch();
+    return j;
+  }catch(e){
+    BLK.server=false;
+    // 폴백은 무기한·방전체만 가능(기간/침대 블록은 원장 필수)
+    if(opt.from||items.some(i=>(i.bed_no||0)!==0))return {ok:false,error:'need_server'};
+    const set=blkLocalSet();items.forEach(i=>op==='block'?set.add(i.room_key):set.delete(i.room_key));
+    blkLocalSave(set);
+    return {ok:true,local:true};
+  }finally{BLK.flight=false;}
+}
+
+// 날짜축 가로 드래그로 고른 기간 → 사유/범위 확인 후 차단 생성
+function blkPeriodDialog(tb,bed,from,to){
+  const key=(tb&&tb.dataset.bx)||'';const p=key.split('|');
+  const grp=p[1]||'',roomNo=p[2]||'';
+  const days=Math.round((new Date(to)-new Date(from))/86400000)+1;
+  const beds=tb?tb.querySelectorAll('tr').length:1;
+  const ov=el('div','modal-ov');
+  ov.innerHTML=`<div class="modal" style="max-width:440px">
+    <div class="modal-h"><b>🔒 ${T('기간 방막기','Block period')}</b><button class="modal-x" data-x>✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:13px;line-height:1.9;margin-bottom:10px">
+        <div><b>${esc(roomNo)}</b> <span style="color:var(--dim)">${esc(grp)}</span></div>
+        <div>${T('기간','Period')} <b>${esc(from)} ~ ${esc(to)}</b> <span class="chip">${days}${T('일','d')}</span></div>
+      </div>
+      ${beds>1?`<div style="margin-bottom:10px"><label style="display:block;font-size:11px;font-weight:800;color:var(--dim);margin-bottom:4px">${T('범위','Scope')}</label>
+        <label style="margin-right:12px;font-size:13px"><input type="radio" name="blkScope" value="bed" checked> ${T('이 침대만','This bed only')} (${bed||1})</label>
+        <label style="font-size:13px"><input type="radio" name="blkScope" value="room"> ${T('방 전체','Whole room')}</label></div>`:''}
+      <div style="margin-bottom:10px"><label style="display:block;font-size:11px;font-weight:800;color:var(--dim);margin-bottom:4px">${T('사유','Reason')}</label>
+        <select id="blkReason" class="rs-ctrl" style="width:100%">
+          <option value="MAINT">${T('공사 (MAINTENANCE)','Maintenance')}</option>
+          <option value="CLEAN">${T('청소 (CLEANING)','Cleaning')}</option>
+          <option value="HOLD">${T('보류 (HOLD)','Hold')}</option>
+          <option value="ETC" selected>${T('기타 (ETC)','Other')}</option>
+        </select></div>
+      <div><label style="display:block;font-size:11px;font-weight:800;color:var(--dim);margin-bottom:4px">${T('메모(선택)','Memo (optional)')}</label>
+        <input id="blkMemo" class="rs-ctrl" style="width:100%" maxlength="200" placeholder="${T('예: 402호 배관공사','e.g. plumbing work')}"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        <button class="btn" data-x>${T('취소','Cancel')}</button>
+        <button class="btn primary" id="blkGo" style="background:var(--female);border-color:var(--female)">🔒 ${T('이 기간 막기','Block this period')}</button>
+      </div>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelectorAll('[data-x]').forEach(x=>x.onclick=close);
+  ov.onclick=e=>{if(e.target===ov)close();};
+  const go=ov.querySelector('#blkGo');
+  go.onclick=async()=>{
+    if(go.disabled)return;go.disabled=true;                    // 더블서밋 가드 ①
+    const scope=(ov.querySelector('input[name="blkScope"]:checked')||{}).value||'bed';
+    const bedNo=(beds>1&&scope==='bed')?(bed||1):0;
+    const reason=(ov.querySelector('#blkReason')||{}).value||'ETC';
+    const memo=((ov.querySelector('#blkMemo')||{}).value||'').trim();
+    const r=await blkApply('block',[{room_key:key,bed_no:bedNo,group_name:grp,room_no:roomNo,
+      campus:(typeof campusOf==='function'?campusOf(grp):'')}],{from,to,reason,memo});
+    close();
+    if(window.adminAuthLog)try{window.adminAuthLog('room_block_period',{room:roomNo,from,to,reason,ok:!!(r&&r.ok)},'update');}catch(_){}
+    if(!r||!r.ok){
+      toast(T('저장 실패','Save failed'),
+        (r&&r.error==='need_server')?T('기간 차단은 서버 저장이 필요합니다 (/api/blocks 미응답)','Period blocks require the server (/api/blocks unreachable)')
+        :(r&&r.busy)?T('이전 저장이 진행 중입니다','Previous save still running')
+        :T('서버에 저장하지 못했습니다','Could not save to server'),false);
+      return;}
+    toast(T('기간 차단 완료','Period blocked'),
+      `${esc(roomNo)} · ${esc(from)}~${esc(to)} · ${esc(blkReasonLb(reason))}`+(r.replayed?' · '+T('이미 등록됨','already registered'):' · '+T('전 직원 공유','shared')),true);
+    renderMain();};
+}
 function roomBlockKey(center,no){return (''+(center||'')).toUpperCase().trim()+'|'+(''+(no||'')).toUpperCase().trim();}
 let dormListState={q:'',blockedOnly:false};
 R.dormlist=(m)=>{
@@ -1763,7 +1968,12 @@ R.spec__init=function(m){if(curMenu&&curMenu.u==='room_list.php')wireDormList(m)
 function wireDormList(m){
   const d=specData('room_list.php');if(!d)return;
   const cols=d.cols, iId=cols.indexOf('NO')>=0?cols.indexOf('NO'):0; // NO=고유키(방마다 유일)
-  const keyOf=r=>'RL|'+(''+(r[iId]==null?'':r[iId])).trim();
+  // 배치도(간트)와 같은 키 체계를 쓴다 — 'BX|<그룹>|<방번호>'.
+  // 예전엔 여기만 'RL|<NO>' 라서 DORM LIST 에서 막은 방이 배치도에 안 나타났다(키 네임스페이스 불일치).
+  const iCat=cols.indexOf('CATEGORY'), iRno=cols.indexOf('R-NO');
+  const keyOf=r=>(iCat>=0&&iRno>=0)
+    ? 'BX|'+(''+(r[iCat]==null?'':r[iCat])).split('/')[0].trim().toUpperCase()+'|'+(''+(r[iRno]==null?'':r[iRno])).trim().toUpperCase()
+    : 'RL|'+(''+(r[iId]==null?'':r[iId])).trim();
   const box=m.querySelector('#dormListBody');if(!box)return;
   function paint(){
     const set=blockedRooms();const q=(dormListState.q||'').toLowerCase();
@@ -1779,15 +1989,20 @@ function wireDormList(m){
     const all=box.querySelector('#dlAll');if(all)all.addEventListener('change',()=>box.querySelectorAll('.dl-row').forEach(c=>c.checked=all.checked));
   }
   const selectedKeys=()=>[...box.querySelectorAll('.dl-row:checked')].map(c=>c.dataset.key);
-  function apply(block){const keys=selectedKeys();if(!keys.length){toast(T('선택 없음','No selection'),T('블로킹할 방을 체크하세요','Check rooms first'),false);return;}
-    const set=blockedRooms();keys.forEach(k=>block?set.add(k):set.delete(k));saveBlockedRooms(set);
-    if(window.adminAuthLog)try{window.adminAuthLog(block?'room_block':'room_unblock',{count:keys.length},'update');}catch(_){}
-    paint();toast(block?T('블로킹 완료','Blocked'):T('해제 완료','Unblocked'),`${keys.length}${T('개 방','rooms')} · ${T('전체 블로킹','total blocked')} ${blockedRooms().size}`,true);}
+  async function apply(block){const keys=selectedKeys();if(!keys.length){toast(T('선택 없음','No selection'),T('블로킹할 방을 체크하세요','Check rooms first'),false);return;}
+    const items=keys.map(k=>{const q=(''+k).split('|');return {room_key:k,bed_no:0,group_name:q[1]||'',room_no:q[2]||''};});
+    const r=await blkApply(block?'block':'release',items,{reason:'ETC'});
+    if(window.adminAuthLog)try{window.adminAuthLog(block?'room_block':'room_unblock',{count:keys.length,ok:!!(r&&r.ok)},'update');}catch(_){}
+    if(!r||!r.ok){toast(T('저장 실패','Save failed'),(r&&r.busy)?T('이전 저장이 진행 중입니다','Previous save still running'):T('서버에 저장하지 못했습니다','Could not save to server'),false);return;}
+    paint();toast(block?T('블로킹 완료','Blocked'):T('해제 완료','Unblocked'),
+      `${keys.length}${T('개 방','rooms')} · ${T('전체 블로킹','total blocked')} ${blockedRooms().size}`
+      +(r.local?' · '+T('로컬 저장(서버 미연결)','local only (server offline)'):' · '+T('전 직원 공유','shared')),true);}
   const s=m.querySelector('#dlSearch');if(s)s.addEventListener('input',()=>{clearTimeout(window._dlq);window._dlq=setTimeout(()=>{dormListState.q=s.value;paint();},200);});
   const bo=m.querySelector('#dlBlockedOnly');if(bo)bo.addEventListener('change',()=>{dormListState.blockedOnly=bo.checked;paint();});
   const bb=m.querySelector('#dlBlock');if(bb)bb.addEventListener('click',()=>apply(true));
   const ub=m.querySelector('#dlUnblock');if(ub)ub.addEventListener('click',()=>apply(false));
   paint();
+  blkLoad(()=>paint());          // 공유 원장 로드되면 다시 그린다
 }
 // ─── Group Students (레거시 student_group_payment.php · student_group_info) ───
 let groupQ='';
@@ -2965,25 +3180,100 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     tw.addEventListener('scroll',onSc,{passive:true});
     rsUpdateNames(tw);rsPinGrpLabels(tw);
     // ── 방막기(드래그) ──
+    //   ① 좌측 고정열(구분·방번호·인실·이름)을 세로 드래그 → 방 전체를 무기한 차단/해제
+    //   ② 날짜축(간트)을 가로 드래그      → 그 기간만 차단(사유 선택) — 미팅 요청 ①
     const bmBtn=m.querySelector('#rsBlockMode');
     if(window._blkMode)tw.classList.add('blkmode');
     if(bmBtn){bmBtn.classList.toggle('on',!!window._blkMode);
       bmBtn.addEventListener('click',()=>{window._blkMode=!window._blkMode;bmBtn.classList.toggle('on',window._blkMode);tw.classList.toggle('blkmode',window._blkMode);
-        toast(window._blkMode?T('방막기 ON','Block mode ON'):T('방막기 OFF','Block mode OFF'),window._blkMode?T('방을 좌클릭 드래그하면 막힘/해제됩니다','Left-drag rooms to block/unblock'):'',true);});}
-    let dg=false,dgAdd=true,dgKeys=null;
+        toast(window._blkMode?T('방막기 ON','Block mode ON'):T('방막기 OFF','Block mode OFF'),
+          window._blkMode?T('좌측 방번호칸 세로드래그 = 방 전체 · 날짜칸 가로드래그 = 그 기간만','Left columns vertical-drag = whole room · date area horizontal-drag = that period only'):'',true);});}
+    const CW=+tw.dataset.cellw||19;
+    const DATES=window._rsDates||[];
+    let dg=false,dgAdd=true,dgKeys=null;                     // ① 방 전체(세로)
+    let pdg=null;                                            // ② 기간(가로)
     const roomAt=t=>{const tb=t&&t.closest&&t.closest('tbody.room-block');return (tb&&tb.dataset.bx)?tb:null;};
     const mark=tb=>{if(!tb)return;const k=tb.dataset.bx;if(dgKeys.has(k))return;dgKeys.add(k);
       tb.classList.toggle('rs-blocked',dgAdd);
       const rno=tb.querySelector('td.rno');if(rno){let lk=rno.querySelector('.rs-lock');
         if(dgAdd&&!lk){lk=document.createElement('span');lk.className='rs-lock';lk.textContent='🔒';rno.insertBefore(lk,rno.firstChild);}
         else if(!dgAdd&&lk){lk.remove();}}};
-    tw.addEventListener('pointerdown',e=>{if(!window._blkMode||e.button!==0)return;const tb=roomAt(e.target);if(!tb)return;
+    const pdIdx=(lane,x)=>{const r=lane.getBoundingClientRect();
+      return Math.max(0,Math.min(DATES.length-1,Math.floor((x-r.left)/CW)));};
+    const pdDraw=()=>{if(!pdg)return;const a=Math.min(pdg.i0,pdg.i1),b=Math.max(pdg.i0,pdg.i1);
+      pdg.sel.style.left=(a*CW)+'px';pdg.sel.style.width=((b-a+1)*CW)+'px';
+      pdg.sel.textContent=(b-a+1)+T('일','d');};
+
+    tw.addEventListener('pointerdown',e=>{
+      if(!window._blkMode||e.button!==0)return;
+      const lane=e.target.closest&&e.target.closest('.dlanein');
+      if(lane&&DATES.length){                                 // ② 기간 드래그 시작
+        const tb=lane.closest('tbody.room-block'),tr=lane.closest('tr');
+        if(!tb)return;
+        e.preventDefault();
+        const sel=document.createElement('span');sel.className='dblksel';lane.appendChild(sel);
+        pdg={lane,tb,bed:+((tr&&tr.dataset.bed)||0),i0:pdIdx(lane,e.clientX),i1:pdIdx(lane,e.clientX),sel};
+        pdDraw();return;
+      }
+      const tb=roomAt(e.target);if(!tb)return;                // ① 방 전체 드래그 시작
       e.preventDefault();dg=true;dgKeys=new Set();dgAdd=!blockedRooms().has(tb.dataset.bx);mark(tb);});
-    tw.addEventListener('pointermove',e=>{if(dg)mark(roomAt(e.target));});
-    const endDg=()=>{if(!dg)return;dg=false;const set=blockedRooms();dgKeys.forEach(k=>dgAdd?set.add(k):set.delete(k));saveBlockedRooms(set);
-      if(window.adminAuthLog)try{window.adminAuthLog(dgAdd?'room_block_drag':'room_unblock_drag',{count:dgKeys.size},'update');}catch(_){}
-      toast(dgAdd?T('방 블로킹','Rooms blocked'):T('블로킹 해제','Rooms unblocked'),`${dgKeys.size}${T('개 방','rooms')} · ${T('전체','total')} ${blockedRooms().size}`,true);};
+
+    tw.addEventListener('pointermove',e=>{
+      if(pdg){pdg.i1=pdIdx(pdg.lane,e.clientX);pdDraw();return;}
+      if(dg)mark(roomAt(e.target));});
+
+    const endDg=()=>{
+      if(pdg){                                                // ② 기간 확정 → 사유 선택 모달
+        const p=pdg;pdg=null;
+        const a=Math.min(p.i0,p.i1),b=Math.max(p.i0,p.i1);
+        if(p.sel&&p.sel.remove)p.sel.remove();
+        const from=DATES[a],to=DATES[b];
+        window._blkDragEnd=Date.now();   // 방금 끝난 드래그의 click 이 기존 막대의 해제 모달을 열지 않도록
+        if(from&&to)blkPeriodDialog(p.tb,p.bed,from,to);
+        return;}
+      if(!dg)return;dg=false;
+      const items=[...dgKeys].map(k=>{const q=(''+k).split('|');return {room_key:k,bed_no:0,group_name:q[1]||'',room_no:q[2]||''};});
+      const n=items.length;
+      blkApply(dgAdd?'block':'release',items,{reason:'ETC'}).then(r=>{
+        if(window.adminAuthLog)try{window.adminAuthLog(dgAdd?'room_block_drag':'room_unblock_drag',{count:n,ok:!!(r&&r.ok)},'update');}catch(_){}
+        if(!r||!r.ok){toast(T('저장 실패','Save failed'),(r&&r.busy)?T('이전 저장이 진행 중입니다','Previous save still running'):T('서버에 저장하지 못했습니다','Could not save to server'),false);renderMain();return;}
+        toast(dgAdd?T('방 블로킹','Rooms blocked'):T('블로킹 해제','Rooms unblocked'),
+          `${n}${T('개 방','rooms')} · ${T('전체','total')} ${blockedRooms().size}`+(r.local?' · '+T('로컬 저장(서버 미연결)','local only (server offline)'):' · '+T('전 직원 공유','shared')),true);
+        renderMain();});};
     tw.addEventListener('pointerup',endDg);tw.addEventListener('pointercancel',endDg);
+
+    // 기간 블록 막대 클릭 → 해제
+    tw.addEventListener('click',e=>{
+      const bar=e.target.closest&&e.target.closest('.dblk');if(!bar)return;
+      e.preventDefault();e.stopPropagation();
+      if(window._blkDragEnd&&Date.now()-window._blkDragEnd<400)return;   // 드래그 직후의 click 은 해제로 보지 않는다
+      const id=+bar.dataset.blkid;const b=BLK.list.find(x=>x.id===id);if(!b)return;
+      const who=b.created_by+(b.created_by_verified?'':' '+T('(미검증)','(unverified)'));
+      const ov=el('div','modal-ov');
+      ov.innerHTML=`<div class="modal" style="max-width:420px">
+        <div class="modal-h"><b>🔓 ${T('차단 해제','Release block')}</b><button class="modal-x" data-x>✕</button></div>
+        <div class="modal-body">
+          <div style="font-size:13px;line-height:1.9">
+            <div><b>${esc(b.room_no||b.room_key)}</b>${b.bed_no?` · ${T('침대','Bed')} ${b.bed_no}`:` · ${T('방 전체','Whole room')}`}</div>
+            <div>${T('기간','Period')} <b>${esc(b.from_date)} ~ ${esc(b.to_date)}</b></div>
+            <div>${T('사유','Reason')} <b>${esc(blkReasonLb(b.reason))}</b>${b.memo?' · '+esc(b.memo):''}</div>
+            <div style="color:var(--dim)">${T('등록','Created')} ${esc(who)} · ${esc((b.created_at||'').slice(0,16).replace('T',' '))}</div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+            <button class="btn" data-x>${T('닫기','Close')}</button>
+            <button class="btn primary" data-go style="background:var(--female);border-color:var(--female)">🔓 ${T('해제','Release')}</button>
+          </div></div></div>`;
+      document.body.appendChild(ov);
+      const close=()=>ov.remove();
+      ov.querySelectorAll('[data-x]').forEach(x=>x.onclick=close);
+      ov.onclick=ev=>{if(ev.target===ov)close();};
+      ov.querySelector('[data-go]').onclick=async()=>{
+        const r=await blkApply('release',[{id:b.id}],{});
+        close();
+        if(!r||!r.ok){toast(T('해제 실패','Release failed'),T('서버에 반영하지 못했습니다','Could not update server'),false);return;}
+        toast(T('차단 해제','Released'),`${esc(b.room_no||b.room_key)} · ${esc(b.from_date)}~${esc(b.to_date)}`,true);
+        renderMain();};
+    },true);
   } // 초기 1회(중앙정렬 위치 기준)
   try{history.replaceState(null,'','#'+curCat+'.'+MENU[curCat].indexOf(curMenu));}catch(e){}
   window.scrollTo(0,0);}
@@ -3107,6 +3397,26 @@ function msgBox(title,html,kind){
   document.body.appendChild(ov);
   const close=()=>ov.remove();
   ov.querySelector('#mbX').onclick=close;ov.querySelector('#mbOk').onclick=close;ov.onclick=e=>{if(e.target===ov)close();};
+  return ov;}
+
+// ─── 세션 만료 안내(1회성) — /api/data 가 401 을 주면 "표가 실데이터가 아니다"를 분명히 알린다 ───
+let _authBoxShown=false;   // 같은 세션(페이지 로드)에서 반복 표시 방지
+function authExpiredBox(){
+  if(_authBoxShown||document.getElementById('authBox'))return null;_authBoxShown=true;
+  const ov=msgBox(T('세션 만료','Session expired'),
+    `<div class="auth-msg">
+      <div>${T('세션이 만료되었거나 로그인되지 않았습니다.','Your session has expired, or you are not signed in.')}</div>
+      <div class="auth-warn">${T('지금 보이는 표는 실데이터가 아닐 수 있습니다.','The tables shown may not be live data.')}</div>
+     </div>
+     <div style="display:flex;justify-content:flex-end;margin-top:14px">
+       <button class="btn primary" id="abLogin">${T('다시 로그인','Sign in again')}</button></div>`,'warn');
+  ov.id='authBox';
+  const prev=document.activeElement;                                  // 닫은 뒤 원래 포커스 복귀
+  const btn=ov.querySelector('#abLogin');if(btn)btn.onclick=()=>{location.href='/login';};
+  const esc=(e)=>{if(e.key==='Escape'){document.removeEventListener('keydown',esc);ov.remove();if(prev&&prev.focus)prev.focus();}};
+  document.addEventListener('keydown',esc);
+  ov.addEventListener('click',()=>{document.removeEventListener('keydown',esc);},true);
+  if(btn)setTimeout(()=>btn.focus(),0);                               // 키보드 사용자는 바로 [다시 로그인] 에
   return ov;}
 
 // ─── 인보이스 발행 (중복발행 방지: ①UI잠금 ②멱등키 ③UNIQUE제약 ④중복안내) ───
@@ -3411,11 +3721,14 @@ function findStudent(nm){
 function openRoomReplace(srcCell,room,name,date,infoOnly){
   const GEN={MALE:['M','var(--male)'],FEMALE:['F','var(--female)'],FAMILY:['FAM','#ca8a04']};
   const endD=(()=>{const d=new Date(date||'2026-07-08');d.setDate(d.getDate()+24);return d.toISOString().slice(0,10);})();
-  // 실 학생 데이터 (studentsFull cols: 0AG 1NAT 2EN 3KOR 4AGE 5SEX 6등록 7출발 8시작 9종료 10기간 11상태 12코스 13객실 14CAMPUS 15항공)
+  // 실 학생 데이터 (studentsFull cols: 0AG 1NAT 2EN 3KOR 4AGE 5SEX 6등록 7출발 8시작 9종료 10기간 11상태 12코스 13객실 14CAMPUS 15항공
+  //                 18 s_idx 19 코스문구(fee_class2) 20 기숙사문구(fee_dorm2) 21 AGENTS COMMENT(s_info) 22 STAFF COMMENT(comment))
   const stu=findStudent(name);
   const S=(i,d)=>{const v=stu&&stu[i];return v!=null&&v!==''?v:(d||'');};
   const begin=S(8,date), end=S(9,endD), per=S(10), dorm=S(13,room);
   const _cc=S(12); const course=[per?per+'주':null,_cc?'코스 '+_cc:null].filter(Boolean).join(' · ')||'-';
+  // 레거시가 보여준 그대로의 문자열(fee_class2 · fee_dorm2) 우선, 없으면 파생값 폴백
+  const sid=S(18), courseTxt=S(19)||course, dormTxt=S(20)||dorm;
   // 방 이동경로: roomstat 전 그룹에서 이 학생 이름의 점유 세그먼트를 모아 시간순 정렬 → 연속 동일방 병합
   const _rpath=(function(){const grs=(REAL&&REAL.roomstat&&REAL.roomstat.groups)||[];const nm=(''+(S(2,name)||name||'')).trim();if(!nm)return [];
     const segs=[];grs.forEach(g=>{const cat=(g.name||'').split('/')[0].trim();(g.rooms||[]).forEach(r=>{(r.beds||[]).forEach(bed=>{(bed.segs||[]).forEach(sg=>{if(sg&&sg.nm&&(''+sg.nm).trim()===nm)segs.push({room:r.no,cat:cat,s:sg.s,e:sg.e});});});});});
@@ -3434,8 +3747,9 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
           +`<td style="color:${gm[1]};font-weight:750">${gm[0]}</td><td><button class="btn rp-move" data-to="${esc(cat)} ${esc(r.no)}" data-cap="${esc(r.per||'')}">MOVE</button></td></tr>`;});
   });
   if(!rows)rows=`<tr><td colspan="5" style="color:var(--dim);text-align:center;padding:14px">후보 방 데이터 없음</td></tr>`;}
-  const info=(k,v)=>`<tr><th>${k}</th><td>${v}</td></tr>`;
-  const ta='<textarea rows=2 style="width:100%;border:1px solid var(--border);background:var(--surface-2);border-radius:6px"></textarea>';
+  // 레거시 표 조립: pair=한 줄에 라벨·값 두 쌍, cmt=라벨 + 값 3칸 병합 코멘트
+  const pair=(k1,v1,k2,v2)=>`<tr><th>${k1}</th><td>${v1}</td><th>${k2}</th><td>${v2}</td></tr>`;
+  const cmt=(k,v)=>`<tr><th class="rp-cmt-h">${k}</th><td class="rp-cmt" colspan="3"><textarea class="rp-ta" rows="5">${v}</textarea></td></tr>`;
   const ov=el('div','modal-ov');ov.id='roomModal';
   const QA=[['입실','cin','var(--female)'],['퇴실','cout','var(--return)'],['예약','crsv','var(--good)'],['방배정','cx','var(--male)'],['홀딩','chold','var(--return)'],['빈방','cempty','var(--empty)']];
   const qbar=QA.map(([w,cls,c])=>`<button class="btn rp-qa" data-w="${w}" data-cls="${cls}"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${c};margin-right:5px"></i>${w}</button>`).join('');
@@ -3445,18 +3759,18 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
     <div class="modal-body${infoOnly?' single':''}">
       <div class="rp-left">
         ${infoOnly?`<div class="note" style="margin:0 0 10px">${T('📍 배치도에서 이 학생의 <b>방 셀(점유구간)</b>을 강조했습니다 — 모달을 닫아도 유지 · <b>Esc</b> 로 해제.','📍 This student\'s <b>room cells (stay range)</b> are highlighted in the batch chart — kept after closing · press <b>Esc</b> to clear.')}</div>`:''}
-        <div class="rp-t">※ STUDENT INFORMATION${stu&&stu.__idx!=null?' : '+stu.__idx:''}</div>
-        <table class="rp-info">
-          ${info('NAME',esc(S(2,name)))}${info('KOR',esc(S(3,name)))}
-          ${info('AGE',stu?manAgeCell(stu):esc(S(4,'-')))}${info('SEX',(S(5)||'').toUpperCase()==='F'?'F':'M')}
-          ${info('DEPARTURE',esc(S(7,date)))}${info('FLIGHT',`<span style="color:var(--female);font-weight:650">${esc(S(15,'-'))}</span>`)}
-          ${info('COURSE',esc(course||'-'))}${info('DORM',esc(dorm||'-'))}
-          ${info('NATIONALITY',(S(1)||'-').toUpperCase())}${info('CONDITION',esc(S(11,'normal')))}
-          ${info('STAFF COMMENT',ta)}
-          ${info('AGENTS COMMENT',ta)}
+        <div class="rp-t">※ STUDENT INFORMATION${sid?' : '+esc(sid):''}</div>
+        <table class="rp-info pair">
+          ${pair('NAME',esc(S(2,name)),'KOR',esc(S(3,name)))}
+          ${pair('AGE',stu?manAgeCell(stu):esc(S(4,'-')),'SEX',(S(5)||'').toUpperCase()==='F'?'F':'M')}
+          ${pair('DEPARTURE',esc(S(7,date)),'FLIGHT',`<span style="color:var(--female);font-weight:650">${esc(S(15,'-'))}</span>`)}
+          ${pair('COURSE',esc(courseTxt||'-'),'DORM',esc(dormTxt||'-'))}
+          ${pair('NATIONALITY',(S(1)||'-').toUpperCase(),'CONDITION',esc(S(11,'normal')))}
+          ${cmt('STAFF COMMENT',esc(S(22)))}
+          ${cmt('AGENTS COMMENT',esc(S(21)))}
         </table>
         <div class="rp-t" style="margin-top:14px">※ DORMITORY RESERVED INFORMATION</div>
-        <table class="rp-info"><tr><th>ROOM NUMBER</th><th>CAPACITY</th><th>PERIOD</th></tr>
+        <table class="rp-info dorm"><tr><th>ROOM NUMBER</th><th>CAPACITY</th><th>PERIOD</th></tr>
           <tr><td class="mono">${esc(room||dorm||'-')}</td><td>${esc(per?per+'wk':'-')}</td><td class="mono">${esc(begin)} ~ ${esc(end)}</td></tr></table>
         <div class="rp-t" style="margin-top:14px">※ ROOM MOVE PATH ${T('(방 이동경로)','(room move history)')}</div>
         ${_rpath.length?`<div class="rp-path">${_rpath.map((x,i)=>`<span class="rp-node"${i===_rpath.length-1?' data-cur="1"':''}><b>${esc(x.cat)} ${esc(x.room)}</b><small>${esc((''+(x.s||'')).slice(0,10))} ~ ${esc((''+(x.e||'')).slice(0,10))}</small></span>`).join('<span class="rp-arrow">→</span>')}</div>
@@ -3656,6 +3970,7 @@ function openStudentEdit(row,act){
 document.addEventListener('click',(e)=>{
   if(!e.target.closest('.catwrap'))closeDropdowns();
   if(window._blkMode&&e.target.closest('.twrap.dorm-scroll'))return; // 방막기 모드: 배치도 클릭(모달) 무시
+  if(e.target.closest('.dblk'))return;                                // 기간 블록 막대는 전용 해제 모달만(ROOM REPLACEMENT 열지 않음)
   const rsBtn=e.target.closest('.gantt td.rs-name, .gantt td.rs-room'); // 이름→학생정보만 / 방→ROOM REPLACEMENT(후보방)
   if(rsBtn){e.stopPropagation();closeCellPop();
     const isName=rsBtn.classList.contains('rs-name');

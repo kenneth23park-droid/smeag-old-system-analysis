@@ -1,0 +1,10 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage();
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file:///Users/kwangseobpark/smeag-old-system-analysis/deploy/index.html');await p.waitForTimeout(1800);
+await p.evaluate(()=>[...document.querySelectorAll('a,button,[data-u]')].find(x=>/Dormitory Status/i.test(x.textContent)).click());
+await p.waitForTimeout(900);
+await p.selectOption('#rsCenter','CAPITAL');await p.selectOption('#rsGender','ALL');await p.waitForTimeout(600);
+const o=await p.evaluate(()=>[...document.querySelector('#rsGroup').options].map(x=>x.textContent));
+console.log('옵션수',o.length-2);console.log(o.slice(2).join(' , '));
+console.log('errors',errs);await b.close();})();
