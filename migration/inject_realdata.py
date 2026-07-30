@@ -15,7 +15,13 @@ src, dst = sys.argv[1], sys.argv[2]
 data = json.load(open(src, encoding='utf-8'))
 blob = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
 blob = blob.replace('\\', '\\\\').replace('</', '<\\/')      # </script> 차단 + 이스케이프 보존
-meta = (data.get('roomstat') or {}).get('meta') or {}
+rs = data.get('roomstat') or {}
+meta = rs.get('meta') or {}
+win = meta.get('window') or []
+if rs and len(win) == 2:                                     # 구버전 JSON 보정: from/to 키 없으면 meta.window 로 채움
+    rs.setdefault('from', win[0]); rs.setdefault('to', win[1])
+    blob = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+    blob = blob.replace('\\', '\\\\').replace('</', '<\\/')
 
 html = open(dst, encoding='utf-8').read()
 pat = re.compile(r'let REAL=(?:null|JSON\.parse\(\'(?:[^\'\\]|\\.)*\'\)); ?/\*__REALDATA__\*/')

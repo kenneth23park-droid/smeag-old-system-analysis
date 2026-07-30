@@ -442,6 +442,16 @@
   /* 같은 날 퇴실+입실 → 좌상단 퇴실 / 우하단 입실 대각선 분할 */
   .gantt .dcap.boutin{background:linear-gradient(to bottom right,var(--return) 0 49%,
     color-mix(in srgb,var(--surface) 85%,transparent) 49% 51%,var(--female) 51% 100%)}
+  /* ── 방 셀 위 학생이름·기간 오버레이(반투명, 투명도 조절) ── */
+  .gantt .dlab{position:absolute;top:0;bottom:0;display:none;padding:0 3px;font-size:10px;line-height:21px;
+    font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);
+    opacity:var(--dlabop,.5);pointer-events:none;z-index:3;mix-blend-mode:normal}
+  .gantt.rs-dlab .dlab{display:block}
+  .rs-lblstack{display:inline-flex;flex-direction:column;gap:4px;align-items:stretch}
+  .rs-lblrow{display:flex;gap:4px;align-items:center;justify-content:flex-start}
+  .rs-lblrow input[type=range]{width:74px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .rs-lblrow .rs-opv{font-size:10px;color:var(--faint);min-width:30px;text-align:right;font-variant-numeric:tabular-nums}
+  #rsDlab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
   .gantt tbody.room-block.rs-blocked td.dlane{background:color-mix(in srgb,var(--female) 16%,var(--surface))}
   .gantt tbody.room-block.rs-blocked td.c1{box-shadow:inset 3px 0 0 var(--female)}
   .gantt .rs-lock{margin-right:2px;font-size:9px;vertical-align:middle}
@@ -786,6 +796,9 @@ const campusChip=(id)=>({'1':'<span class="cch enc">ENCANTO</span>','4':'<span c
 // ─── 렌더러 ───
 const R={};
 let roomCenter={y:2026,m:7}; // 배치도 캘린더 중심월(선택월)
+// 방 셀 이름·기간 오버레이: on=표시여부, op=투명도(%) — 룰러 아래 컨트롤에서 조절, localStorage 유지
+let dlab={on:(function(){try{return localStorage.getItem('smeag-dlab')==='1';}catch(e){return false;}})(),
+          op:(function(){try{return +localStorage.getItem('smeag-dlabop')||50;}catch(e){return 50;}})()};
 let roomFilter={center:'',gender:'',group:'',per:'',sortPer:'',q:'',nameW:(function(){try{return +localStorage.getItem('smeag-nameW')||230;}catch(e){return 230;}})()}; // 배치도 센터·성별·구분(그룹)·방구분·정렬·검색·이름폭
 let roomstatCtx=null; // 배치도 렌더 컨텍스트(엑셀 export용)
 // 배치도 → 엑셀(CSV·UTF-8 BOM, Excel 호환) 내보내기. n=1(중심월)/2(중심+다음달)
@@ -1519,7 +1532,8 @@ R.roomstat=()=>{
   // 구간막대 렌더: 연속 재실 구간 1개 = <span> 1개(X 무늬는 배경), 입/퇴실만 1일짜리 캡.
   // 하루당 <td> 를 만들지 않아 대량 조회(전체 방)에서 렌더 비용이 10배 이상 줄어든다.
   const BARCLS={in:'bin',out:'bout',rsv:'brsv',hold:'bhold',outin:'boutin'};
-  const dcells=(p)=>{
+  const md=d=>(d||'').slice(5).replace('-','/');   // 2026-07-05 → 07/05
+  const dcells=(p,occ)=>{
     let out='',i=0;
     while(i<p.length){
       if(p[i]==='e'){i++;continue;}
@@ -1530,6 +1544,9 @@ R.roomstat=()=>{
       }
       i=j+1;
     }
+    // 학생이름·기간 오버레이(구간마다 1개, 표시는 CSS 클래스 rs-dlab 로 토글)
+    (occ||[]).forEach(o=>{const nm=o&&o[0];if(!nm)return;const a=o[1],b=o[2];
+      out+=`<span class="dlab" style="left:${a*CELLW}px;width:${(b-a+1)*CELLW}px">${esc(korDisp(nm))} · ${md(dateLabels[a])}~${md(dateLabels[b])}</span>`;});
     return `<td class="dlane" colspan="${TOTAL}"><span class="dlanein" style="width:${TOTAL*CELLW}px">${out}</span></td>`;
   };
   const colg=`<colgroup><col style="width:${GRPW}px"><col style="width:86px"><col style="width:80px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
@@ -1555,20 +1572,30 @@ R.roomstat=()=>{
           : '';
         body+=`<tr>${lead}`
             +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?'<div class="rs-nmwrap">'+bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(korDisp(nm.trim()))}</span>`).join('<span class="rs-sep"> - </span>')+'</div>':''}</td>`
-            +dcells(bed.pat)+`</tr>`;
+            +dcells(bed.pat,(occStore||[])[bed.occ])+`</tr>`;
       });
       body+=`</tbody>`;
     });
   });
 
   const sel=months.map(mo=>`<button class="btn${mo.off===0?' on':''}" data-my="${mo.y}" data-mm="${mo.m}" title="${mo.y}년 ${pad(mo.m)}월">${String(mo.y).slice(2)}.${pad(mo.m)}</button>`).join('');
+  // 표시범위 라벨: /api/data 응답은 from/to, 정적 주입본은 meta.window — 없으면 라벨 자체를 생략(undefined 표기 방지)
+  const _rw=(REAL&&REAL.roomstat)?(REAL.roomstat.from?[REAL.roomstat.from,REAL.roomstat.to]:((REAL.roomstat.meta&&REAL.roomstat.meta.window)||[])):[];
+  const rsRange=(_rw[0]&&_rw[1])?` (${_rw[0]}~${_rw[1]})`:'';
   roomstatCtx={months,dateLabels,groups,daysBefore}; // 엑셀 export 컨텍스트
   window._rsOcc=occStore; // 스크롤 실시간 이름 갱신용 침대별 점유 저장소
 
   return `
   <div class="ph"><h1>${T('기숙사 현황 (배치도)','Dormitory Status (Batch)')}</h1><span class="sub">room_stat3.php · ${T('방배치 캘린더','room layout calendar')}</span>
     <span class="actions dorm-actions" style="margin-left:auto">
-      <button class="btn" id="rsRuler" title="${T('십자 안내선(룰러) 표시/숨김 · 휠클릭/Esc 로도 토글','Ruler (crosshair) show/hide · also toggled by wheel-click/Esc')}">📏 ${T('룰러','Ruler')}</button>
+      <span class="rs-lblstack">
+        <button class="btn" id="rsRuler" title="${T('십자 안내선(룰러) 표시/숨김 · 휠클릭/Esc 로도 토글','Ruler (crosshair) show/hide · also toggled by wheel-click/Esc')}">📏 ${T('룰러','Ruler')}</button>
+        <span class="rs-lblrow">
+          <button class="btn${dlab.on?' on':''}" id="rsDlab" title="${T('방 셀 위에 학생 이름·기간을 반투명으로 표시/숨김','Show/hide student name & period over room cells (translucent)')}">🏷 ${T('이름·기간','Name·period')}</button>
+          <input id="rsDlabOp" type="range" min="10" max="100" step="5" value="${dlab.op}" title="${T('오버레이 투명도(%)','Overlay opacity (%)')}" aria-label="${T('오버레이 투명도','Overlay opacity')}">
+          <span class="rs-opv" id="rsDlabOpV">${dlab.op}%</span>
+        </span>
+      </span>
       <button class="btn" id="rsBlockMode" title="${T('드래그로 방 막기/해제 (좌클릭 드래그)','Drag to block/unblock rooms (left-drag)')}">🔒 ${T('방막기(드래그)','Block (drag)')}</button>
       <button class="btn" data-excel="1">📊 1MONTH EXCEL(TOTAL)</button>
       <button class="btn" data-excel="2">📊 2MONTH EXCEL(TOTAL)</button>
@@ -1599,9 +1626,9 @@ R.roomstat=()=>{
     <span><i style="background:var(--surface-2);color:var(--faint);border:1px solid var(--border)">X</i> ${T('재실 (STAY)','STAY')}</span>
     <span><i style="background:var(--surface);border:1px solid var(--border)"></i> ${T('빈방 (VACANT)','VACANT')}</span>
   </div>
-  <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}" data-cellw="${CELLW}"><table class="gantt" style="width:${INFOW+TOTAL*CELLW}px">${colg}${head}${body}</table><div class="rs-botpad" aria-hidden="true"></div></div>`
+  <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}" data-cellw="${CELLW}"><table class="gantt${dlab.on?' rs-dlab':''}" style="width:${INFOW+TOTAL*CELLW}px;--dlabop:${dlab.op/100}">${colg}${head}${body}</table><div class="rs-botpad" aria-hidden="true"></div></div>`
   :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>${T('센터 · 성별 · 그룹을 선택하세요','Select Center · Gender · Group')}</b><div class="rs-ph-sub">${T('상단에서 <b>센터</b>(ENCANTO·CAPITAL) · <b>성별</b> · <b>그룹</b> <b>3가지를 모두 선택</b>하면 배치도가 표시됩니다.<br>그룹은 <b>Select group</b>에서 특정 그룹 또는 <b>전체 그룹(SELECT ALL)</b> 선택 · 방구분(인실)은 선택적 추가필터 · 초기엔 전체를 불러오지 않아 빠릅니다 · 연월/검색 병행.','Select all <b>3</b> — <b>Center</b>(ENCANTO·CAPITAL) · <b>Gender</b> · <b>Group</b> — to show the batch calendar.<br>Group: pick a specific one or <b>All groups (SELECT ALL)</b> · Room type is an optional filter · nothing loaded initially for speed · year-month & search supported.')}</div></div>`}
-  <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}${T('레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬 · 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b>.','Legacy <span class="mono">room_stat3.php</span> room×date calendar — shows <b>±6 months</b> around selected month, click a month to <b>center</b> it · horizontal scroll · <b>frozen header</b> · <b>cell click → check-in/out·assign·move</b>.')} ${REAL&&REAL.roomstat?T(`<b>실 MySQL 예약데이터</b> (${REAL.roomstat.from}~${REAL.roomstat.to})`,`<b>Real MySQL reservations</b> (${REAL.roomstat.from}~${REAL.roomstat.to})`):T('가상 샘플','sample data')}.</div>`;};
+  <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}${T('레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬 · 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b>.','Legacy <span class="mono">room_stat3.php</span> room×date calendar — shows <b>±6 months</b> around selected month, click a month to <b>center</b> it · horizontal scroll · <b>frozen header</b> · <b>cell click → check-in/out·assign·move</b>.')} ${REAL&&REAL.roomstat?T(`<b>실 MySQL 예약데이터</b>${rsRange}`,`<b>Real MySQL reservations</b>${rsRange}`):T('가상 샘플','sample data')}.</div>`;};
 
 R.changelog=()=>{let rows='';const mg=['kenneth','katie','anna','joon','doris'];
   if(REAL&&REAL.changelog&&REAL.changelog.length){rows=REAL.changelog.map(c=>
@@ -2902,6 +2929,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   m.querySelectorAll('[data-my]').forEach(b=>b.addEventListener('click',()=>{
     roomCenter={y:+b.dataset.my,m:+b.dataset.mm};renderMain();liveMonthRefresh();}));
   if(window.__xhRuler)window.__xhRuler.sync(); // 룰러 버튼 상태 반영(재렌더 후)
+  if(window.__xhDlab)window.__xhDlab.apply();   // 이름·기간 오버레이 상태 반영(재렌더 후)
   const rc=m.querySelector('#rsCenter');if(rc)rc.addEventListener('change',()=>{roomFilter.center=rc.value;roomFilter.group='';renderMain();});
   const rg=m.querySelector('#rsGender');if(rg)rg.addEventListener('change',()=>{roomFilter.gender=rg.value;roomFilter.group='';renderMain();});
   const rgrp=m.querySelector('#rsGroup');if(rgrp)rgrp.addEventListener('change',()=>{roomFilter.group=rgrp.value;renderMain();});
@@ -3687,6 +3715,27 @@ document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();cl
   // 룰러 토글 버튼(배치도 재렌더 시마다 위임으로 처리) + 렌더 후 버튼 상태 동기화
   document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#rsRuler');if(b){e.preventDefault();set(!on);}});
   window.__xhRuler={set,toggle:()=>set(!on),isOn:()=>on,sync:syncBtn};
+})();
+
+// ─── 방 셀 이름·기간 오버레이 토글 + 투명도(룰러 버튼 아래 컨트롤) ───
+// 라벨 <span class="dlab"> 은 렌더 때 이미 심어두고, 표시는 테이블 클래스(rs-dlab)와
+// CSS 변수(--dlabop)로만 제어한다 → 토글·투명도 조절에 재렌더가 없다.
+(function(){
+  const apply=()=>{document.querySelectorAll('table.gantt').forEach(t=>{
+      t.classList.toggle('rs-dlab',!!dlab.on);t.style.setProperty('--dlabop',dlab.op/100);});
+    const b=document.getElementById('rsDlab');if(b)b.classList.toggle('on',!!dlab.on);
+    const v=document.getElementById('rsDlabOpV');if(v)v.textContent=dlab.op+'%';
+    const r=document.getElementById('rsDlabOp');if(r&&+r.value!==dlab.op)r.value=dlab.op;};
+  const save=()=>{try{localStorage.setItem('smeag-dlab',dlab.on?'1':'0');
+      localStorage.setItem('smeag-dlabop',String(dlab.op));}catch(e){}};
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#rsDlab');
+    if(!b)return;e.preventDefault();dlab.on=!dlab.on;apply();save();});
+  const onRange=e=>{const r=e.target.closest&&e.target.closest('#rsDlabOp');if(!r)return;
+    dlab.op=Math.max(10,Math.min(100,+r.value||50));
+    if(!dlab.on)dlab.on=true;            // 슬라이더를 움직이면 자동으로 표시 ON
+    apply();save();};
+  document.addEventListener('input',onRange);document.addEventListener('change',onRange);
+  window.__xhDlab={apply,state:dlab};
 })();
 
 // ─── 배치도 휠(가운데) 버튼 드래그 패닝 — 상하좌우 이동 ───

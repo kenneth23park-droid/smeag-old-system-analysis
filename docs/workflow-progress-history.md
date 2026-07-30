@@ -407,3 +407,9 @@
   · ⚠ 화면 밖 tbody 는 `content-visibility:auto` 로 렌더 스킵되어 `getBoundingClientRect`/`offsetTop` 이 부정확 → 전체 tbody 순회 방식은 폐기하고 elementFromPoint(O(1)) 로 확정. 또 thead 자체 rect 은 sticky 가 아니라 th 셀만 sticky → 기준선은 `래퍼 top + thead 높이` 로 계산.
   · Playwright 검증(CAPITAL·MALE·전체그룹 147방/8그룹): 스크롤 0/700/1600/4000 에서 **그룹당 라벨 정확히 1개**, 현재 그룹 라벨이 헤더 바로 아래 유지, 다음 그룹은 시작 위치에 표시. 그룹 중간 방 구분칸 아래테두리 0px·grp-last 만 2px. 검색('321') 1건 필터 시 남은 행 라벨 표시. 콘솔에러 0. (셀 클릭 팝업 동작은 변경 전/후 동일 — 본 변경과 무관)
   · **구분 표기 구분자 변경**: 방구분 드롭다운 라벨을 `CAPITAL1/Male` → **`CAPITAL1 - Male`** (`grpLabel` 반환부). deploy·prototype 동일 적용, 24개 목록·콘솔에러0 재검증 후 배포+별칭 재지정.
+
+- **2026-07-30** 배치도 하단 배지 `Real MySQL reservations (undefined~undefined)` 정리:
+  원인 — `/api/data` 응답은 `roomstat.from/to` 키를 주지만 정적 주입본(`inject_realdata.py`)은 `roomstat.meta.window` 만 담고 있어, 세션 없이 초기 로드하면 `from/to` 가 undefined.
+  · 화면: 표시범위 라벨을 `from/to` → 없으면 `meta.window` → 둘 다 없으면 **라벨 자체 생략** 으로 폴백(`rsRange`). deploy/index.html · prototype.html 동일.
+  · 생성기: `build_roomstat_real.py` 가 `roomstat.from/to` 를 함께 출력, `inject_realdata.py` 는 구버전 JSON 도 `meta.window` 로 from/to 를 채워 주입(재실행 시 자동 보정).
+  · 검증: 배치도 배지 `(2025-01-01~2027-12-31)` 정상 표시. 전체 60개 화면 순회 스윕에서 `undefined`/`NaN`/`[object Object]` 0건, 콘솔에러 0.

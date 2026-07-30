@@ -173,6 +173,8 @@ for g_idx, c in sorted(cats.items(), key=lambda kv: kv[1]['order']):
                    'rooms': rs})
 
 out = {'roomstat': {'groups': groups,
+                    # from/to 는 /api/data 응답과 같은 키 — 화면 표시범위 라벨이 이 값을 쓴다
+                    'from': WIN_FROM, 'to': WIN_TO,
                     'meta': {'src': 'legacy dump', 'window': [WIN_FROM, WIN_TO],
                              'groups': len(groups), 'rooms': n_rooms,
                              'beds': n_beds, 'segs': n_segs}}}
