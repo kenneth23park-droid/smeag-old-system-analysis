@@ -390,9 +390,17 @@
   .gantt td.cempty{background:var(--surface)}
   /* 틀고정: 좌측 3열 (방번호/인실/이름) — 가로 스크롤 시 실시간 고정 */
   .gantt .c0{position:sticky;left:0;z-index:1;vertical-align:top;font-weight:800;color:var(--accent-ink);font-size:11px;letter-spacing:.3px;text-align:left}
-  .gantt .c1{position:sticky;left:96px;z-index:1}
-  .gantt .c2{position:sticky;left:182px;z-index:1}
-  .gantt .c3{position:sticky;left:262px;z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
+  /* 좌측 고정열 오프셋 — 폭이 드래그로 바뀌므로 테이블의 --w0~--w3 변수로 계산 */
+  .gantt{--w0:96px;--w1:86px;--w2:80px;--w3:230px}
+  .gantt .c1{position:sticky;left:var(--w0);z-index:1}
+  .gantt .c2{position:sticky;left:calc(var(--w0) + var(--w1));z-index:1}
+  .gantt .c3{position:sticky;left:calc(var(--w0) + var(--w1) + var(--w2));z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
+  /* 열 경계 드래그 핸들 — 이름열은 좌(인실↔이름 경계 이동)·우(이름폭) 양쪽 모두 조절 */
+  .gantt thead th .rs-rz{position:absolute;top:0;bottom:0;width:9px;z-index:5;cursor:col-resize}
+  .gantt thead th .rs-rz.r{right:0}
+  .gantt thead th .rs-rz.l{left:0}
+  .gantt thead th .rs-rz:hover::after,.gantt thead th .rs-rz.on::after{content:'';position:absolute;top:2px;bottom:2px;left:50%;width:3px;margin-left:-1.5px;background:var(--accent);border-radius:2px}
+  body.rs-resizing,body.rs-resizing *{cursor:col-resize !important;user-select:none !important}
   .gantt thead .c3{z-index:3}
   .gantt thead .c0,.gantt thead .c1,.gantt thead .c2,.gantt thead .c3{z-index:3}
   .gantt td.c0,.gantt td.c1,.gantt td.c2,.gantt td.c3{background:var(--surface)}
@@ -597,6 +605,19 @@
   .smi-flmsg.ok{color:var(--good)} .smi-flmsg.bad{color:var(--female)}
   .smi-chk{margin-left:8px;font-size:11.5px;font-weight:750}
   .smi-chk.ok{color:var(--good)} .smi-chk.bad{color:var(--female)}
+  /* CENTER PAY INFO (센터수납 현장결제) — 행정팀 요청 A3 */
+  #smiCpLbl{color:var(--female);font-weight:800}
+  .smi-cp{display:flex;flex-direction:column;gap:5px}
+  .smi-cp.off{opacity:.45}
+  .smi-cprow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .smi-cprow>label{font-size:11px;font-weight:800;color:var(--female);white-space:nowrap;min-width:132px}
+  .smi-cprow .smi-i{width:auto;flex:0 0 132px}
+  .smi-cpnum{text-align:right;font-variant-numeric:tabular-nums}
+  .smi-cpunit{flex:0 0 74px!important}
+  .smi-cpmemo{flex:1 1 380px!important;min-width:240px}
+  .smi-cpu{font-size:11px;color:var(--dim)}
+  .smi-cpchk{font-size:11.5px;font-weight:750;min-height:15px}
+  .smi-cpchk.ok{color:var(--good)} .smi-cpchk.bad{color:var(--female)} .smi-cpchk.dim{color:var(--dim);font-weight:600}
   .smi-r{display:inline-flex;align-items:center;gap:3px;font-size:12px;white-space:nowrap}
   .smi-rg{display:flex;flex-wrap:wrap;gap:4px 10px}
   .smi-t tr.smi-dc td .pill.good{font-size:10px;padding:1px 7px}
@@ -748,8 +769,8 @@ const MENU={
     {k:'spec',t:'Graduate',u:'student_list3_en3.php',cols:['Num','Campus','Name','Gender','Nation','Start','End','Week','Info','ID']},
     {k:'spec',t:'APPLY LIST',u:'student_list2.php',cols:['AGENCY','NAT','NAME','KOR','BIRTH','AGE','SEX','APPLY','DEPA','BEGIN','PICKUP','END','PERI','COND','COURSE','DORM','COUNSEL','HEALTH','PA','O.S.']},
     {k:'spec',t:'HISTORY',u:'student_history.php',cols:['유학원명','국적','이름','나이','성별','등록일','출발일','시작일','종료일','기간','상태','Pickup','Make ID','Make Date']},
-    {k:'spec',t:'변경환불홀딩',u:'student_list_change.php',cols:['AGENCY','NAME','STUDENT','APPLY DATE','CENTER','CHANGE','ADD COURSE','ETC FEE','REFUND','HOLDING','MODIFY','INVOICE','RESULT','COMPLETE','DELETE'],inv:true,note:'변경/환불/홀딩 워크플로 — INVOICE 발행 포함'},
-    {k:'spec',t:'CHG-REF-HOLD',u:'student_list_change-back.php',note:'변경환불홀딩 영문 변형'},
+    {k:'chgref',t:'변경환불홀딩',u:'student_list_change.php',cols:['AGENCY','NAME','STUDENT','APPLY DATE','CENTER','CHANGE','ADD COURSE','ETC FEE','REFUND','HOLDING','MODIFY','INVOICE','RESULT','COMPLETE','DELETE'],inv:true,note:'변경/환불/홀딩 접수 체크목록 — legacy.student_change 라이브'},
+    {k:'chgref',t:'CHG-REF-HOLD',u:'student_list_change-back.php',note:'변경환불홀딩 영문 변형'},
     {k:'spec',t:'수금관리',u:'student_list_pay.php',tag:'90,533',cols:['유학원','국적','이름','나이','성별','수금방법','상태','기간','객실'],note:'pay_channel: center/account'},
     {k:'deposit',t:'DEPOSIT',u:'student_payment.php'},
     {k:'spec',t:'Deposit(test)',u:'student_payment-2.php',cols:['Deposit #','NAT','eNAME','CAMPUS','STATUS','DEPOSIT','UNIT','DATE']},
@@ -811,7 +832,59 @@ let roomCenter={y:2026,m:7}; // 배치도 캘린더 중심월(선택월)
 // 방 셀 이름·기간 오버레이: on=표시여부, op=투명도(%) — 룰러 아래 컨트롤에서 조절, localStorage 유지
 let dlab={on:(function(){try{return localStorage.getItem('smeag-dlab')==='1';}catch(e){return false;}})(),
           op:(function(){try{return +localStorage.getItem('smeag-dlabop')||50;}catch(e){return 50;}})()};
-let roomFilter={center:'',gender:'',group:'',per:'',sortPer:'',q:'',nameW:(function(){try{return +localStorage.getItem('smeag-nameW')||230;}catch(e){return 230;}})()}; // 배치도 센터·성별·구분(그룹)·방구분·정렬·검색·이름폭
+// 배치도 좌측 고정 4열 폭 [구분, 방번호, 인실, 이름] — 헤더 경계 드래그로 조절, localStorage 보존
+const RS_COLW_DEF=[96,86,80,230], RS_COLW_MIN=[48,44,40,90];
+function rsColWLoad(){let w=null;
+  try{const s=JSON.parse(localStorage.getItem('smeag-colW')||'null');if(Array.isArray(s)&&s.length===4)w=s.map(n=>+n||0);}catch(e){}
+  if(!w){w=RS_COLW_DEF.slice();try{const n=+localStorage.getItem('smeag-nameW');if(n)w[3]=n;}catch(e){}} // 구버전(이름폭만 저장) 호환
+  return w.map((n,i)=>Math.max(RS_COLW_MIN[i],Math.min(900,n||RS_COLW_DEF[i])));}
+function rsColWSave(){try{localStorage.setItem('smeag-colW',JSON.stringify(roomFilter.colW));localStorage.setItem('smeag-nameW',roomFilter.colW[3]);}catch(e){}}
+let roomFilter={center:'',gender:'',group:'',per:'',sortPer:'',q:'',colW:rsColWLoad(),get nameW(){return this.colW[3];},set nameW(v){this.colW[3]=v;}}; // 배치도 센터·성별·구분(그룹)·방구분·정렬·검색·좌측열 폭
+// 드래그 중 재렌더 없이 폭만 반영 — CSS 변수(고정열 left) · colgroup · 표 전체폭 · 스크롤계산용 data-infow
+function rsApplyColW(tbl,w){
+  const cols=tbl.querySelectorAll('colgroup col');
+  w.forEach((v,i)=>{tbl.style.setProperty('--w'+i,v+'px');if(cols[i])cols[i].style.width=v+'px';});
+  const info=w[0]+w[1]+w[2]+w[3];
+  tbl.style.width=(info+(+tbl.dataset.gridw||0))+'px';
+  const tw=tbl.closest('.twrap');if(tw)tw.dataset.infow=info;
+}
+// 이름폭 셀렉트는 프리셋만 있으므로, 드래그로 만든 임의 폭은 '사용자 지정' 옵션으로 반영
+function rsSyncNameWSel(w3){const sel=document.querySelector('#rsNameW');if(!sel)return;
+  const hit=[...sel.options].find(o=>+o.value===w3&&o.dataset.custom!=='1');
+  let cu=[...sel.options].find(o=>o.dataset.custom==='1');
+  if(hit){if(cu)cu.remove();sel.value=hit.value;return;}
+  if(!cu){cu=document.createElement('option');cu.dataset.custom='1';sel.appendChild(cu);}
+  cu.value=String(w3);cu.textContent=T('이름 사용자 지정','Name: custom')+` (${w3}px)`;sel.value=cu.value;}
+// 좌측 고정열 경계 드래그 — 이름열은 좌(인실↔이름 경계 이동, 전체폭 유지)·우(이름폭 자체) 양쪽
+function rsBindColResize(m){
+  const tbl=m.querySelector('table.gantt');if(!tbl)return;
+  tbl.querySelectorAll('thead .rs-rz').forEach(h=>{
+    const idx=+h.dataset.rz, pair=h.dataset.rzpair==='1';
+    h.addEventListener('pointerdown',e=>e.stopPropagation()); // 방막기 드래그와 충돌 방지
+    h.addEventListener('click',e=>e.stopPropagation());
+    h.addEventListener('mousedown',e=>{
+      if(e.button!==0)return;
+      e.preventDefault();e.stopPropagation();
+      const x0=e.clientX, w0=roomFilter.colW.slice();
+      h.classList.add('on');document.body.classList.add('rs-resizing');
+      const move=ev=>{const w=w0.slice();let d=ev.clientX-x0;
+        if(pair){ // 경계 이동: 인실이 늘면 이름이 그만큼 줄어 전체 좌측폭은 그대로
+          d=Math.max(RS_COLW_MIN[idx]-w0[idx],Math.min(w0[3]-RS_COLW_MIN[3],d));
+          w[idx]=w0[idx]+d;w[3]=w0[3]-d;
+        }else w[idx]=Math.max(RS_COLW_MIN[idx],Math.min(900,w0[idx]+d));
+        roomFilter.colW=w;rsApplyColW(tbl,w);};
+      const up=()=>{document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);
+        h.classList.remove('on');document.body.classList.remove('rs-resizing');
+        rsColWSave();rsSyncNameWSel(roomFilter.colW[3]);};
+      document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);});
+    h.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation(); // 기본폭 복원
+      const w=roomFilter.colW.slice();
+      if(pair){w[3]=Math.max(RS_COLW_MIN[3],w[3]+w[idx]-RS_COLW_DEF[idx]);w[idx]=RS_COLW_DEF[idx];}
+      else w[idx]=RS_COLW_DEF[idx];
+      roomFilter.colW=w;rsApplyColW(tbl,w);rsColWSave();rsSyncNameWSel(w[3]);});
+  });
+  rsSyncNameWSel(roomFilter.colW[3]);
+}
 let roomstatCtx=null; // 배치도 렌더 컨텍스트(엑셀 export용)
 // 배치도 → 엑셀(CSV·UTF-8 BOM, Excel 호환) 내보내기. n=1(중심월)/2(중심+다음달)
 function exportRoomstat(n){
@@ -952,7 +1025,7 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">${T('수정','Edit')}</button><button class="btn xs" data-sact="move">${T('변경','Move')}</button><button class="btn xs" data-sact="extend">${T('연장','Extend')}</button><button class="btn xs" data-sact="counsel">${T('상담','Consult')}</button><button class="btn xs" data-sact="brief">${T('약식','Brief')}</button></td>`;
   const docCells=i=>`<td><button class="btn xs" data-doc="log" data-i="${i}">${T('상담이력','Log')}</button></td><td><button class="btn xs" data-doc="medical" data-i="${i}">${T('진단서','Medical')}</button></td><td><button class="btn xs" data-doc="consent" data-i="${i}">${T('동의서','Consent')}</button></td><td><button class="btn xs" data-doc="report" data-i="${i}">${T('성적표','Report')}</button></td>`;
   const roomCell=(r,i)=>{const rm=stuRoom(r);return rm?`<td class="mono rmc">${esc(rm)}</td>`:`<td><button class="btn xs std-assign" data-sact="move" data-i="${i}" style="color:var(--male);border-color:var(--male)">${T('방배정','Assign')}</button></td>`;};
-  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="mono" title="${esc(r[17]||'')}">${r[17]?d8(r[17]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td><td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td><td>${esc(r[12])||'—'}</td>${roomCell(r,i)}${stdState.actions?actCell(i)+docCells(i):''}</tr>`).join('');
+  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="mono" title="${esc(r[17]||'')}">${r[17]?d8(r[17]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td><td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${periW(r[10])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td><td title="${esc(r[12]||'')}">${r[12]?esc(courseNameOf(r[12])):'—'}</td>${roomCell(r,i)}${stdState.actions?actCell(i)+docCells(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -969,7 +1042,7 @@ function exportStd(){const f=stdFiltered();if(!f){toast('내보낼 데이터 없
   const P=stdState.pickup;                       // 수강등록관리: PICKUP + 항공정보(현재/변경전) 포함
   const H=['AGENCY','NAT','NAME(EN)','KOR','AGE','SEX','APPLY','DEPA',...(P?['PICKUP','PICKUP SCHEDULE','PICKUP(변경전)']:[]),'BEGIN','END','PERI','COURSE','ROOM','CAMPUS','COND'];
   const cap=20000,fs=f.length>cap?f.slice(0,cap):f;
-  const rows=fs.map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],...(P?[r[7],r[15]||'',r[16]||'']:[]),r[8],r[9],r[10],r[12],r[13],r[14],r[11]]);
+  const rows=fs.map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],...(P?[r[7],r[15]||'',r[16]||'']:[]),r[8],r[9],periW(r[10]),r[12]?courseNameOf(r[12]):'',r[13],r[14],r[11]]);
   const redCols=P?[8,9,10]:[];                    // PICKUP·항공정보(현재/변경전) 빨강
   toXls(H,rows,'SMEAG_'+(P?'수강등록관리':'학생명단')+'.xls',redCols);
   toast('엑셀 내보내기 완료',`${rows.length.toLocaleString()}행${f.length>cap?` (상위 ${cap.toLocaleString()}/${f.length.toLocaleString()})`:' (필터 반영)'} · 노란헤더·필터${P?'·픽업/항공정보 빨강':''}`,true);}
@@ -1279,7 +1352,7 @@ R.dailyio=(m)=>{
   <div class="banner">기간 기본값: 이번주 목→다음주 수 (해당 기간 데이터 자동 표시) · reserve_info 실 입퇴실 집계</div>`;};
 
 R.roomstat=()=>{
-  const CELLW=19, nameW=+(roomFilter.nameW)||230, GRPW=96, INFOW=GRPW+86+80+nameW; // 구분+방번호+인실+이름(조절가능) = 좌측 고정폭
+  const CELLW=19, CW=roomFilter.colW, nameW=CW[3], INFOW=CW[0]+CW[1]+CW[2]+CW[3]; // 구분+방번호+인실+이름(모두 드래그 조절) = 좌측 고정폭
   const pad=n=>String(n).padStart(2,'0');
   const daysIn=(y,m)=>new Date(y,m,0).getDate();
   // 선택월(roomCenter) 기준 ±6개월 = 13개월
@@ -1444,10 +1517,13 @@ R.roomstat=()=>{
          +`title="${esc(T('차단','BLOCKED'))} ${esc(b.from_date)}~${esc(b.to_date)} · ${esc(lb)}${b.memo?' · '+esc(b.memo):''} · ${esc(b.created_by)}${T(' — 클릭하면 해제',' — click to release')}">🔒 ${esc(lb)}</span>`;});
     return `<td class="dlane" colspan="${TOTAL}"><span class="dlanein" style="width:${TOTAL*CELLW}px">${out}</span></td>`;
   };
-  const colg=`<colgroup><col style="width:${GRPW}px"><col style="width:86px"><col style="width:80px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
+  const colg=`<colgroup>${CW.map(w=>`<col style="width:${w}px">`).join('')}${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
   const monRow=months.map(mo=>`<th class="mon${mo.off===0?' mon-cur':''}" colspan="${mo.days}">${mo.y} 년 ${pad(mo.m)} 월</th>`).join('');
   const dayRow=months.map(mo=>Array.from({length:mo.days},(_,i)=>`<th class="dh">${i+1}</th>`).join('')).join('');
-  const head=`<thead><tr><th class="c0" rowspan="2">${T('구분','Group')}</th><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
+  // 열 경계 드래그 핸들: data-rz=대상열 · pair=1 이면 이름열과 폭을 주고받아 전체폭 고정(경계만 이동)
+  const rzT=T('드래그로 폭 조절 · 더블클릭 초기화','Drag to resize · double-click to reset');
+  const rz=(i,side,pair)=>`<span class="rs-rz ${side}" data-rz="${i}"${pair?' data-rzpair="1"':''} title="${rzT}"></span>`;
+  const head=`<thead><tr><th class="c0" rowspan="2">${T('구분','Group')}${rz(0,'r')}</th><th class="c1" rowspan="2">방번호${rz(1,'r')}</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">${T('이름','Name')}${rz(2,'l',1)}${rz(3,'r')}</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
 
   let body='';
   const _blkSet=blockedRooms(); // 방막기(BX 키) 세트
@@ -1508,7 +1584,7 @@ R.roomstat=()=>{
       <select id="rsGroup" class="rs-ctrl" title="${T('방구분(카테고리) — 레거시 room_gubun','Room category (legacy room_gubun)')}"${grpOpts.length?'':' disabled'}><option value="">${T('::방구분을 선택하세요::','::Select room category::')}</option><option value="ALL" ${roomFilter.group==='ALL'?'selected':''}>${T('방구분 전체 (SELECT ALL)','All categories (SELECT ALL)')}</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
       <select id="rsPer" class="rs-ctrl" title="${T('인실(정원)','Beds per room')}">${[['',T('::인실을 선택하세요::','::Select beds/room::')],['ALL',T('인실 전체','All bed counts')],['1',T('1인실','1-person')],['2',T('2인실','2-person')],['3',T('3인실','3-person')],['4',T('4인실','4-person')],['5',T('5인실','5-person')],['TEMP',T('임시방(TEMPORARY)','Temporary')]].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="${T('인실 정렬','Sort by room type')}"><option value="">${T('인실 정렬','Room-type sort')}</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>${T('인실 ↑ 적은순','Type ↑ fewest')}</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>${T('인실 ↓ 많은순','Type ↓ most')}</option></select>
-      <select id="rsNameW" class="rs-ctrl" title="${T('이름 컬럼 폭','Name column width')}">${[['160',T('이름 좁게','Name: narrow')],['230',T('이름 보통','Name: normal')],['320',T('이름 넓게','Name: wide')],['460',T('이름 아주넓게','Name: x-wide')]].map(([v,l])=>`<option value="${v}" ${nameW==+v?'selected':''}>${l}</option>`).join('')}</select>
+      <select id="rsNameW" class="rs-ctrl" title="${T('이름 컬럼 폭 — 표 머리글의 이름칸 좌/우 경계를 드래그해도 조절됩니다 (더블클릭 초기화)','Name column width — you can also drag the left/right edge of the Name header cell (double-click to reset)')}">${[['160',T('이름 좁게','Name: narrow')],['230',T('이름 보통','Name: normal')],['320',T('이름 넓게','Name: wide')],['460',T('이름 아주넓게','Name: x-wide')]].map(([v,l])=>`<option value="${v}" ${nameW==+v?'selected':''}>${l}</option>`).join('')}</select>
       <input id="rsMonth" class="rs-ctrl" type="month" value="${roomCenter.y}-${pad(roomCenter.m)}" min="2020-01" max="2032-12" title="${T('연/월 이동(캘린더) — 아무 년/월이나 선택','Year/month picker')}" style="cursor:pointer">
       <span class="rs-search"><input id="rsSearch" class="rs-ctrl" type="search" placeholder="${T('🔍 방번호 · 회원 검색','🔍 Room · member search')}" value="${esc(roomFilter.q||'')}" autocomplete="off" style="min-width:210px"><span id="rsSearchCnt" class="rs-cnt"></span></span>
     </div>
@@ -1521,7 +1597,7 @@ R.roomstat=()=>{
     <span><i style="background:var(--surface-2);color:var(--faint);border:1px solid var(--border)">X</i> ${T('재실 (STAY)','STAY')}</span>
     <span><i style="background:var(--surface);border:1px solid var(--border)"></i> ${T('빈방 (VACANT)','VACANT')}</span>
   </div>
-  <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}" data-cellw="${CELLW}"><table class="gantt${dlab.on?' rs-dlab':''}" style="width:${INFOW+TOTAL*CELLW}px;--dlabop:${dlab.op/100}">${colg}${head}${body}</table><div class="rs-botpad" aria-hidden="true"></div></div>`
+  <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}" data-cellw="${CELLW}"><table class="gantt${dlab.on?' rs-dlab':''}" style="width:${INFOW+TOTAL*CELLW}px;--dlabop:${dlab.op/100};${CW.map((w,i)=>`--w${i}:${w}px`).join(';')}" data-gridw="${TOTAL*CELLW}">${colg}${head}${body}</table><div class="rs-botpad" aria-hidden="true"></div></div>`
   :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>${T('센터 · 성별 · 그룹을 선택하세요','Select Center · Gender · Group')}</b><div class="rs-ph-sub">${T('상단에서 <b>센터</b>(ENCANTO·CAPITAL) · <b>성별</b> · <b>그룹</b> <b>3가지를 모두 선택</b>하면 배치도가 표시됩니다.<br>그룹은 <b>Select group</b>에서 특정 그룹 또는 <b>전체 그룹(SELECT ALL)</b> 선택 · 방구분(인실)은 선택적 추가필터 · 초기엔 전체를 불러오지 않아 빠릅니다 · 연월/검색 병행.','Select all <b>3</b> — <b>Center</b>(ENCANTO·CAPITAL) · <b>Gender</b> · <b>Group</b> — to show the batch calendar.<br>Group: pick a specific one or <b>All groups (SELECT ALL)</b> · Room type is an optional filter · nothing loaded initially for speed · year-month & search supported.')}</div></div>`}
   <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}${T('레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬 · 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b>.','Legacy <span class="mono">room_stat3.php</span> room×date calendar — shows <b>±6 months</b> around selected month, click a month to <b>center</b> it · horizontal scroll · <b>frozen header</b> · <b>cell click → check-in/out·assign·move</b>.')} ${REAL&&REAL.roomstat?T(`<b>실 MySQL 예약데이터</b>${rsRange}`,`<b>Real MySQL reservations</b>${rsRange}`):T('가상 샘플','sample data')}.</div>`;};
 
@@ -2665,7 +2741,7 @@ R.commrules=function(m){
     <td><input class="rs-ctrl cr-bld" data-k="${k}" type="number" value="${R2.building[k]}" style="width:100px"> $</td></tr>`).join('');
   return `
   <div class="ph"><h1>${T('수수료 규칙 (COMMISSION RULES)','Commission Rules')}</h1><span class="sub">${T('나라 정율% + 코스 정액$ + 빌딩 정액$ — 합산','Country %% + Course fixed$ + Building fixed$ — summed')}</span><span class="url">commission_rules</span></div>
-  <div class="banner">${T('학생 커미션 = <b>학비 × 나라 정율%</b> + <b>코스 정액$</b> + <b>빌딩 정액$</b>. 값 수정 후 <b>저장</b>하면 학생 COMMISSION INFO·인보이스에 즉시 반영됩니다(브라우저 저장).','Student commission = <b>tuition × country %%</b> + <b>course fixed$</b> + <b>building fixed$</b>. Save to apply immediately to student COMMISSION INFO·invoice (stored in browser).')}</div>
+  <div class="banner">${T('학생 커미션 = <b>학비 × 나라 정율%</b> + <b>코스 정액$</b> + <b>빌딩 정액$</b>. <b>PRE PAY(선불금)는 커미션에 반영하지 않습니다.</b> 값 수정 후 <b>저장</b>하면 학생 COMMISSION INFO·인보이스에 즉시 반영됩니다(브라우저 저장).','Student commission = <b>tuition × country %%</b> + <b>course fixed$</b> + <b>building fixed$</b>. <b>PRE PAY is excluded from commission.</b> Save to apply immediately to student COMMISSION INFO·invoice (stored in browser).')}</div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:14px;align-items:start">
     <div class="card pad"><b style="color:var(--accent-ink)">🌐 ${T('나라 정율(%)','Country rate (%)')}</b>
       <table class="grid" style="margin-top:8px"><thead><tr><th>${T('국적','Nationality')}</th><th>${T('정율','Rate')} %</th></tr></thead><tbody>${natRows}</tbody></table></div>
@@ -2739,6 +2815,8 @@ function _buildCourseCache(){_courseNameCache={};_courseActiveCache={};
   const t=REAL&&REAL.tables&&REAL.tables['course_list.php'];
   if(t&&t.cols){const iC=t.cols.indexOf('#'),iK=t.cols.indexOf('코스명'),iE=t.cols.indexOf('COURSE(EN)'),iS=t.cols.indexOf('상태');
     t.rows.forEach(r=>{const c=(''+(r[iC]==null?'':r[iC])).trim();if(c){_courseNameCache[c]=(r[iE]||r[iK]||c);_courseActiveCache[c]=(''+(r[iS]||'')).toUpperCase()==='Y';}});}}
+// PERI(s_period)는 주(week) 단위 정수 → 표에는 '2w' 형태로 표기
+function periW(v){const n=parseInt((''+(v==null?'':v)).replace(/[^0-9-]/g,''),10);return (isFinite(n)&&n>0)?n+'w':'—';}
 function courseNameOf(code){if(_courseNameCache===null)_buildCourseCache();const k=(''+code).trim();return _courseNameCache[k]||k;}
 function courseActiveOf(code){if(_courseActiveCache===null)_buildCourseCache();return !!_courseActiveCache[(''+code).trim()];}
 function courseInMaster(code){if(_courseNameCache===null)_buildCourseCache();return (''+code).trim() in _courseNameCache;}
@@ -2977,7 +3055,8 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   const rgrp=m.querySelector('#rsGroup');if(rgrp)rgrp.addEventListener('change',()=>{roomFilter.group=rgrp.value;renderMain();});
   const rp=m.querySelector('#rsPer');if(rp)rp.addEventListener('change',()=>{roomFilter.per=rp.value;renderMain();});
   const rsr=m.querySelector('#rsSort');if(rsr)rsr.addEventListener('change',()=>{roomFilter.sortPer=rsr.value;renderMain();});
-  const rnw=m.querySelector('#rsNameW');if(rnw)rnw.addEventListener('change',()=>{roomFilter.nameW=+rnw.value||230;try{localStorage.setItem('smeag-nameW',roomFilter.nameW);}catch(e){}renderMain();});
+  const rnw=m.querySelector('#rsNameW');if(rnw)rnw.addEventListener('change',()=>{roomFilter.colW[3]=+rnw.value||230;rsColWSave();renderMain();});
+  rsBindColResize(m); // 좌측 고정열(구분·방번호·인실·이름) 경계 드래그 폭 조절
   const rmn=m.querySelector('#rsMonth');if(rmn)rmn.addEventListener('change',()=>{const [y,mo]=(rmn.value||'').split('-');if(y&&mo){roomCenter={y:+y,m:+mo};renderMain();}}); // 연/월 캘린더 이동
   const rss=m.querySelector('#rsSearch');
   if(rss){const cnt=m.querySelector('#rsSearchCnt'),tbl=m.querySelector('table.gantt');
@@ -3675,13 +3754,21 @@ function openStudentEdit(row,act){
   const sel=(opts,cur)=>`<select class="smi-i">${opts.map(o=>`<option${o===cur?' selected':''}>${o}</option>`).join('')}</select>`;
   const mc=['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN'].map((o,i)=>radio('smiMc',o,i===0)).join(' ');
   const link=(t)=>`<a class="smi-link" href="#" onclick="return false">${t}</a>`;
+  // 납부현황·납부방법 — 레거시 student_info.pay_status / pay_channel 원값 그대로.
+  //  pay_status 실측: Y 완납 42,443 · N 미납 747 · X 분납 22 · R 반환 0 · 빈값 47,312(미확인)
+  const PAYSTAT=[['','::PAY CHECK(납부체크)::'],['N','NOT(미납)'],['Y','PAID(완납)'],['X','INSTALL(분납)'],['R','RETURN(반환)']];
+  const PAYCHAN=[['','::납부방법::'],['account','ACCOUNT(계좌수금)'],['center','CENTER(센터수금)']];
+  const payStat=(PAYSTAT.some(p=>p[0]===String(row[23]||'').toUpperCase())?String(row[23]||'').toUpperCase():'');
+  const payChan=(String(row[24]||'').toLowerCase()==='center'?'center':(String(row[24]||'').toLowerCase()==='account'?'account':''));
   const COUNTRY=[['kor','KOR'],['chi','CHN'],['jap','JAP'],['twa','TWA'],['vtn','VTN'],['tha','THA'],['rus','RUS'],['sa','SA'],['mgl','MGL'],['om','OM'],['etc','ETC']];
   const ctryR=COUNTRY.map(([v,l])=>radio('smiCtry',l, nat===v||(v==='etc'&&!COUNTRY.slice(0,10).some(x=>x[0]===nat)))).join(' ');
   // 비용(주차 기반 산정)
   const regist=100, c1fee=tuiWk, c2fee=220, etcFee=0, prePay=450;
   const tuition=tuiWk*wk, dormTot=dormFee*wk, grand=regist+tuition+dormTot+etcFee-prePay;
   // 커미션 = 학비×나라정율% + 코스정액 + 빌딩정액 (편집가능 규칙: smeag-commrules)
-  const _cm=calcComm(row[1],row[12],row[14],tuition); const comAmt=_cm.total; const netAmt=grand-comAmt;
+  // ※ 정책: PRE PAY(선불금)는 커미션에 반영하지 않는다 → 커미션 기준학비는 prePay 차감 전 tuition (grand 사용 금지)
+  const commBase=tuition;
+  const _cm=calcComm(row[1],row[12],row[14],commBase); const comAmt=_cm.total; const netAmt=grand-comAmt;
   // 인보이스 발행 이력(발행 시 write-layer 기록 — 현재는 구조/현재값 표시)
   const invRows=`<tr><td class="mono">1th</td><td>${link('AGENCY')} ${link('STUDENT')}</td><td class="mono">${g(6)||'—'}</td><td class="mono">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>`;
   const ov=el('div','modal-ov');ov.id='smiModal';
@@ -3719,12 +3806,28 @@ function openStudentEdit(row,act){
       ${rw('DORMITORY FEE',`<b>${dormTot.toLocaleString()} $</b> &nbsp;${wk} weeks`,'ETC FEE',`${ipt(String(etcFee))} $`)}
       ${rw('PRE PAY<br><i>(커미션제외)</i>',`${ipt(String(prePay))} $ <span style="color:var(--dim);font-size:11px">tuition/dorm 조정분</span>`,'TOTAL',`<b style="color:var(--accent-ink);font-size:15px">${grand.toLocaleString()} $</b>`)}
       ${sec('PAY INFORMATION')}
-      ${rw('PAY CHECK<br><i>(납부확인)</i>',`${sel(['NOT(미납)','PAID(완납)','INSTALL(분납)'],'NOT(미납)')} ${sel(['ACCOUNT(계좌수금)','CENTER(센터수금)'],'ACCOUNT(계좌수금)')}`,'ETC DOC · View',`${ipt(g(6),'date')} &nbsp;${link('[LOA]')} ${link('[RECEIPT]')}`)}
+      ${rw('PAY CHECK<br><i>(납부확인)</i>',`<select class="smi-i" id="smiPayStat" style="max-width:150px">${PAYSTAT.map(([v,l])=>`<option value="${v}"${v===payStat?' selected':''}>${l}</option>`).join('')}</select>
+        <select class="smi-i" id="smiPayChan" style="max-width:170px">${PAYCHAN.map(([v,l])=>`<option value="${v}"${v===payChan?' selected':''}>${l}</option>`).join('')}</select>`,
+        'ETC DOC · View',`${ipt(g(6),'date')} &nbsp;${link('[LOA]')} ${link('[RECEIPT]')}`)}
+      ${rw('<span id="smiCpLbl">CNETER PAY INFO</span><br><i>(센터납부대상정보)</i>',
+        `<div class="smi-cp" id="smiCpBox">
+          <div class="smi-cprow"><label>EXCHANGE RATE DATE</label><input class="smi-i" id="smiExDate" type="date" value="${g(25)}">
+            <label>EXCHANGE RATE</label><input class="smi-i smi-cpnum" id="smiExRate" value="${g(26)}"> <span class="smi-cpu">$ → ₱</span></div>
+          <div class="smi-cprow"><label>CENTER PAY DATE</label><input class="smi-i" id="smiCpDate" type="date" value="${g(29)}">
+            <label>CENTER PAY AMOUNT</label><input class="smi-i smi-cpnum" id="smiCpAmt" value="${g(27)}">
+            <select class="smi-i smi-cpunit" id="smiCpUnit">${['peso','won','usd'].map(u=>`<option${u===(String(row[28]||'peso').toLowerCase())?' selected':''}>${u}</option>`).join('')}</select>
+            <button class="btn xs" id="smiCpCalc" title="달러금액 × 환율 = 페소금액 자동 채움">🧮 ${T('환산','Convert')}</button>
+            <button class="btn xs" id="smiCpRcpt">[[CENTER_RECEIPT]]</button></div>
+          <div class="smi-cprow"><label>MEMO</label><input class="smi-i smi-cpmemo" id="smiCpMemo" value="${g(30)}">
+            <button class="btn xs" id="smiCpMemoGen" title="${esc(T('납부 문장 자동 생성','Auto-draft the payment sentence'))}">✎ ${T('자동작성','Draft')}</button></div>
+          <div class="smi-cpchk" id="smiCpChk"></div>
+        </div>`,null)}
       ${rw('STUDENT CONDITION',sel(['NOMAL(정상)','EXTEND(연장)','REFUND(환불)','HOLDING(홀딩)','OUT(퇴교)'], (row[11]||'').toLowerCase()==='normal'?'NOMAL(정상)':'NOMAL(정상)'),'AMOUNT<br><i>(REFUND & CANCEL)</i>',`${ipt('0')} won($)`)}
       ${rw('STAFF COMMENT<br><i>[ONLY ENGLISH!]</i>',`<textarea class="smi-ta" rows=2></textarea>`,null)}
       ${sec('COMMISSION INFO')}
       ${rw('COMMISSION<br><i>'+T('나라 정율% + 코스 정액 + 빌딩 정액','Country %% + Course fixed + Building fixed')+'</i>',`<div style="font-size:12px;line-height:1.6">
-        <b>${(row[1]||'ETC').toUpperCase()}</b> ${_cm.pct}% × ${T('학비','tuition')} ${tuition.toLocaleString()} = <b>${_cm.ratePart.toLocaleString()}</b>
+        <b>${(row[1]||'ETC').toUpperCase()}</b> ${_cm.pct}% × ${T('학비','tuition')} ${commBase.toLocaleString()} = <b>${_cm.ratePart.toLocaleString()}</b>
+        <span style="color:var(--dim);font-size:11px">(PRE PAY ${prePay.toLocaleString()}$ ${T('커미션 미반영','excluded from commission')})</span>
         &nbsp;+&nbsp; ${T('코스','Course')}(${esc(row[12]||'-')}) <b>${_cm.courseAmt.toLocaleString()}</b>
         &nbsp;+&nbsp; ${T('빌딩','Bldg')}(${esc(row[14]||'-')}) <b>${_cm.bldgAmt.toLocaleString()}</b>
         <span style="color:var(--good);font-weight:800">= COMMISSION ${comAmt.toLocaleString()} $</span></div>`,'ETC COMMISSION',`${ipt('0')} $ <span style="color:var(--dim);font-size:11px">program 조정분</span>`)}
@@ -3739,6 +3842,86 @@ function openStudentEdit(row,act){
   const close=()=>ov.remove();
   ov.querySelector('#smiClose').onclick=close;ov.querySelector('#smiCancel').onclick=close;
   ov.onclick=e=>{if(e.target===ov)close();};
+  // ── CENTER PAY INFO (센터수납 현장결제) — 행정팀 요청 A3 ──────────────────────
+  //  · 납부방법=CENTER 일 때만 활성(계좌수금이면 잠금 → 오입력 차단)
+  //  · 달러금액 × 환율 = 페소금액 자동 환산 + 불일치 검산 경고
+  //  · MEMO 자동작성(레거시 수기 문장 형식 그대로) · 센터영수증 출력
+  (function(){
+    const $=(id)=>ov.querySelector('#'+id);
+    const box=$('smiCpBox'),chan=$('smiPayChan'),stat=$('smiPayStat'),chk=$('smiCpChk');
+    if(!box||!chan)return;
+    const rate=$('smiExRate'),amt=$('smiCpAmt'),unit=$('smiCpUnit'),memo=$('smiCpMemo'),
+          exd=$('smiExDate'),cpd=$('smiCpDate');
+    const NUM=(v)=>{const n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0;};
+    const FMT=(n)=>Math.round(n).toLocaleString();
+    const isCenter=()=>chan.value==='center';
+    // 활성/비활성 게이트
+    const gate=()=>{
+      const on=isCenter();
+      box.classList.toggle('off',!on);
+      [rate,amt,unit,memo,exd,cpd,$('smiCpCalc'),$('smiCpMemoGen'),$('smiCpRcpt')].forEach(e=>{if(e)e.disabled=!on;});
+      if(!on){chk.className='smi-cpchk dim';
+        chk.textContent=T('납부방법을 CENTER(센터수금)로 선택하면 입력할 수 있습니다.','Select CENTER to enable these fields.');}
+      else verify();
+    };
+    // 검산: 그로스(USD) × 환율 = 페소. 입력값과 어긋나면 경고.
+    const verify=()=>{
+      if(!isCenter())return;
+      const r=NUM(rate.value), a=NUM(amt.value), u=(unit.value||'peso').toLowerCase();
+      if(!r&&!a){chk.className='smi-cpchk dim';
+        chk.textContent=T('환율과 납부금액을 입력하면 자동 검산합니다.','Enter rate and amount for auto-check.');return;}
+      if(u!=='peso'){chk.className='smi-cpchk dim';
+        chk.innerHTML=T('단위 ','Unit ')+'<b>'+esc(u.toUpperCase())+'</b>'+T(' — 페소 환산 검산은 peso 일 때만 적용됩니다.',' — peso cross-check applies to peso only.');return;}
+      if(!r){chk.className='smi-cpchk bad';chk.textContent=T('환율이 비어 있습니다 — 검산 불가.','Exchange rate missing — cannot verify.');return;}
+      const exp=grand*r, diff=Math.abs(exp-a), tol=Math.max(1,exp*0.01);
+      if(!a){chk.className='smi-cpchk dim';
+        chk.innerHTML=T('예상 납부액','Expected')+' <b>'+FMT(exp)+'₱</b> ('+T('그로스','gross')+' $'+grand.toLocaleString()+' × '+r+')';return;}
+      if(diff<=tol){chk.className='smi-cpchk ok';
+        chk.innerHTML='✓ '+T('검산 일치','Verified')+' — $'+grand.toLocaleString()+' × '+r+' = <b>'+FMT(exp)+'₱</b>';}
+      else{chk.className='smi-cpchk bad';
+        chk.innerHTML='⚠ '+T('검산 불일치','Mismatch')+' — '+T('예상','expected')+' <b>'+FMT(exp)+'₱</b> ('+T('그로스','gross')+' $'+grand.toLocaleString()+' × '+r+') vs '+T('입력','entered')+' <b>'+FMT(a)+'₱</b> · '+T('차이','diff')+' '+FMT(diff)+'₱';}
+    };
+    // 환산 버튼: 그로스 × 환율 → 페소금액 채움(수기 덮어쓰기 허용)
+    const calc=$('smiCpCalc'); if(calc)calc.onclick=()=>{
+      const r=NUM(rate.value);
+      if(!r){toast(T('환율 필요','Rate required'),T('EXCHANGE RATE 를 먼저 입력하세요.','Enter EXCHANGE RATE first.'),false);return;}
+      amt.value=FMT(grand*r); if(unit)unit.value='peso'; verify();
+    };
+    // MEMO 자동작성 — 레거시 수기 문장 형식: "07-23 캐피탈 홍길동 그로스가 $720을 페소43,920p 납부($1=61p)"
+    const gen=$('smiCpMemoGen'); if(gen)gen.onclick=()=>{
+      const r=NUM(rate.value), a=NUM(amt.value)||grand*r;
+      const d=(cpd&&cpd.value)||_ymd(new Date());
+      const camp=({ENCANTO:'엔칸토',CLASSIC:'클래식',CAPITAL:'캐피탈'})[String(row[14]||'').toUpperCase()]||String(row[14]||'');
+      const who=(row[2]||row[3]||'').trim();
+      memo.value=`${d.slice(5)} ${camp} ${who} 그로스가 $${grand.toLocaleString()}을 페소${FMT(a)}p 납부($1=${r||'?'}p)`;
+      toast(T('메모 자동작성','Memo drafted'),T('내용을 확인하고 필요하면 수정하세요.','Review and edit if needed.'),true);
+    };
+    // 센터영수증(CENTER_RECEIPT) 출력
+    const rcpt=$('smiCpRcpt'); if(rcpt)rcpt.onclick=()=>{
+      const r=NUM(rate.value), a=NUM(amt.value), u=(unit.value||'peso').toUpperCase();
+      const rows=[[T('학생(영문)','Student (EN)'),esc(row[2]||'')],[T('한글','Korean'),esc(row[3]||'—')],
+        [T('캠퍼스','Campus'),esc(String(row[14]||'—').toUpperCase())],
+        [T('납부방법','Channel'),'CENTER('+T('센터수금','on-site')+')'],
+        [T('납부현황','Pay status'),esc((PAYSTAT.find(p=>p[0]===stat.value)||['','—'])[1])],
+        [T('센터납부일','Center pay date'),esc(cpd.value||'—')],
+        [T('환율적용일','Rate date'),esc(exd.value||'—')],
+        [T('적용환율','Rate'),r?('$1 = '+r+'₱'):'—'],
+        [T('그로스(USD)','Gross (USD)'),'$'+grand.toLocaleString()],
+        [T('납부금액','Amount paid'),(a?FMT(a):'—')+' '+u],
+        [T('메모','Memo'),esc(memo.value||'—')]];
+      openPdf('CENTER RECEIPT — '+(row[2]||row[3]||''),
+        '<table><tbody>'+rows.map(([k,v])=>`<tr><th style="width:180px">${k}</th><td>${v}</td></tr>`).join('')+'</tbody></table>'
+        +`<div class="muted" style="margin-top:12px">${esc(T('센터 현장수납 영수증(참고용). 금액·환율은 입력값 기준입니다.','On-site center payment receipt (reference). Amount/rate reflect entered values.'))}</div>`);
+    };
+    [rate,amt,unit].forEach(e=>{if(e)e.addEventListener('input',verify);});
+    chan.addEventListener('change',gate);
+    // 납부현황=완납/분납인데 방법 미선택이면 안내(행정팀 누락 방지)
+    if(stat)stat.addEventListener('change',()=>{
+      if(['Y','X'].indexOf(stat.value)>=0&&!chan.value)
+        toast(T('납부방법 확인','Check channel'),T('완납·분납은 납부방법(계좌/센터)을 함께 선택하세요.','For PAID/INSTALL also pick the channel (account/center).'),false);
+    });
+    gate();
+  })();
   // 여권 생년월일 → 출발일 기준 만나이 라이브 표시 + row[17] 저장
   const birthEl=ov.querySelector('#smiBirth'),ageEl=ov.querySelector('#smiAge'),ageInput=ov.querySelector('#smiAgeInput');
   const depEl2=()=>row[7]||'';

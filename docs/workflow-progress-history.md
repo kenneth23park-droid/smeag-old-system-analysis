@@ -429,3 +429,16 @@
   ⑤ 검증: 로컬(dev server)·**라이브 모두 Playwright 통과** — 새 브라우저 프로필(localStorage 비어있음)에서 타인이 만든 블록이 보임(=공유 성립), 침대범위 선택, 같은 구간 재등록 시 막대 증가 없음(멱등), 막대 클릭 해제 후 제3 프로필에서도 해제 반영, 콘솔에러 0(잔여 401 은 기존 /api/data 세션 미연결 건).
   ⑥ 배포 이슈 발견·해결: `smeag-bay.vercel.app` 별칭이 15분 전 배포(dpl c77sk1dfy)에 **고정**돼 있어 `vercel deploy --prod` 를 해도 라이브가 갱신되지 않았음 → `vercel alias set` 으로 최신 배포에 재지정. 이후 라이브 = 로컬 바이트 동일(1,561,081).
   ⚠ 남은 것: 모바일 `/m/` 미반영 · 막힌 방에 배정 시 실제 차단(프리플라이트 연동) 미구현 · actor 가 로그인 게이트 비활성으로 'anonymous'(로그인 켜면 자동 해소).
+
+- **2026-07-30** 인보이스 커미션 정책 명시 — **PRE PAY(선불금)는 커미션에 반영하지 않음**:
+  · 현황 확인: 커미션 산정은 SMI 모달 1곳(`calcComm(nat,course,campus,tuition)`)에서만 수행 · 기준값이 `tuition`(=주차×주단가, prePay 차감 전)이라 **금액상 이미 prepay 제외** 상태였고 `grand`(=regist+tuition+dorm+etc−prePay)는 TOTAL/NET 표기에만 사용. 등록금·인보이스(financial) 화면·PDF 는 커미션 항목이 없어 영향 없음.
+  · 조치: 커미션 기준학비를 별도 상수 `commBase=tuition` 로 분리 + "PRE PAY 는 커미션에 반영하지 않는다 / grand 사용 금지" 주석 명시(향후 `grand` 로 잘못 바뀌는 회귀 차단). COMMISSION INFO 행에 `(PRE PAY 450$ 커미션 미반영)` 근거 표기 추가. COMMISSION RULES 화면 배너에도 정책 문장 추가(KO/EN).
+  · 적용 파일: `deploy/index.html`, `docs/design-admin/prototype.html`(동기).
+  · 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app` 재지정 → 라이브 = 로컬 바이트 동일(1,567,945), 라이브 문구 확인(`커미션 미반영`, `PRE PAY is excluded from commission`).
+
+- **2026-07-30** 수강등록관리(Course Registration) 표 표기 정리 — PERI 주단위 · COURSE 레거시식 코스명 · 이름 클릭 비활성:
+  · **PERI**: `s_period`(주 단위 정수)를 그대로 숫자만 찍던 것을 `periW()` 헬퍼로 **`16w` / `2w`** 형태 표기(0·빈값은 `—`). 엑셀 내보내기도 동일 표기.
+  · **COURSE**: 학생행의 `course_info` 는 코스 **코드**(46·94·14 …)라 숫자가 그대로 노출되던 것을 `courseNameOf()`(course_list.php 마스터 캐시, 필터 드롭다운이 이미 쓰던 매핑)로 **레거시와 같은 코스명**으로 표시. 원 코드값은 셀 title 로 유지, 마스터에 없는 코드는 코드 그대로 폴백. 엑셀도 코스명.
+  · **이름 클릭 → 상세정보 비활성화**(요청): `#stdBody` 위임 핸들러에서 `.std-name` 분기 제거 + 링크형 CSS(밑줄·포인터·강조색) 해제. 상세 진입은 ACTION 의 `Edit` 버튼으로 일원화. 프로토타입(prototype.html)은 이미 비활성 상태여서 표기 2건만 동기.
+  · 적용 파일: `deploy/index.html`, `docs/design-admin/prototype.html`(동기).
+  · 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app` → 라이브 = 로컬 바이트 동일(1,568,149).

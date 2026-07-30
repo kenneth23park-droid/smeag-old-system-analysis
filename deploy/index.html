@@ -390,9 +390,17 @@
   .gantt td.cempty{background:var(--surface)}
   /* 틀고정: 좌측 4열 (구분/방번호/인실/이름) — 가로 스크롤 시 실시간 고정 */
   .gantt .c0{position:sticky;left:0;z-index:1;vertical-align:top;font-weight:800;color:var(--accent-ink);font-size:11px;letter-spacing:.3px;text-align:left}
-  .gantt .c1{position:sticky;left:96px;z-index:1}
-  .gantt .c2{position:sticky;left:182px;z-index:1}
-  .gantt .c3{position:sticky;left:262px;z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
+  /* 좌측 고정열 오프셋 — 폭이 드래그로 바뀌므로 테이블의 --w0~--w3 변수로 계산 */
+  .gantt{--w0:96px;--w1:86px;--w2:80px;--w3:230px}
+  .gantt .c1{position:sticky;left:var(--w0);z-index:1}
+  .gantt .c2{position:sticky;left:calc(var(--w0) + var(--w1));z-index:1}
+  .gantt .c3{position:sticky;left:calc(var(--w0) + var(--w1) + var(--w2));z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
+  /* 열 경계 드래그 핸들 — 이름열은 좌(인실↔이름 경계 이동)·우(이름폭) 양쪽 모두 조절 */
+  .gantt thead th .rs-rz{position:absolute;top:0;bottom:0;width:9px;z-index:5;cursor:col-resize}
+  .gantt thead th .rs-rz.r{right:0}
+  .gantt thead th .rs-rz.l{left:0}
+  .gantt thead th .rs-rz:hover::after,.gantt thead th .rs-rz.on::after{content:'';position:absolute;top:2px;bottom:2px;left:50%;width:3px;margin-left:-1.5px;background:var(--accent);border-radius:2px}
+  body.rs-resizing,body.rs-resizing *{cursor:col-resize !important;user-select:none !important}
   .gantt thead .c3{z-index:3}
   .gantt thead .c0,.gantt thead .c1,.gantt thead .c2,.gantt thead .c3{z-index:3}
   .gantt td.c0,.gantt td.c1,.gantt td.c2,.gantt td.c3{background:var(--surface)}
@@ -579,8 +587,7 @@
   /* 첫 컬럼(AGENCY)만 좌측 정렬 — 레거시와 동일 */
   #stdBody table.grid td:first-child,#stdBody table.grid th:first-child{text-align:left}
   /* 이름 클릭 → 상세정보. 링크처럼 보이게(밑줄·포인터), 드래그 복사도 유지 */
-  #stdBody table.grid td.std-name{font-weight:600;color:var(--accent-ink);cursor:pointer;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:2px}
-  #stdBody table.grid td.std-name:hover{color:var(--accent);text-decoration-color:var(--accent)}
+  #stdBody table.grid td.std-name{font-weight:600;color:var(--ink);cursor:default;text-decoration:none}
   .std-name-ag{cursor:pointer}
   .std-name-ag:hover b{text-decoration:underline}
   #specBody table.grid td.sp-name{cursor:pointer;color:var(--accent-ink);font-weight:600;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:2px}
@@ -828,7 +835,59 @@ let roomCenter={y:2026,m:7}; // 배치도 캘린더 중심월(선택월)
 // 방 셀 이름·기간 오버레이: on=표시여부, op=투명도(%) — 룰러 아래 컨트롤에서 조절, localStorage 유지
 let dlab={on:(function(){try{return localStorage.getItem('smeag-dlab')==='1';}catch(e){return false;}})(),
           op:(function(){try{return +localStorage.getItem('smeag-dlabop')||50;}catch(e){return 50;}})()};
-let roomFilter={center:'',gender:'',group:'',per:'',sortPer:'',q:'',nameW:(function(){try{return +localStorage.getItem('smeag-nameW')||230;}catch(e){return 230;}})()}; // 배치도 센터·성별·구분(그룹)·방구분·정렬·검색·이름폭
+// 배치도 좌측 고정 4열 폭 [구분, 방번호, 인실, 이름] — 헤더 경계 드래그로 조절, localStorage 보존
+const RS_COLW_DEF=[96,86,80,230], RS_COLW_MIN=[48,44,40,90];
+function rsColWLoad(){let w=null;
+  try{const s=JSON.parse(localStorage.getItem('smeag-colW')||'null');if(Array.isArray(s)&&s.length===4)w=s.map(n=>+n||0);}catch(e){}
+  if(!w){w=RS_COLW_DEF.slice();try{const n=+localStorage.getItem('smeag-nameW');if(n)w[3]=n;}catch(e){}} // 구버전(이름폭만 저장) 호환
+  return w.map((n,i)=>Math.max(RS_COLW_MIN[i],Math.min(900,n||RS_COLW_DEF[i])));}
+function rsColWSave(){try{localStorage.setItem('smeag-colW',JSON.stringify(roomFilter.colW));localStorage.setItem('smeag-nameW',roomFilter.colW[3]);}catch(e){}}
+let roomFilter={center:'',gender:'',group:'',per:'',sortPer:'',q:'',colW:rsColWLoad(),get nameW(){return this.colW[3];},set nameW(v){this.colW[3]=v;}}; // 배치도 센터·성별·구분(그룹)·방구분·정렬·검색·좌측열 폭
+// 드래그 중 재렌더 없이 폭만 반영 — CSS 변수(고정열 left) · colgroup · 표 전체폭 · 스크롤계산용 data-infow
+function rsApplyColW(tbl,w){
+  const cols=tbl.querySelectorAll('colgroup col');
+  w.forEach((v,i)=>{tbl.style.setProperty('--w'+i,v+'px');if(cols[i])cols[i].style.width=v+'px';});
+  const info=w[0]+w[1]+w[2]+w[3];
+  tbl.style.width=(info+(+tbl.dataset.gridw||0))+'px';
+  const tw=tbl.closest('.twrap');if(tw)tw.dataset.infow=info;
+}
+// 이름폭 셀렉트는 프리셋만 있으므로, 드래그로 만든 임의 폭은 '사용자 지정' 옵션으로 반영
+function rsSyncNameWSel(w3){const sel=document.querySelector('#rsNameW');if(!sel)return;
+  const hit=[...sel.options].find(o=>+o.value===w3&&o.dataset.custom!=='1');
+  let cu=[...sel.options].find(o=>o.dataset.custom==='1');
+  if(hit){if(cu)cu.remove();sel.value=hit.value;return;}
+  if(!cu){cu=document.createElement('option');cu.dataset.custom='1';sel.appendChild(cu);}
+  cu.value=String(w3);cu.textContent=T('이름 사용자 지정','Name: custom')+` (${w3}px)`;sel.value=cu.value;}
+// 좌측 고정열 경계 드래그 — 이름열은 좌(인실↔이름 경계 이동, 전체폭 유지)·우(이름폭 자체) 양쪽
+function rsBindColResize(m){
+  const tbl=m.querySelector('table.gantt');if(!tbl)return;
+  tbl.querySelectorAll('thead .rs-rz').forEach(h=>{
+    const idx=+h.dataset.rz, pair=h.dataset.rzpair==='1';
+    h.addEventListener('pointerdown',e=>e.stopPropagation()); // 방막기 드래그와 충돌 방지
+    h.addEventListener('click',e=>e.stopPropagation());
+    h.addEventListener('mousedown',e=>{
+      if(e.button!==0)return;
+      e.preventDefault();e.stopPropagation();
+      const x0=e.clientX, w0=roomFilter.colW.slice();
+      h.classList.add('on');document.body.classList.add('rs-resizing');
+      const move=ev=>{const w=w0.slice();let d=ev.clientX-x0;
+        if(pair){ // 경계 이동: 인실이 늘면 이름이 그만큼 줄어 전체 좌측폭은 그대로
+          d=Math.max(RS_COLW_MIN[idx]-w0[idx],Math.min(w0[3]-RS_COLW_MIN[3],d));
+          w[idx]=w0[idx]+d;w[3]=w0[3]-d;
+        }else w[idx]=Math.max(RS_COLW_MIN[idx],Math.min(900,w0[idx]+d));
+        roomFilter.colW=w;rsApplyColW(tbl,w);};
+      const up=()=>{document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);
+        h.classList.remove('on');document.body.classList.remove('rs-resizing');
+        rsColWSave();rsSyncNameWSel(roomFilter.colW[3]);};
+      document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);});
+    h.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation(); // 기본폭 복원
+      const w=roomFilter.colW.slice();
+      if(pair){w[3]=Math.max(RS_COLW_MIN[3],w[3]+w[idx]-RS_COLW_DEF[idx]);w[idx]=RS_COLW_DEF[idx];}
+      else w[idx]=RS_COLW_DEF[idx];
+      roomFilter.colW=w;rsApplyColW(tbl,w);rsColWSave();rsSyncNameWSel(w[3]);});
+  });
+  rsSyncNameWSel(roomFilter.colW[3]);
+}
 let roomstatCtx=null; // 배치도 렌더 컨텍스트(엑셀 export용)
 // 배치도 → 엑셀(CSV·UTF-8 BOM, Excel 호환) 내보내기. n=1(중심월)/2(중심+다음달)
 function exportRoomstat(n){
@@ -1121,7 +1180,7 @@ function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   const actCell=i=>`<td class="std-act" data-i="${i}"><button class="btn xs" data-sact="edit">${T('수정','Edit')}</button><button class="btn xs" data-sact="move">${T('변경','Move')}</button><button class="btn xs" data-sact="extend">${T('연장','Extend')}</button><button class="btn xs" data-sact="counsel">${T('상담','Consult')}</button><button class="btn xs" data-sact="brief">${T('약식','Brief')}</button></td>`;
   const docCells=i=>`<td><button class="btn xs" data-doc="log" data-i="${i}">${T('상담이력','Log')}</button></td><td><button class="btn xs" data-doc="medical" data-i="${i}">${T('진단서','Medical')}</button></td><td><button class="btn xs" data-doc="consent" data-i="${i}">${T('동의서','Consent')}</button></td><td><button class="btn xs" data-doc="report" data-i="${i}">${T('성적표','Report')}</button></td>`;
   const roomCell=(r,i)=>{const rm=stuRoom(r);return rm?`<td class="mono rmc">${esc(rm)}</td>`:`<td><button class="btn xs std-assign" data-sact="move" data-i="${i}" style="color:var(--male);border-color:var(--male)">${T('방배정','Assign')}</button></td>`;};
-  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="클릭 → 상세정보 · ${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="mono" title="${esc(r[17]||'')}">${r[17]?d8(r[17]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td><td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${esc(r[10])||'—'}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td><td>${esc(r[12])||'—'}</td>${roomCell(r,i)}${stdState.actions?actCell(i)+docCells(i):''}</tr>`).join('');
+  const tb=pg.map((r,i)=>`<tr data-i="${i}"><td>${esc(r[0])||'—'}</td><td class="mono">${(r[1]||'').toUpperCase()}</td><td class="std-name" data-i="${i}" title="${esc(r[2])}">${esc(r[2])}</td><td class="std-kor" title="${esc(r[3]||'')}">${(r[3]&&r[3]!==r[2])?esc(r[3]):'—'}</td><td class="mono" title="${esc(r[17]||'')}">${r[17]?d8(r[17]):'—'}</td><td class="num mono">${manAgeCell(r)}</td><td><span class="pill ${(r[5]||'').toUpperCase()==='F'?'female':'male'}">${(r[5]||'').toUpperCase()==='F'?'여':'남'}</span></td><td class="mono" title="${esc(r[6]||'')}">${d8(r[6])}</td><td class="mono" title="${esc(r[7]||'')}">${d8(r[7])}</td><td class="mono" title="${esc(r[8]||'')}">${d8(r[8])}</td>${stdState.pickup?`<td class="mono" style="color:var(--female);font-weight:700" title="${esc(r[7]||'')}">${d8(r[7])}</td>`:''}<td class="mono" title="${esc(r[9]||'')}">${d8(r[9])}</td><td class="mono">${periW(r[10])}</td><td><span class="pill ${condPill(r[11])}">${(r[11]||'').toUpperCase()||'—'}</span></td><td title="${esc(r[12]||'')}">${r[12]?esc(courseNameOf(r[12])):'—'}</td>${roomCell(r,i)}${stdState.actions?actCell(i)+docCells(i):''}</tr>`).join('');
   box.innerHTML=`<div class="twrap"><table class="grid">${cols}<tbody>${tb}</tbody></table></div>
   <div class="pager"><button class="btn" id="pgFirst" ${s.page<=0?'disabled':''}>«</button><button class="btn" id="pgPrev" ${s.page<=0?'disabled':''}>◀</button>
   <span class="pginfo">페이지 <b>${s.page+1}</b> / ${pages.toLocaleString()} · 결과 <b>${f.length.toLocaleString()}</b>건</span>
@@ -1138,7 +1197,7 @@ function exportStd(){const f=stdFiltered();if(!f){toast('내보낼 데이터 없
   const P=stdState.pickup;                       // 수강등록관리: PICKUP + 항공정보(현재/변경전) 포함
   const H=['AGENCY','NAT','NAME(EN)','KOR','AGE','SEX','APPLY','DEPA',...(P?['PICKUP','PICKUP SCHEDULE','PICKUP(변경전)']:[]),'BEGIN','END','PERI','COURSE','ROOM','CAMPUS','COND'];
   const cap=20000,fs=f.length>cap?f.slice(0,cap):f;
-  const rows=fs.map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],...(P?[r[7],r[15]||'',r[16]||'']:[]),r[8],r[9],r[10],r[12],r[13],r[14],r[11]]);
+  const rows=fs.map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],...(P?[r[7],r[15]||'',r[16]||'']:[]),r[8],r[9],periW(r[10]),r[12]?courseNameOf(r[12]):'',r[13],r[14],r[11]]);
   const redCols=P?[8,9,10]:[];                    // PICKUP·항공정보(현재/변경전) 빨강
   toXls(H,rows,'SMEAG_'+(P?'수강등록관리':'학생명단')+'.xls',redCols);
   toast('엑셀 내보내기 완료',`${rows.length.toLocaleString()}행${f.length>cap?` (상위 ${cap.toLocaleString()}/${f.length.toLocaleString()})`:' (필터 반영)'} · 노란헤더·필터${P?'·픽업/항공정보 빨강':''}`,true);}
@@ -1450,7 +1509,7 @@ R.dailyio=(m)=>{
   <div class="banner">기간 기본값: 이번주 목→다음주 수 (해당 기간 데이터 자동 표시) · reserve_info 실 입퇴실 집계</div>`;};
 
 R.roomstat=()=>{
-  const CELLW=19, nameW=+(roomFilter.nameW)||230, GRPW=96, INFOW=GRPW+86+80+nameW; // 구분+방번호+인실+이름(조절가능) = 좌측 고정폭
+  const CELLW=19, CW=roomFilter.colW, nameW=CW[3], INFOW=CW[0]+CW[1]+CW[2]+CW[3]; // 구분+방번호+인실+이름(모두 드래그 조절) = 좌측 고정폭
   const pad=n=>String(n).padStart(2,'0');
   const daysIn=(y,m)=>new Date(y,m,0).getDate();
   // 선택월(roomCenter) 기준 ±6개월 = 13개월
@@ -1615,10 +1674,13 @@ R.roomstat=()=>{
          +`title="${esc(T('차단','BLOCKED'))} ${esc(b.from_date)}~${esc(b.to_date)} · ${esc(lb)}${b.memo?' · '+esc(b.memo):''} · ${esc(b.created_by)}${T(' — 클릭하면 해제',' — click to release')}">🔒 ${esc(lb)}</span>`;});
     return `<td class="dlane" colspan="${TOTAL}"><span class="dlanein" style="width:${TOTAL*CELLW}px">${out}</span></td>`;
   };
-  const colg=`<colgroup><col style="width:${GRPW}px"><col style="width:86px"><col style="width:80px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
+  const colg=`<colgroup>${CW.map(w=>`<col style="width:${w}px">`).join('')}${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
   const monRow=months.map(mo=>`<th class="mon${mo.off===0?' mon-cur':''}" colspan="${mo.days}">${mo.y} 년 ${pad(mo.m)} 월</th>`).join('');
   const dayRow=months.map(mo=>Array.from({length:mo.days},(_,i)=>`<th class="dh">${i+1}</th>`).join('')).join('');
-  const head=`<thead><tr><th class="c0" rowspan="2">${T('구분','Group')}</th><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
+  // 열 경계 드래그 핸들: data-rz=대상열 · pair=1 이면 이름열과 폭을 주고받아 전체폭 고정(경계만 이동)
+  const rzT=T('드래그로 폭 조절 · 더블클릭 초기화','Drag to resize · double-click to reset');
+  const rz=(i,side,pair)=>`<span class="rs-rz ${side}" data-rz="${i}"${pair?' data-rzpair="1"':''} title="${rzT}"></span>`;
+  const head=`<thead><tr><th class="c0" rowspan="2">${T('구분','Group')}${rz(0,'r')}</th><th class="c1" rowspan="2">방번호${rz(1,'r')}</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">${T('이름','Name')}${rz(2,'l',1)}${rz(3,'r')}</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
 
   let body='';
   const _blkSet=blockedRooms(); // 방막기(BX 키) 세트
@@ -1679,7 +1741,7 @@ R.roomstat=()=>{
       <select id="rsGroup" class="rs-ctrl" title="${T('방구분(카테고리) — 레거시 room_gubun','Room category (legacy room_gubun)')}"${grpOpts.length?'':' disabled'}><option value="">${T('::방구분을 선택하세요::','::Select room category::')}</option><option value="ALL" ${roomFilter.group==='ALL'?'selected':''}>${T('방구분 전체 (SELECT ALL)','All categories (SELECT ALL)')}</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
       <select id="rsPer" class="rs-ctrl" title="${T('인실(정원)','Beds per room')}">${[['',T('::인실을 선택하세요::','::Select beds/room::')],['ALL',T('인실 전체','All bed counts')],['1',T('1인실','1-person')],['2',T('2인실','2-person')],['3',T('3인실','3-person')],['4',T('4인실','4-person')],['5',T('5인실','5-person')],['TEMP',T('임시방(TEMPORARY)','Temporary')]].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="${T('인실 정렬','Sort by room type')}"><option value="">${T('인실 정렬','Room-type sort')}</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>${T('인실 ↑ 적은순','Type ↑ fewest')}</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>${T('인실 ↓ 많은순','Type ↓ most')}</option></select>
-      <select id="rsNameW" class="rs-ctrl" title="${T('이름 컬럼 폭','Name column width')}">${[['160',T('이름 좁게','Name: narrow')],['230',T('이름 보통','Name: normal')],['320',T('이름 넓게','Name: wide')],['460',T('이름 아주넓게','Name: x-wide')]].map(([v,l])=>`<option value="${v}" ${nameW==+v?'selected':''}>${l}</option>`).join('')}</select>
+      <select id="rsNameW" class="rs-ctrl" title="${T('이름 컬럼 폭 — 표 머리글의 이름칸 좌/우 경계를 드래그해도 조절됩니다 (더블클릭 초기화)','Name column width — you can also drag the left/right edge of the Name header cell (double-click to reset)')}">${[['160',T('이름 좁게','Name: narrow')],['230',T('이름 보통','Name: normal')],['320',T('이름 넓게','Name: wide')],['460',T('이름 아주넓게','Name: x-wide')]].map(([v,l])=>`<option value="${v}" ${nameW==+v?'selected':''}>${l}</option>`).join('')}</select>
       <input id="rsMonth" class="rs-ctrl" type="month" value="${roomCenter.y}-${pad(roomCenter.m)}" min="2020-01" max="2032-12" title="${T('연/월 이동(캘린더) — 아무 년/월이나 선택','Year/month picker')}" style="cursor:pointer">
       <span class="rs-search"><input id="rsSearch" class="rs-ctrl" type="search" placeholder="${T('🔍 방번호 · 회원 검색','🔍 Room · member search')}" value="${esc(roomFilter.q||'')}" autocomplete="off" style="min-width:210px"><span id="rsSearchCnt" class="rs-cnt"></span></span>
     </div>
@@ -1692,7 +1754,7 @@ R.roomstat=()=>{
     <span><i style="background:var(--surface-2);color:var(--faint);border:1px solid var(--border)">X</i> ${T('재실 (STAY)','STAY')}</span>
     <span><i style="background:var(--surface);border:1px solid var(--border)"></i> ${T('빈방 (VACANT)','VACANT')}</span>
   </div>
-  <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}" data-cellw="${CELLW}"><table class="gantt${dlab.on?' rs-dlab':''}" style="width:${INFOW+TOTAL*CELLW}px;--dlabop:${dlab.op/100}">${colg}${head}${body}</table><div class="rs-botpad" aria-hidden="true"></div></div>`
+  <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}" data-cellw="${CELLW}"><table class="gantt${dlab.on?' rs-dlab':''}" style="width:${INFOW+TOTAL*CELLW}px;--dlabop:${dlab.op/100};${CW.map((w,i)=>`--w${i}:${w}px`).join(';')}" data-gridw="${TOTAL*CELLW}">${colg}${head}${body}</table><div class="rs-botpad" aria-hidden="true"></div></div>`
   :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>${T('센터 · 성별 · 그룹을 선택하세요','Select Center · Gender · Group')}</b><div class="rs-ph-sub">${T('상단에서 <b>센터</b>(ENCANTO·CAPITAL) · <b>성별</b> · <b>그룹</b> <b>3가지를 모두 선택</b>하면 배치도가 표시됩니다.<br>그룹은 <b>Select group</b>에서 특정 그룹 또는 <b>전체 그룹(SELECT ALL)</b> 선택 · 방구분(인실)은 선택적 추가필터 · 초기엔 전체를 불러오지 않아 빠릅니다 · 연월/검색 병행.','Select all <b>3</b> — <b>Center</b>(ENCANTO·CAPITAL) · <b>Gender</b> · <b>Group</b> — to show the batch calendar.<br>Group: pick a specific one or <b>All groups (SELECT ALL)</b> · Room type is an optional filter · nothing loaded initially for speed · year-month & search supported.')}</div></div>`}
   <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}${T('레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬 · 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b>.','Legacy <span class="mono">room_stat3.php</span> room×date calendar — shows <b>±6 months</b> around selected month, click a month to <b>center</b> it · horizontal scroll · <b>frozen header</b> · <b>cell click → check-in/out·assign·move</b>.')} ${REAL&&REAL.roomstat?T(`<b>실 MySQL 예약데이터</b>${rsRange}`,`<b>Real MySQL reservations</b>${rsRange}`):T('가상 샘플','sample data')}.</div>`;};
 
@@ -2836,7 +2898,7 @@ R.commrules=function(m){
     <td><input class="rs-ctrl cr-bld" data-k="${k}" type="number" value="${R2.building[k]}" style="width:100px"> $</td></tr>`).join('');
   return `
   <div class="ph"><h1>${T('수수료 규칙 (COMMISSION RULES)','Commission Rules')}</h1><span class="sub">${T('나라 정율% + 코스 정액$ + 빌딩 정액$ — 합산','Country %% + Course fixed$ + Building fixed$ — summed')}</span><span class="url">commission_rules</span></div>
-  <div class="banner">${T('학생 커미션 = <b>학비 × 나라 정율%</b> + <b>코스 정액$</b> + <b>빌딩 정액$</b>. 값 수정 후 <b>저장</b>하면 학생 COMMISSION INFO·인보이스에 즉시 반영됩니다(브라우저 저장).','Student commission = <b>tuition × country %%</b> + <b>course fixed$</b> + <b>building fixed$</b>. Save to apply immediately to student COMMISSION INFO·invoice (stored in browser).')}</div>
+  <div class="banner">${T('학생 커미션 = <b>학비 × 나라 정율%</b> + <b>코스 정액$</b> + <b>빌딩 정액$</b>. <b>PRE PAY(선불금)는 커미션에 반영하지 않습니다.</b> 값 수정 후 <b>저장</b>하면 학생 COMMISSION INFO·인보이스에 즉시 반영됩니다(브라우저 저장).','Student commission = <b>tuition × country %%</b> + <b>course fixed$</b> + <b>building fixed$</b>. <b>PRE PAY is excluded from commission.</b> Save to apply immediately to student COMMISSION INFO·invoice (stored in browser).')}</div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:14px;align-items:start">
     <div class="card pad"><b style="color:var(--accent-ink)">🌐 ${T('나라 정율(%)','Country rate (%)')}</b>
       <table class="grid" style="margin-top:8px"><thead><tr><th>${T('국적','Nationality')}</th><th>${T('정율','Rate')} %</th></tr></thead><tbody>${natRows}</tbody></table></div>
@@ -2904,6 +2966,8 @@ function savePerms(){try{localStorage.setItem('smeag-perms',JSON.stringify(PERMS
 function setDept(d){curDept=d;try{localStorage.setItem('smeag-dept',d);}catch(e){}}
 
 // ─── 인보이스/문서 PDF 생성(외부 라이브러리 없이 인쇄→PDF 저장) ───
+// PERI(s_period)는 레거시에서 주(week) 단위 정수 → 표에는 '2w' 형태로 표기
+function periW(v){const n=parseInt((''+(v==null?'':v)).replace(/[^0-9-]/g,''),10);return (isFinite(n)&&n>0)?n+'w':'—';}
 // 코스 마스터(course_list.php) 코드→영문명 매핑(캐시). 필터·표시에 사용.
 let _courseNameCache=null, _courseActiveCache=null;
 function _buildCourseCache(){_courseNameCache={};_courseActiveCache={};
@@ -3109,8 +3173,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     // ACTION 버튼(수정/변경/연장/상담/약식) — 이벤트 위임
     const body=m.querySelector('#stdBody');
     body.addEventListener('click',e=>{
-      const nmc=e.target.closest('.std-name');           // 이름 클릭 → 상세정보 화면
-      if(nmc){const row=(window._stdPage||[])[+nmc.dataset.i];if(row)openStudentEdit(row,'edit');return;}
+      // 이름 클릭 → 상세정보: 비활성화(2026-07-30 요청). 상세는 ACTION 의 Edit 버튼으로 진입.
       const b=e.target.closest('button[data-sact]');
       if(b){const cell=b.closest('[data-i]');const row=(window._stdPage||[])[+cell.dataset.i]||[];
         const nm=row[2]||row[3]||'',rm=row[13]||'',dp=row[7]||'';const act=b.dataset.sact;
@@ -3150,7 +3213,8 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   const rgrp=m.querySelector('#rsGroup');if(rgrp)rgrp.addEventListener('change',()=>{roomFilter.group=rgrp.value;renderMain();});
   const rp=m.querySelector('#rsPer');if(rp)rp.addEventListener('change',()=>{roomFilter.per=rp.value;renderMain();});
   const rsr=m.querySelector('#rsSort');if(rsr)rsr.addEventListener('change',()=>{roomFilter.sortPer=rsr.value;renderMain();});
-  const rnw=m.querySelector('#rsNameW');if(rnw)rnw.addEventListener('change',()=>{roomFilter.nameW=+rnw.value||230;try{localStorage.setItem('smeag-nameW',roomFilter.nameW);}catch(e){}renderMain();});
+  const rnw=m.querySelector('#rsNameW');if(rnw)rnw.addEventListener('change',()=>{roomFilter.colW[3]=+rnw.value||230;rsColWSave();renderMain();});
+  rsBindColResize(m); // 좌측 고정열(구분·방번호·인실·이름) 경계 드래그 폭 조절
   const rmn=m.querySelector('#rsMonth');if(rmn)rmn.addEventListener('change',()=>{const [y,mo]=(rmn.value||'').split('-');if(y&&mo){roomCenter={y:+y,m:+mo};renderMain();liveMonthRefresh();}}); // 연/월 캘린더 이동
   const rss=m.querySelector('#rsSearch');
   if(rss){const cnt=m.querySelector('#rsSearchCnt'),tbl=m.querySelector('table.gantt');
@@ -3730,10 +3794,23 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
   // 레거시가 보여준 그대로의 문자열(fee_class2 · fee_dorm2) 우선, 없으면 파생값 폴백
   const sid=S(18), courseTxt=S(19)||course, dormTxt=S(20)||dorm;
   // 방 이동경로: roomstat 전 그룹에서 이 학생 이름의 점유 세그먼트를 모아 시간순 정렬 → 연속 동일방 병합
-  const _rpath=(function(){const grs=(REAL&&REAL.roomstat&&REAL.roomstat.groups)||[];const nm=(''+(S(2,name)||name||'')).trim();if(!nm)return [];
-    const segs=[];grs.forEach(g=>{const cat=(g.name||'').split('/')[0].trim();(g.rooms||[]).forEach(r=>{(r.beds||[]).forEach(bed=>{(bed.segs||[]).forEach(sg=>{if(sg&&sg.nm&&(''+sg.nm).trim()===nm)segs.push({room:r.no,cat:cat,s:sg.s,e:sg.e});});});});});
-    segs.sort((a,b)=>(''+(a.s||'')).localeCompare(''+(b.s||'')));
-    const st=[];segs.forEach(x=>{const last=st[st.length-1];const key=x.cat+'|'+x.room;
+  // _rsv: 예약행 단위(레거시 student_room.php 의 DORMITORY RESERVED INFORMATION 과 동일 — 병합 없음)
+  // _rpath: 위 예약행을 같은 방 연속구간으로 병합한 이동경로
+  const _rsvAll=(function(){const grs=(REAL&&REAL.roomstat&&REAL.roomstat.groups)||[];const nm=(''+(S(2,name)||name||'')).trim();
+    const segs=[];grs.forEach(g=>{const cat=(g.name||'').split('/')[0].trim();(g.rooms||[]).forEach(r=>{
+      const cap=parseInt(r.per||'',10)||0;
+      (r.beds||[]).forEach(bed=>{(bed.segs||[]).forEach(sg=>{if(!sg)return;
+        // s_idx 우선 매칭(연장은 별도 s_idx라 레거시처럼 그 예약만) · 없으면 이름 폴백
+        const hit=sid?(''+(sg.si||''))===(''+sid):(sg.nm&&(''+sg.nm).trim()===nm);
+        if(hit)segs.push({room:r.no,cat:cat,cap:cap,s:sg.s,e:sg.e});});});});});
+    segs.sort((a,b)=>(''+(a.s||'')).localeCompare(''+(b.s||'')));return segs;})();
+  // s_idx 매칭이 0건이면(윈도우 밖·데이터 누락) 이름 폴백으로 한 번 더
+  const _rsv=(function(){if(_rsvAll.length||!sid)return _rsvAll;
+    const grs=(REAL&&REAL.roomstat&&REAL.roomstat.groups)||[];const nm=(''+(S(2,name)||name||'')).trim();if(!nm)return [];
+    const segs=[];grs.forEach(g=>{const cat=(g.name||'').split('/')[0].trim();(g.rooms||[]).forEach(r=>{const cap=parseInt(r.per||'',10)||0;
+      (r.beds||[]).forEach(bed=>{(bed.segs||[]).forEach(sg=>{if(sg&&sg.nm&&(''+sg.nm).trim()===nm)segs.push({room:r.no,cat:cat,cap:cap,s:sg.s,e:sg.e});});});});});
+    segs.sort((a,b)=>(''+(a.s||'')).localeCompare(''+(b.s||'')));return segs;})();
+  const _rpath=(function(){const st=[];_rsv.forEach(x=>{const last=st[st.length-1];const key=x.cat+'|'+x.room;
       if(last&&last.key===key){if((''+(x.e||''))>(''+(last.e||'')))last.e=x.e;if((''+(x.s||''))<(''+(last.s||'')))last.s=x.s;}
       else st.push({key:key,room:x.room,cat:x.cat,s:x.s,e:x.e});});
     return st;})();
@@ -3771,7 +3848,8 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
         </table>
         <div class="rp-t" style="margin-top:14px">※ DORMITORY RESERVED INFORMATION</div>
         <table class="rp-info dorm"><tr><th>ROOM NUMBER</th><th>CAPACITY</th><th>PERIOD</th></tr>
-          <tr><td class="mono">${esc(room||dorm||'-')}</td><td>${esc(per?per+'wk':'-')}</td><td class="mono">${esc(begin)} ~ ${esc(end)}</td></tr></table>
+          ${_rsv.length?_rsv.map(x=>`<tr><td class="mono">${esc(x.room)}</td><td>${x.cap?x.cap+'bed':'-'}</td><td class="mono">${esc((''+(x.s||'')).slice(0,10))} ~ ${esc((''+(x.e||'')).slice(0,10))}</td></tr>`).join('')
+            :`<tr><td class="mono">${esc(room||dorm||'-')}</td><td>-</td><td class="mono">${esc(begin)} ~ ${esc(end)}</td></tr>`}</table>
         <div class="rp-t" style="margin-top:14px">※ ROOM MOVE PATH ${T('(방 이동경로)','(room move history)')}</div>
         ${_rpath.length?`<div class="rp-path">${_rpath.map((x,i)=>`<span class="rp-node"${i===_rpath.length-1?' data-cur="1"':''}><b>${esc(x.cat)} ${esc(x.room)}</b><small>${esc((''+(x.s||'')).slice(0,10))} ~ ${esc((''+(x.e||'')).slice(0,10))}</small></span>`).join('<span class="rp-arrow">→</span>')}</div>
           <table class="rp-info"><tr><th>#</th><th>ROOM</th><th>PERIOD</th></tr>${_rpath.map((x,i)=>`<tr><td class="mono">${i+1}</td><td class="mono">${esc(x.cat)} ${esc(x.room)}</td><td class="mono">${esc((''+(x.s||'')).slice(0,10))} ~ ${esc((''+(x.e||'')).slice(0,10))}</td></tr>`).join('')}</table>`
@@ -3867,7 +3945,9 @@ function openStudentEdit(row,act){
   const regist=100, c1fee=tuiWk, c2fee=220, etcFee=0, prePay=450;
   const tuition=tuiWk*wk, dormTot=dormFee*wk, grand=regist+tuition+dormTot+etcFee-prePay;
   // 커미션 = 학비×나라정율% + 코스정액 + 빌딩정액 (편집가능 규칙: smeag-commrules)
-  const _cm=calcComm(row[1],row[12],row[14],tuition); const comAmt=_cm.total; const netAmt=grand-comAmt;
+  // ※ 정책: PRE PAY(선불금)는 커미션에 반영하지 않는다 → 커미션 기준학비는 prePay 차감 전 tuition (grand 사용 금지)
+  const commBase=tuition;
+  const _cm=calcComm(row[1],row[12],row[14],commBase); const comAmt=_cm.total; const netAmt=grand-comAmt;
   // 인보이스 발행 이력(발행 시 write-layer 기록 — 현재는 구조/현재값 표시)
   const invRows=`<tr><td class="mono">1th</td><td>${link('AGENCY')} ${link('STUDENT')}</td><td class="mono">${g(6)||'—'}</td><td class="mono">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>`;
   const ov=el('div','modal-ov');ov.id='smiModal';
@@ -3910,7 +3990,8 @@ function openStudentEdit(row,act){
       ${rw('STAFF COMMENT<br><i>[ONLY ENGLISH!]</i>',`<textarea class="smi-ta" rows=2></textarea>`,null)}
       ${sec('COMMISSION INFO')}
       ${rw('COMMISSION<br><i>'+T('나라 정율% + 코스 정액 + 빌딩 정액','Country %% + Course fixed + Building fixed')+'</i>',`<div style="font-size:12px;line-height:1.6">
-        <b>${(row[1]||'ETC').toUpperCase()}</b> ${_cm.pct}% × ${T('학비','tuition')} ${tuition.toLocaleString()} = <b>${_cm.ratePart.toLocaleString()}</b>
+        <b>${(row[1]||'ETC').toUpperCase()}</b> ${_cm.pct}% × ${T('학비','tuition')} ${commBase.toLocaleString()} = <b>${_cm.ratePart.toLocaleString()}</b>
+        <span style="color:var(--dim);font-size:11px">(${T('PRE PAY','PRE PAY')} ${prePay.toLocaleString()}$ ${T('커미션 미반영','excluded from commission')})</span>
         &nbsp;+&nbsp; ${T('코스','Course')}(${esc(row[12]||'-')}) <b>${_cm.courseAmt.toLocaleString()}</b>
         &nbsp;+&nbsp; ${T('빌딩','Bldg')}(${esc(row[14]||'-')}) <b>${_cm.bldgAmt.toLocaleString()}</b>
         <span style="color:var(--good);font-weight:800">= COMMISSION ${comAmt.toLocaleString()} $</span></div>`,'ETC COMMISSION',`${ipt('0')} $ <span style="color:var(--dim);font-size:11px">program 조정분</span>`)}
