@@ -83,6 +83,22 @@
   .who .av{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px}
   .theme-btn{border:1px solid var(--border);background:var(--surface-2);color:var(--dim);border-radius:8px;
     width:32px;height:32px;cursor:pointer;font-size:14px}
+  /* 좁은 화면(노트북 1280 등)에서 상단바 우측(캠퍼스·테마·계정)이 화면 밖으로 밀리던 문제:
+     메뉴 영역을 먼저 압축하고(패딩·간격·아이콘·부가라벨), 그래도 부족하면 2줄로 감싼다. */
+  .top{flex-wrap:wrap;height:auto;min-height:56px;row-gap:6px;padding-top:5px;padding-bottom:5px;
+    justify-content:flex-end}                     /* 줄바꿈된 우측 컨트롤을 오른쪽 정렬로 유지 */
+  .top .brand,.top .cats,.top .campus-sel,.top .who,.top .theme-btn,.top .live-tag{flex:none}
+  .top .brand{margin-right:auto}
+  @media (max-width:1980px){
+    .top{gap:10px;padding-left:12px;padding-right:12px}
+    .cat{padding:8px 10px;gap:5px}
+    .brand small{display:none}
+  }
+  @media (max-width:1660px){
+    .cat .ic{display:none}
+    .campus-sel label{display:none}
+    .campus-sel{padding:5px 8px}
+  }
 
   /* 탑다운 드롭다운 네비 (상단 카테고리 아래로 펼침) */
   .catwrap{position:relative}

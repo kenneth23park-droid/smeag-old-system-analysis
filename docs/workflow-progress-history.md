@@ -361,3 +361,10 @@
   · 원인2: 상단 필터 셀렉트 줄(inline flex)이 `flex-wrap` 없어 폭 1375px로 넘침 → 1280 화면에서 검색창이 화면 밖. → `flex-wrap:wrap` 추가(2줄 배치).
   · 원인3: 인실(Room Type) 칸 58px < `3-person` 칩 폭 → 이름열(sticky) 아래로 잘려 "3-perso"로 보임. → 컬럼 80px, `.c3` sticky offset 240→**262px**, `INFOW=GRPW(96)+86+80+nameW`. `deploy/index.html` + `docs/design-admin/prototype.html` 동일 적용.
   · Playwright 검증(1600/1280/1024/820): 방번호셀 클릭→ROOM REPLACEMENT 모달, 일자레인 클릭→셀액션 팝업(#cellpop), 이름 클릭→학생정보 모달 모두 정상, 인실칩 전체 표시, 페이지에러 0.
+
+- **2026-07-30** **상단바 우측 컨트롤(캠퍼스·DB배지·부서·EN·전체화면·테마·계정) 화면 밖 밀림 수정** (`deploy/index.html` + `prototype.html`):
+  · 증상: 노트북 폭(1280~1600)에서 상단바 내용 실폭이 약 1915px → 우측 컨트롤이 뷰포트 밖으로 밀려 보이지도 클릭되지도 않음(페이지째 가로 넘침도 유발).
+  · 조치 ① 압축: `≤1980px` 간격 18→10·좌우패딩 12·`.cat` 패딩 축소·`ADMIN·신규` 부가라벨 숨김, `≤1660px` 카테고리 아이콘·`캠퍼스` 라벨 숨김 → 실폭 1915→약 1434px.
+  · 조치 ② 안전장치: `.top{flex-wrap:wrap;height:auto;min-height:56px}` + `justify-content:flex-end` + `.brand{margin-right:auto}` → 그래도 안 들어가면 **2줄로 감싸고 우측 정렬 유지**(어떤 폭에서도 컨트롤이 잘리지 않음). 드롭다운 메뉴는 `.cats`에 overflow를 주지 않아 그대로 펼쳐짐.
+  · Playwright 검증(2560/1920/1728/1600/1440/1366/1280/1024): 페이지 가로넘침 0·상단바 밖으로 나간 요소 0(1600 이상 1줄 56px, 1440 이하 2줄 86~90px), 카테고리 드롭다운 정상 표시, 배치도 방셀 클릭(방번호·일자레인·이름) 정상, 페이지에러 0.
+  · **라이브 배포 완료**: `smeag-kd0x2bc5a-jitnet-7048s-projects.vercel.app`(READY) → 별칭 `smeag-bay.vercel.app` 재지정. 라이브 HTML 대조: 상단바 압축/2줄 규칙·`.c3 262px`·인실 80px·`.main{min-width:0}`·필터 `flex-wrap` 전부 반영 확인, `/login` 200.
