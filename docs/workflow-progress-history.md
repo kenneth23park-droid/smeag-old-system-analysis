@@ -406,3 +406,4 @@
   · 라벨 고정: `rsPinGrpLabels(tw)` 신설(가로/세로 스크롤 rAF 핸들러 + 초기 1회). 라벨을 `position:absolute` 로 바꾸고, **고정헤더 바로 아래 지점을 `elementFromPoint` 로 찍어** 그 시점 '헤더에 걸린 방'(`grp-pin`)의 구분칸 안에서 라벨 top 을 헤더 밑으로 이동(칸 밖으로는 안 나가게 clamp). 그룹 원위치 라벨은 `grp-mute` 로 숨겨 중복 방지.
   · ⚠ 화면 밖 tbody 는 `content-visibility:auto` 로 렌더 스킵되어 `getBoundingClientRect`/`offsetTop` 이 부정확 → 전체 tbody 순회 방식은 폐기하고 elementFromPoint(O(1)) 로 확정. 또 thead 자체 rect 은 sticky 가 아니라 th 셀만 sticky → 기준선은 `래퍼 top + thead 높이` 로 계산.
   · Playwright 검증(CAPITAL·MALE·전체그룹 147방/8그룹): 스크롤 0/700/1600/4000 에서 **그룹당 라벨 정확히 1개**, 현재 그룹 라벨이 헤더 바로 아래 유지, 다음 그룹은 시작 위치에 표시. 그룹 중간 방 구분칸 아래테두리 0px·grp-last 만 2px. 검색('321') 1건 필터 시 남은 행 라벨 표시. 콘솔에러 0. (셀 클릭 팝업 동작은 변경 전/후 동일 — 본 변경과 무관)
+  · **구분 표기 구분자 변경**: 방구분 드롭다운 라벨을 `CAPITAL1/Male` → **`CAPITAL1 - Male`** (`grpLabel` 반환부). deploy·prototype 동일 적용, 24개 목록·콘솔에러0 재검증 후 배포+별칭 재지정.
