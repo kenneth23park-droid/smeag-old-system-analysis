@@ -355,3 +355,9 @@
   · 그룹의 첫 방(tbody `.grp-first`)만 라벨 표시, 나머지는 `.grpname{visibility:hidden}` + 그룹칸 상단 경계 제거 → **한 칸으로 병합돼 보임**. 방번호 컬럼에서 그룹 접두어(.bldg) 제거, 기존 grp-head 밴드 제거.
   · 검색 시 첫 방이 걸러져 그룹명이 사라지는 문제 대비: 검색 중 `table.gantt.rs-filtering` → 남은 모든 행에 구분 라벨 표시(프로토타입에도 동일 적용).
   · Playwright 검증(deploy/index.html, CAPITAL·MALE·전체그룹): 헤더 `Group|Room Number|Room Type|Name`, 첫방 grp-first+CAPITAL1, 후속방 병합표시, 방번호 번호만, '301' 검색 시 2행 각각 구분 라벨 표시, 콘솔에러 0(로컬 file:// 의 /api/auth 제외).
+
+- **2026-07-30** **배치도 방셀 "클릭 안 됨 · 정보 안 보임" 수정 (배포본 누락 이관 + 인실칸 잘림)**:
+  · 원인1(핵심): 2026-07-29 프로토타입에만 적용했던 좁은/일반 뷰포트 가로넘침 수정이 **배포본 `deploy/index.html`에 미이관**. `.app{grid-template-columns:1fr}` + `.main{overflow-x:hidden}`(min-width 없음) → 넓은 배치도 표가 그리드 트랙을 밀어 래퍼가 뷰포트 초과(1280 화면에서 twW **1651**), 표 내부 가로스크롤 대신 페이지째 넘쳐 화면 밖 방셀은 보이지도·클릭되지도 않음. → `.app{grid-template-columns:minmax(0,1fr)}` + `.main{...;min-width:0}` 이관(twW 1280→**1232**, 1024→**976**).
+  · 원인2: 상단 필터 셀렉트 줄(inline flex)이 `flex-wrap` 없어 폭 1375px로 넘침 → 1280 화면에서 검색창이 화면 밖. → `flex-wrap:wrap` 추가(2줄 배치).
+  · 원인3: 인실(Room Type) 칸 58px < `3-person` 칩 폭 → 이름열(sticky) 아래로 잘려 "3-perso"로 보임. → 컬럼 80px, `.c3` sticky offset 240→**262px**, `INFOW=GRPW(96)+86+80+nameW`. `deploy/index.html` + `docs/design-admin/prototype.html` 동일 적용.
+  · Playwright 검증(1600/1280/1024/820): 방번호셀 클릭→ROOM REPLACEMENT 모달, 일자레인 클릭→셀액션 팝업(#cellpop), 이름 클릭→학생정보 모달 모두 정상, 인실칩 전체 표시, 페이지에러 0.

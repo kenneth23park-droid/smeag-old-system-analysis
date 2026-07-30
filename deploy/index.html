@@ -58,7 +58,7 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",Roboto,sans-serif;
     font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
   .mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums}
-  .app{display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr;
+  .app{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr;
     grid-template-areas:"top" "main";min-height:100vh}
 
   /* TOPBAR */
@@ -102,7 +102,7 @@
   .dropdown a .tag{margin-left:auto;font-size:10px;color:var(--faint);font-weight:600}
 
   /* MAIN */
-  .main{grid-area:main;padding:18px 24px 40px;overflow-x:hidden}
+  .main{grid-area:main;padding:18px 24px 40px;overflow-x:hidden;min-width:0}
   .ph{display:flex;align-items:flex-end;gap:14px;margin-bottom:16px;flex-wrap:wrap}
   .ph h1{font-size:20px;margin:0;font-weight:800;letter-spacing:-.2px}
   .ph .sub{color:var(--dim);font-size:12.5px}
@@ -376,7 +376,7 @@
   .gantt .c0{position:sticky;left:0;z-index:1;vertical-align:top;font-weight:800;color:var(--accent-ink);font-size:11px;letter-spacing:.3px;text-align:left}
   .gantt .c1{position:sticky;left:96px;z-index:1}
   .gantt .c2{position:sticky;left:182px;z-index:1}
-  .gantt .c3{position:sticky;left:240px;z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
+  .gantt .c3{position:sticky;left:262px;z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
   .gantt thead .c3{z-index:3}
   .gantt thead .c0,.gantt thead .c1,.gantt thead .c2,.gantt thead .c3{z-index:3}
   .gantt td.c0,.gantt td.c1,.gantt td.c2,.gantt td.c3{background:var(--surface)}
@@ -1215,7 +1215,7 @@ R.dailyio=(m)=>{
   <div class="banner">기간 기본값: 이번주 목→다음주 수 (해당 기간 데이터 자동 표시) · reserve_info 실 입퇴실 집계</div>`;};
 
 R.roomstat=()=>{
-  const CELLW=19, nameW=+(roomFilter.nameW)||230, GRPW=96, INFOW=GRPW+86+58+nameW; // 구분+방번호+인실+이름(조절가능) = 좌측 고정폭
+  const CELLW=19, nameW=+(roomFilter.nameW)||230, GRPW=96, INFOW=GRPW+86+80+nameW; // 구분+방번호+인실+이름(조절가능) = 좌측 고정폭
   const pad=n=>String(n).padStart(2,'0');
   const daysIn=(y,m)=>new Date(y,m,0).getDate();
   // 선택월(roomCenter) 기준 ±6개월 = 13개월
@@ -1363,7 +1363,7 @@ R.roomstat=()=>{
     }
     return `<td class="dlane" colspan="${TOTAL}"><span class="dlanein" style="width:${TOTAL*CELLW}px">${out}</span></td>`;
   };
-  const colg=`<colgroup><col style="width:${GRPW}px"><col style="width:86px"><col style="width:58px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
+  const colg=`<colgroup><col style="width:${GRPW}px"><col style="width:86px"><col style="width:80px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
   const monRow=months.map(mo=>`<th class="mon${mo.off===0?' mon-cur':''}" colspan="${mo.days}">${mo.y} 년 ${pad(mo.m)} 월</th>`).join('');
   const dayRow=months.map(mo=>Array.from({length:mo.days},(_,i)=>`<th class="dh">${i+1}</th>`).join('')).join('');
   const head=`<thead><tr><th class="c0" rowspan="2">${T('구분','Group')}</th><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
@@ -1411,7 +1411,7 @@ R.roomstat=()=>{
       <span><i style="background:var(--female)"></i> ${T('여자 (FEMALE)','FEMALE')}</span>
       <span><i style="background:#ca8a04"></i> ${T('공용 (FAMILY)','FAMILY')}</span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <select id="rsCenter" class="rs-ctrl" title="${T('센터','Center')}">${[['',T('::센터를 선택하세요::','::Select center::')],['ALL',T('전체 센터','All centers')],['ENCANTO','ENCANTO CENTER'],['CAPITAL','CAPITAL CENTER']].map(([v,l])=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsGender" class="rs-ctrl" title="${T('성별','Gender')}">${[['',T('::성별을 선택하세요::','::Select gender::')],['ALL',T('전체 성별','All gender')],['MALE',T('남 (MALE)','MALE')],['FEMALE',T('여 (FEMALE)','FEMALE')],['FAMILY',T('공용 (FAMILY)','FAMILY')]].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsGroup" class="rs-ctrl" title="${T('방구분(카테고리) — 레거시 room_gubun','Room category (legacy room_gubun)')}"${grpOpts.length?'':' disabled'}><option value="">${T('::방구분을 선택하세요::','::Select room category::')}</option><option value="ALL" ${roomFilter.group==='ALL'?'selected':''}>${T('방구분 전체 (SELECT ALL)','All categories (SELECT ALL)')}</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
