@@ -407,6 +407,7 @@
   .gantt td.c0 .grpname{position:absolute;top:4px;left:6px;display:inline-block}              /* 세로 스크롤 시 JS가 헤더 바로 아래로 위치 고정(rsPinGrpLabels) */
   .gantt tbody.room-block:not(.grp-first) td.c0 .grpname{visibility:hidden}
   .gantt tbody.room-block.grp-pin td.c0 .grpname{visibility:visible}                          /* 그룹의 화면상 첫 방에 라벨 표시(그룹 안에서 라벨 유지) */
+  .gantt tbody.room-block.grp-mute td.c0 .grpname{visibility:hidden}                          /* 같은 그룹에 고정라벨이 떠 있으면 원위치 라벨은 숨김(중복 방지) */
   .gantt.rs-filtering tbody.room-block td.c0 .grpname{visibility:visible}
   /* 같은 그룹 = 한 셀: 그룹 내부 가로선 제거, 그룹 마지막 방에서만 아래 경계(그룹 끝) */
   .gantt tbody.room-block td.c0{border-bottom:0}
@@ -1354,7 +1355,7 @@ R.roomstat=()=>{
   // 구분(그룹) 표시라벨: '건물/성별' 전체명, 성별부는 언어연동(남자/여자/공용) — 레거시 표기 재현
   const grpLabel=n=>{const [bd,gd]=(n||'').split('/');const g=(gd||'').trim().toUpperCase();
     const gl=g==='MALE'?T('남자','Male'):g==='FEMALE'?T('여자','Female'):g==='FAMILY'?T('공용','Family'):(gd||'').trim();
-    return gl?`${(bd||'').trim()}/${gl}`:(bd||'').trim();};
+    return gl?`${(bd||'').trim()} - ${gl}`:(bd||'').trim();};   // 구분 표기 구분자는 '-' (레거시 '/' 대신)
   // 구분(그룹) 필터 옵션: 현재 센터(+성별) 범위에 존재하는 distinct 그룹 전체명(선택 순서 유지)
   let grpOpts=[]; {let base=groups;
     if(roomFilter.center&&roomFilter.center!=='ALL')base=base.filter(g=>campusOf(g.name)===roomFilter.center);
@@ -2898,6 +2899,7 @@ function rsPinGrpLabels(tw){
   // 헤더는 th 셀이 sticky(thead 자체 rect 은 스크롤과 함께 올라감) → 시각적 헤더 밑 = 래퍼 top + thead 높이
   const wrr=tw.getBoundingClientRect(), line=wrr.top+(th.offsetHeight||43)+4, x=wrr.left+20;
   const hit=document.elementFromPoint(x,line+22), tb=hit&&hit.closest&&hit.closest('tbody.room-block'); // 라벨이 들어갈 여유가 있는 방을 잡도록 기준선보다 조금 아래를 찍는다
+  tbl.querySelectorAll('tbody.grp-mute').forEach(t=>t.classList.remove('grp-mute'));
   tbl.querySelectorAll('tbody.grp-pin').forEach(t=>{                 // 이전 고정 해제(라벨 위치 원복)
     if(t===tb)return; t.classList.remove('grp-pin');
     const ps=t.querySelector('td.c0 .grpname'); if(ps)ps.style.top='';});
@@ -2906,6 +2908,10 @@ function rsPinGrpLabels(tw){
   const c=tb.querySelector('td.c0'); if(!c)return;
   const cr=c.getBoundingClientRect(), s=c.querySelector('.grpname');
   if(s)s.style.top=Math.max(4,Math.min(line-cr.top,cr.height-17))+'px';  // 칸 안에서만 이동
+  if(!tb.classList.contains('grp-first')){                            // 그룹 원위치 라벨은 숨겨 중복 표시 방지
+    let pv=tb.previousElementSibling,f=null;
+    while(pv&&pv.dataset&&pv.dataset.grp===tb.dataset.grp){f=pv;pv=pv.previousElementSibling;}
+    if(f)f.classList.add('grp-mute');}
 }
 function rsUpdateNames(tw){
   const store=window._rsOcc;if(!store||!tw)return;

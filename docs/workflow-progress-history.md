@@ -400,3 +400,9 @@
   · 검증(Playwright, 로컬서버+실 핸들러): 부팅 1회 조회 → 배지 `DB 최신`, 수강등록관리 **12,389건** 실데이터, 배치도 30그룹·"실데이터(MySQL) 2026-01-01~2027-01-31", 같은 메뉴 재진입 **추가호출 0**, ⟳ → 재조회, 주간픽업 65행(날짜그룹 헤더 포함), BACK-UP LOG 300행, Group Students 12행(`?parts=groups`), DEPOSIT 3,000행(`?parts=deposits`), Deposit(test) 캐시재사용 0회, 모바일 탭 이동(홈 students+roomstat / 픽업 62행) 정상, 페이지에러 0.
   · 검증 하네스: `exploration/live-data/`(perf·probe·e2e·e2e2·e2e_m + README).
   · 남은 제약: `REAL.tables`(레거시 크롤 표 16종)는 DB 파생이 아니라 그대로 스냅샷 사용 · DEPOSIT 3,000건 상한(전체 12,336건 중 최신순) · 로그인 세션이 없으면(게이트 폴백 로그인) 라이브 조회 대신 스냅샷/샘플 표시.
+
+- **2026-07-30** 배치도 구분 컬럼 **같은 그룹 셀병합 + 라벨 그룹내 고정(sticky)**:
+  · 셀병합: `rowspan` 은 tbody 를 넘을 수 없고 배치도는 '방1개=tbody1개'(드래그 방막기·content-visibility 가상화 단위)라, **구분칸의 그룹 내부 가로선 제거**(`td.c0{border-bottom:0}`) + **그룹 마지막 방(`grp-last`)에만 accent 아래경계** → 실제 병합셀과 동일한 모양.
+  · 라벨 고정: `rsPinGrpLabels(tw)` 신설(가로/세로 스크롤 rAF 핸들러 + 초기 1회). 라벨을 `position:absolute` 로 바꾸고, **고정헤더 바로 아래 지점을 `elementFromPoint` 로 찍어** 그 시점 '헤더에 걸린 방'(`grp-pin`)의 구분칸 안에서 라벨 top 을 헤더 밑으로 이동(칸 밖으로는 안 나가게 clamp). 그룹 원위치 라벨은 `grp-mute` 로 숨겨 중복 방지.
+  · ⚠ 화면 밖 tbody 는 `content-visibility:auto` 로 렌더 스킵되어 `getBoundingClientRect`/`offsetTop` 이 부정확 → 전체 tbody 순회 방식은 폐기하고 elementFromPoint(O(1)) 로 확정. 또 thead 자체 rect 은 sticky 가 아니라 th 셀만 sticky → 기준선은 `래퍼 top + thead 높이` 로 계산.
+  · Playwright 검증(CAPITAL·MALE·전체그룹 147방/8그룹): 스크롤 0/700/1600/4000 에서 **그룹당 라벨 정확히 1개**, 현재 그룹 라벨이 헤더 바로 아래 유지, 다음 그룹은 시작 위치에 표시. 그룹 중간 방 구분칸 아래테두리 0px·grp-last 만 2px. 검색('321') 1건 필터 시 남은 행 라벨 표시. 콘솔에러 0. (셀 클릭 팝업 동작은 변경 전/후 동일 — 본 변경과 무관)
