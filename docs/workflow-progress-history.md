@@ -339,3 +339,13 @@
   · 그룹의 **첫 방에만 그룹명 표시**, 이후 방은 빈칸 + 그룹칸 위 경계선 제거 → **한 칸으로 병합돼 보임**(rowspan은 tbody 못 넘으므로 방1개=tbody·드래그방막기 구조 유지하면서 시각적 병합).
   · 그룹 첫 방은 상단 accent 경계선(그룹 구분). **방번호 컬럼에서 그룹 접두어(.bldg) 제거 → 번호만**. 기존 grp-head 밴드 제거(검색필터·셀/방 판정 영향 없음 확인).
   Playwright 검증: Group 헤더·첫방 그룹명·후속방 빈칸(병합)·방번호 번호만·콘솔에러0.
+
+- **2026-07-29** **홈 로그인 게이트 → /api/auth 연결** (smeag-bay.vercel.app 첫 화면부터 실계정 로그인):
+  ① `deploy/api/auth.js` JSON 모드 추가: Accept:application/json 요청 시 HTML 리다이렉트 대신 JSON({ok,must_change,mb_id,mb_name,mb_level,message}) 반환 + Set-Cookie 유지(폼 POST용 HTML 흐름과 병행). ② `deploy/index.html` 게이트 재배선: 클라이언트 폴백(weakHash)·5계정 화이트리스트 제거 → `authApi()`가 `/api/auth`(same-origin, 쿠키 include) 호출. 로그인/강제변경/로그아웃/init 모두 서버 세션 기준. init 은 `GET /api/auth?me`로 httpOnly 세션 확인→있으면 진입/없으면 로그인 오버레이(자동진입 폐지). enter()가 mb_name·레벨 표시. 강제변경 최소 8자로 상향, 힌트문구 갱신.
+  ③ 배포 후 실사이트 전 사이클 검증: 유학원 JSON 로그인 ok+쿠키 / ?me 세션조회 / logout / 관리자 must_change→변경(Set-Cookie member_set)→새비번 로그인(admin_users)→**원복(app.admin_users 삭제)**→다시 must_change. 홈 `/`에 게이트 오버레이·`/api/auth` 배선 확인. smeag-bay.vercel.app 별칭 신배포 재지정.
+  ⚠ 이제 홈 접속 시 로그인 필수(기존 자동진입 제거). 운영콘솔 등 기존 스크립트는 로그인 후 session() 존재하므로 정상.
+
+- **2026-07-29** **로그인 화면 지점(세부/딸락) 선택 추가** `deploy/index.html`:
+  ① 로그인 카드 왼쪽(aa-left)에 세부(CEBU)/딸락(TALAK) 세그먼트 버튼 추가(기본 세부 활성). ② 선택값 sessionStorage(smeBranch) 저장, `applyBranch()`가 로그인 후 상단 메뉴 타이틀(.top .brand)을 지점명으로 교체 — 화면·기능은 동일, 타이틀만 세부/딸락. enter() 및 세션복원 시 반영. ③ Playwright 실검증(smeag-bay.vercel.app): 기본 cebu→딸락 클릭 talak 활성→fss_gn 로그인→메뉴 타이틀 "S 딸락 ADMIN · 신규" 확인(PASS). 테스트 로그 정리. 배포·별칭 재지정 완료.
+
+- **2026-07-29** 세로(버티컬)·좁은 뷰포트에서 배치도 방셀이 어긋나 보이던 문제 수정: 원인은 `.app` 그리드가 `1fr`이라 넓은 배치도 표가 트랙을 밀어 `.main`이 뷰포트를 초과(내부 스크롤이 아니라 페이지째 가로 넘침, twW 1651>vw). `.app{grid-template-columns:minmax(0,1fr)}` + `.main{min-width:0}` 로 트랙 축소 허용 → 래퍼가 뷰포트 내(852≤900)로 잡혀 표 내부 스크롤 복원. Playwright(900 세로) 검증: twW 1651→852. (모든 넓은 표에 공통 개선)
