@@ -396,7 +396,7 @@
   .gantt .c2{position:sticky;left:calc(var(--w0) + var(--w1));z-index:1}
   .gantt .c3{position:sticky;left:calc(var(--w0) + var(--w1) + var(--w2));z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
   /* 열 경계 드래그 핸들 — 이름열은 좌(인실↔이름 경계 이동)·우(이름폭) 양쪽 모두 조절 */
-  .gantt thead th .rs-rz{position:absolute;top:0;bottom:0;width:9px;z-index:5;cursor:col-resize}
+  .gantt thead th .rs-rz{position:absolute;top:0;bottom:0;width:9px;z-index:5;cursor:col-resize;touch-action:none} /* touch-action:none — 터치 드래그가 표 스크롤로 새지 않게 */
   .gantt thead th .rs-rz.r{right:0}
   .gantt thead th .rs-rz.l{left:0}
   .gantt thead th .rs-rz:hover::after,.gantt thead th .rs-rz.on::after{content:'';position:absolute;top:2px;bottom:2px;left:50%;width:3px;margin-left:-1.5px;background:var(--accent);border-radius:2px}
@@ -533,8 +533,9 @@
   table.rp-info th,table.rp-info td,table.rp-cand th,table.rp-cand td{border:1px solid var(--border);padding:7px 9px;text-align:left}
   table.rp-info th{background:var(--surface-2);color:var(--dim);white-space:nowrap;width:96px}
   /* 레거시 reserve_move.php 학생정보 표 = 라벨·값·라벨·값 4칸 페어 레이아웃(한 줄에 두 항목) */
+  table.rp-info.pair{table-layout:fixed}   /* 값 2칸을 같은 폭으로 — 레거시와 같은 좌우 대칭 */
   table.rp-info.pair th{width:118px;text-align:center;color:var(--text);font-weight:800}
-  table.rp-info.pair td{width:auto}
+  table.rp-info.pair td{width:auto;word-break:break-word}
   table.rp-info.pair th.rp-cmt-h{vertical-align:middle}
   table.rp-info.pair td.rp-cmt{padding:4px}
   .rp-ta{width:100%;min-height:84px;border:1px solid var(--border);background:var(--surface-2);
@@ -863,12 +864,14 @@ function rsBindColResize(m){
   const tbl=m.querySelector('table.gantt');if(!tbl)return;
   tbl.querySelectorAll('thead .rs-rz').forEach(h=>{
     const idx=+h.dataset.rz, pair=h.dataset.rzpair==='1';
-    h.addEventListener('pointerdown',e=>e.stopPropagation()); // 방막기 드래그와 충돌 방지
     h.addEventListener('click',e=>e.stopPropagation());
-    h.addEventListener('mousedown',e=>{
-      if(e.button!==0)return;
-      e.preventDefault();e.stopPropagation();
+    // 포인터 이벤트로 마우스·터치·펜 모두 지원(태블릿 조작). setPointerCapture 로 커서가 핸들을 벗어나도 추적
+    h.addEventListener('pointerdown',e=>{
+      e.stopPropagation();                                   // 방막기 드래그와 충돌 방지
+      if(e.button!==0&&e.pointerType==='mouse')return;
+      e.preventDefault();
       const x0=e.clientX, w0=roomFilter.colW.slice();
+      try{h.setPointerCapture(e.pointerId);}catch(_){}
       h.classList.add('on');document.body.classList.add('rs-resizing');
       const move=ev=>{const w=w0.slice();let d=ev.clientX-x0;
         if(pair){ // 경계 이동: 인실이 늘면 이름이 그만큼 줄어 전체 좌측폭은 그대로
@@ -876,10 +879,11 @@ function rsBindColResize(m){
           w[idx]=w0[idx]+d;w[3]=w0[3]-d;
         }else w[idx]=Math.max(RS_COLW_MIN[idx],Math.min(900,w0[idx]+d));
         roomFilter.colW=w;rsApplyColW(tbl,w);};
-      const up=()=>{document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);
+      const up=()=>{h.removeEventListener('pointermove',move);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);
+        try{h.releasePointerCapture(e.pointerId);}catch(_){}
         h.classList.remove('on');document.body.classList.remove('rs-resizing');
         rsColWSave();rsSyncNameWSel(roomFilter.colW[3]);};
-      document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);});
+      h.addEventListener('pointermove',move);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);});
     h.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation(); // 기본폭 복원
       const w=roomFilter.colW.slice();
       if(pair){w[3]=Math.max(RS_COLW_MIN[3],w[3]+w[idx]-RS_COLW_DEF[idx]);w[idx]=RS_COLW_DEF[idx];}
@@ -3509,8 +3513,10 @@ async function publishInvoice(btn,opts){
   const orig=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> '+T('발행 중…','Publishing…');}
   const idem='inv:'+target+':'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); // ② 멱등키
+  let out=null;                                      // 호출측(모달)에서 발행결과로 PDF를 열 수 있게 반환
   try{
     const res=await invoiceRPC(target,idem,(typeof sessionUser==='function'&&sessionUser())||'admin',opts.amount||null);
+    out=res||null;
     if(res&&res.duplicate){                          // ④ 중복 → 메시지 박스
       msgBox(T('이미 발행되었습니다','Already published'),
         `<div style="font-size:13.5px;line-height:1.7">${T('이 건은 <b>이미 인보이스가 발행</b>되었습니다. 중복 발행이 차단되었습니다.','This invoice has <b>already been published</b>. Duplicate publishing was blocked.')}
@@ -3526,7 +3532,8 @@ async function publishInvoice(btn,opts){
       if(window.adminAuthLog)try{window.adminAuthLog('invoice_publish',{target:target,invoice_no:res.invoice_no,idem:idem},'create');}catch(_){}
     }
   }catch(e){msgBox(T('발행 실패','Publish failed'),`<div style="font-size:13.5px">${esc(e.message||'error')}</div>`,'bad');}
-  finally{_invFlight.delete(target);if(btn){btn.disabled=false;btn.innerHTML=orig;}}}
+  finally{_invFlight.delete(target);if(btn){btn.disabled=false;btn.innerHTML=orig;}}
+  return out;}
 
 function guard(btn){const kind=btn.dataset.guard;
   if(kind==='invoice'){publishInvoice(btn);return;}   // 인보이스는 멱등 발행 경로로
@@ -3936,9 +3943,9 @@ function openStudentEdit(row,act){
   const radio=(nm,label,on)=>`<label class="smi-r"><input type=radio name="${nm}"${on?' checked':''}> ${label}</label>`;
   const NATS=[['jap','JAP'],['chi','CHI'],['kor','KOR'],['twa','TWA'],['rus','RUS'],['vtn','VTN'],['sa','SA'],['mgl','MGL'],['etc','ETC']];
   const natR=NATS.map(([v,l])=>radio('smiNat',l, nat===v||(v==='etc'&&!NATS.slice(0,8).some(x=>x[0]===nat)))).join(' ');
-  const sel=(opts,cur)=>`<select class="smi-i">${opts.map(o=>`<option${o===cur?' selected':''}>${o}</option>`).join('')}</select>`;
+  const sel=(opts,cur,id)=>`<select class="smi-i"${id?` id="${id}"`:''}>${opts.map(o=>`<option${o===cur?' selected':''}>${o}</option>`).join('')}</select>`;
   const mc=['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN'].map((o,i)=>radio('smiMc',o,i===0)).join(' ');
-  const link=(t)=>`<a class="smi-link" href="#" onclick="return false">${t}</a>`;
+  const link=(t,id)=>`<a class="smi-link" href="#"${id?` id="${id}"`:''} onclick="return false">${t}</a>`;
   const COUNTRY=[['kor','KOR'],['chi','CHN'],['jap','JAP'],['twa','TWA'],['vtn','VTN'],['tha','THA'],['rus','RUS'],['sa','SA'],['mgl','MGL'],['om','OM'],['etc','ETC']];
   const ctryR=COUNTRY.map(([v,l])=>radio('smiCtry',l, nat===v||(v==='etc'&&!COUNTRY.slice(0,10).some(x=>x[0]===nat)))).join(' ');
   // 비용(주차 기반 산정)
@@ -3949,7 +3956,7 @@ function openStudentEdit(row,act){
   const commBase=tuition;
   const _cm=calcComm(row[1],row[12],row[14],commBase); const comAmt=_cm.total; const netAmt=grand-comAmt;
   // 인보이스 발행 이력(발행 시 write-layer 기록 — 현재는 구조/현재값 표시)
-  const invRows=`<tr><td class="mono">1th</td><td>${link('AGENCY')} ${link('STUDENT')}</td><td class="mono">${g(6)||'—'}</td><td class="mono">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>`;
+  const invRows=`<tr><td class="mono">1th</td><td>${link('AGENCY','smiInvAg')} ${link('STUDENT','smiInvSt')}</td><td class="mono">${g(6)||'—'}</td><td class="mono" id="smiInvLine">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>`;
   const ov=el('div','modal-ov');ov.id='smiModal';
   ov.innerHTML=`<div class="modal smi">
     <div class="modal-h"><b>STUDENT MANAGEMENT INFORMATION</b><span class="smi-badge">${actLbl}</span>
@@ -3982,23 +3989,27 @@ function openStudentEdit(row,act){
       <tr class="smi-dc"><td colspan="3" style="text-align:right;font-weight:800">TOTAL</td><td class="mono"><b>${dormTot.toLocaleString()} $</b></td><td colspan="2"><button class="btn xs" id="smiDormDel">DORMITORY DELETE</button></td></tr>
       ${sec('DETAIL COST')}
       ${rw('REGIST FEE',`<b>${regist} $</b> &nbsp;Admission Fee`,'TUITION FEE',`<b>${tuition.toLocaleString()} $</b> &nbsp;${wk} weeks-${g(12)}`)}
-      ${rw('DORMITORY FEE',`<b>${dormTot.toLocaleString()} $</b> &nbsp;${wk} weeks`,'ETC FEE',`${ipt(String(etcFee))} $`)}
-      ${rw('PRE PAY<br><i>(커미션제외)</i>',`${ipt(String(prePay))} $ <span style="color:var(--dim);font-size:11px">tuition/dorm 조정분</span>`,'TOTAL',`<b style="color:var(--accent-ink);font-size:15px">${grand.toLocaleString()} $</b>`)}
+      ${rw('DORMITORY FEE',`<b>${dormTot.toLocaleString()} $</b> &nbsp;${wk} weeks`,'ETC FEE',`<input id="smiEtcFee" class="smi-i" value="${etcFee}"> $`)}
+      ${rw('PRE PAY<br><i>('+T('커미션제외','excl. commission')+')</i>',`<input id="smiPrePay" class="smi-i" value="${prePay}"> $ <span style="color:var(--dim);font-size:11px">tuition/dorm ${T('조정분 · 커미션 기준학비에서 차감하지 않음','adjustment · not deducted from the commission base')}</span>`,'TOTAL',`<b id="smiTotal" style="color:var(--accent-ink);font-size:15px">${grand.toLocaleString()} $</b>`)}
       ${sec('PAY INFORMATION')}
-      ${rw('PAY CHECK<br><i>(납부확인)</i>',`${sel(['NOT(미납)','PAID(완납)','INSTALL(분납)'],'NOT(미납)')} ${sel(['ACCOUNT(계좌수금)','CENTER(센터수금)'],'ACCOUNT(계좌수금)')}`,'ETC DOC · View',`${ipt(g(6),'date')} &nbsp;${link('[LOA]')} ${link('[RECEIPT]')}`)}
+      ${rw('PAY CHECK<br><i>(납부확인)</i>',`${sel(['NOT(미납)','PAID(완납)','INSTALL(분납)'],'NOT(미납)')} ${sel(['ACCOUNT(계좌수금)','CENTER(센터수금)'],'ACCOUNT(계좌수금)')}`,'ETC DOC · View',`${ipt(g(6),'date')} &nbsp;${link('[LOA]','smiLoa')} ${link('[RECEIPT]','smiRcpt')}`)}
       ${rw('STUDENT CONDITION',sel(['NOMAL(정상)','EXTEND(연장)','REFUND(환불)','HOLDING(홀딩)','OUT(퇴교)'], (row[11]||'').toLowerCase()==='normal'?'NOMAL(정상)':'NOMAL(정상)'),'AMOUNT<br><i>(REFUND & CANCEL)</i>',`${ipt('0')} won($)`)}
       ${rw('STAFF COMMENT<br><i>[ONLY ENGLISH!]</i>',`<textarea class="smi-ta" rows=2></textarea>`,null)}
       ${sec('COMMISSION INFO')}
       ${rw('COMMISSION<br><i>'+T('나라 정율% + 코스 정액 + 빌딩 정액','Country %% + Course fixed + Building fixed')+'</i>',`<div style="font-size:12px;line-height:1.6">
         <b>${(row[1]||'ETC').toUpperCase()}</b> ${_cm.pct}% × ${T('학비','tuition')} ${commBase.toLocaleString()} = <b>${_cm.ratePart.toLocaleString()}</b>
-        <span style="color:var(--dim);font-size:11px">(${T('PRE PAY','PRE PAY')} ${prePay.toLocaleString()}$ ${T('커미션 미반영','excluded from commission')})</span>
+        <span style="color:var(--dim);font-size:11px">(PRE PAY <b id="smiPpNote">${prePay.toLocaleString()}</b>$ ${T('커미션 미반영','excluded from commission')})</span>
         &nbsp;+&nbsp; ${T('코스','Course')}(${esc(row[12]||'-')}) <b>${_cm.courseAmt.toLocaleString()}</b>
         &nbsp;+&nbsp; ${T('빌딩','Bldg')}(${esc(row[14]||'-')}) <b>${_cm.bldgAmt.toLocaleString()}</b>
-        <span style="color:var(--good);font-weight:800">= COMMISSION ${comAmt.toLocaleString()} $</span></div>`,'ETC COMMISSION',`${ipt('0')} $ <span style="color:var(--dim);font-size:11px">program 조정분</span>`)}
+        &nbsp;+&nbsp; ETC <b id="smiEtcComEcho">0</b>
+        <span style="color:var(--good);font-weight:800">= COMMISSION <span id="smiCom">${comAmt.toLocaleString()}</span> $</span></div>`,'ETC COMMISSION',`<input id="smiEtcCom" class="smi-i" value="0"> $ <span style="color:var(--dim);font-size:11px">program ${T('조정분','adjustment')}</span>`)}
       <tr class="smi-dc"><th>INVOICE</th><th>AGENCY / STUDENT</th><th>DATE</th><th>TOTAL · COM · NET</th></tr>
       ${invRows}
-      <tr class="smi-dc"><td style="font-weight:800;color:var(--good)">FINANCIAL</td><td colspan="3" class="mono" style="color:var(--good);font-weight:800">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>
-      ${rw('INVOICE PUBLISH',`<label class="smi-r"><input type="checkbox" id="smiNewInv"> NEW INVOICE PUBLISH</label> <span style="color:var(--dim);font-size:11px">발행 시 멱등키로 중복발행 차단 · write-layer 기록</span>`,null)}
+      <tr class="smi-dc"><td style="font-weight:800;color:var(--good)">FINANCIAL</td><td colspan="3" class="mono" style="color:var(--good);font-weight:800" id="smiFin">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>
+      ${rw('INVOICE PUBLISH',`<label class="smi-r"><input type="checkbox" id="smiNewInv"> NEW INVOICE PUBLISH</label>
+        <button class="btn xs" id="smiInvPdfAg" title="${esc(T('유학원용 인보이스(커미션·NET 포함) PDF','Agency invoice PDF (incl. commission·NET)'))}">📄 INVOICE PDF (AGENCY)</button>
+        <button class="btn xs" id="smiInvPdfSt" title="${esc(T('학생·학부모용 인보이스(커미션 비노출) PDF','Student invoice PDF (commission hidden)'))}">📄 INVOICE PDF (STUDENT)</button>
+        <span style="color:var(--dim);font-size:11px">${T('발행 시 멱등키로 중복발행 차단 · write-layer 기록 · 발행 완료 후 인보이스 PDF 자동 출력','Idempotency key blocks duplicate publishing · write-layer logged · invoice PDF opens after publish')}</span>`,null)}
     </table></div>
     <div class="modal-foot"><button class="btn" id="smiCancel">LIST</button><button class="btn primary" id="smiSave">SUBMIT</button></div>
   </div>`;
@@ -4006,6 +4017,31 @@ function openStudentEdit(row,act){
   const close=()=>ov.remove();
   ov.querySelector('#smiClose').onclick=close;ov.querySelector('#smiCancel').onclick=close;
   ov.onclick=e=>{if(e.target===ov)close();};
+  // DETAIL COST / COMMISSION 라이브 재계산
+  //  · TOTAL = REGIST + TUITION + DORM + ETC FEE − PRE PAY
+  //  · COMMISSION = (학비 기준 규칙합) + ETC COMMISSION  ← PRE PAY·ETC FEE 는 커미션에 반영하지 않음(정책)
+  let curGrand=grand, curCom=comAmt;
+  {
+    const q=s=>ov.querySelector(s);
+    const eEtcFee=q('#smiEtcFee'), ePrePay=q('#smiPrePay'), eEtcCom=q('#smiEtcCom');
+    const num=(el,dflt)=>{const v=parseFloat(String(el&&el.value||'').replace(/[^0-9.\-]/g,''));return isFinite(v)?v:(dflt||0);};
+    const recalc=()=>{
+      const etcF=num(eEtcFee,0), pp=num(ePrePay,0), etcC=num(eEtcCom,0);
+      curGrand=regist+tuition+dormTot+etcF-pp;
+      curCom=_cm.total+etcC;                 // commBase(=prePay 차감 전 학비) 기반 — pp 는 여기 들어오지 않는다
+      const net=curGrand-curCom;
+      const set=(sel,txt)=>{const e=q(sel);if(e)e.textContent=txt;};
+      set('#smiTotal',curGrand.toLocaleString()+' $');
+      set('#smiPpNote',pp.toLocaleString());
+      set('#smiEtcComEcho',etcC.toLocaleString());
+      set('#smiCom',curCom.toLocaleString());
+      set('#smiFin',`TOTAL ${curGrand.toLocaleString()} · COM ${curCom.toLocaleString()} · NET ${net.toLocaleString()}`);
+      const inv=q('#smiInvLine');
+      if(inv)inv.textContent=`TOTAL ${curGrand.toLocaleString()} · COM ${curCom.toLocaleString()} · NET ${net.toLocaleString()}`;
+    };
+    [eEtcFee,ePrePay,eEtcCom].forEach(e=>{if(e)e.addEventListener('input',recalc);});
+    recalc();
+  }
   // 여권 생년월일 → 출발일 기준 만나이 라이브 표시 + row[17] 저장
   const birthEl=ov.querySelector('#smiBirth'),ageEl=ov.querySelector('#smiAge'),ageInput=ov.querySelector('#smiAgeInput');
   const depEl2=()=>row[7]||'';
@@ -4043,7 +4079,7 @@ function openStudentEdit(row,act){
   ov.querySelector('#smiSave').onclick=async(ev)=>{
     const newInv=ov.querySelector('#smiNewInv');
     if(newInv&&newInv.checked){                      // NEW INVOICE PUBLISH → 멱등 발행(중복 차단)
-      await publishInvoice(ev.currentTarget,{target:'student:'+((row[2]||row[3]||'')+'|'+(row[7]||'')),amount:grand});
+      await publishInvoice(ev.currentTarget,{target:'student:'+((row[2]||row[3]||'')+'|'+(row[7]||'')),amount:curGrand});
       return;}                                       // 발행 결과(성공/중복 안내) 확인 후 사용자가 닫도록 모달 유지
     if(window.adminAuthLog)try{window.adminAuthLog('student_'+act+'_save',{name:row[2]||row[3],room:row[13]},'update');}catch(_){}
     toast(`${actLbl} 저장 완료`,`${row[2]||row[3]||'학생'} · ${row[13]||''} (멱등 처리)`,true);close();};

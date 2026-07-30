@@ -442,3 +442,22 @@
   · **이름 클릭 → 상세정보 비활성화**(요청): `#stdBody` 위임 핸들러에서 `.std-name` 분기 제거 + 링크형 CSS(밑줄·포인터·강조색) 해제. 상세 진입은 ACTION 의 `Edit` 버튼으로 일원화. 프로토타입(prototype.html)은 이미 비활성 상태여서 표기 2건만 동기.
   · 적용 파일: `deploy/index.html`, `docs/design-admin/prototype.html`(동기).
   · 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app` → 라이브 = 로컬 바이트 동일(1,568,149).
+
+- **2026-07-30** 배치도(기숙사현황) **좌측 고정열 폭 드래그 조절** — 이름칸 좌/우 양쪽 경계:
+  · 요청: "name column left and right side can adjust cell" — 이름 컬럼을 프리셋(4단계 셀렉트)이 아니라 셀 경계 드래그로 직접 조절.
+  · 구현: 좌측 고정 4열 폭을 `roomFilter.colW=[구분,방번호,인실,이름]` 배열로 통합(`localStorage 'smeag-colW'`, 구버전 `'smeag-nameW'` 자동 승계). 표 머리글에 드래그 핸들 `.rs-rz` 4개 — 구분·방번호는 우측 경계, **이름칸은 좌·우 양쪽**. 이름 **우측** = 이름폭 자체(표 전체폭 증가), 이름 **좌측** = 인실↔이름 경계 이동(둘이 폭을 주고받아 좌측 고정폭 총합 유지). 각 핸들 **더블클릭 = 기본폭 복원**. 최소폭 `[48,44,40,90]`·최대 900px.
+  · 고정열 `left` 오프셋이 96/182/262px 하드코딩이라 폭 변경 시 어긋나던 문제 → 테이블 CSS 변수 `--w0~--w3` + `calc()` 로 전환. 드래그 중에는 재렌더 없이 `rsApplyColW()` 가 CSS 변수·`<colgroup>`·표 전체폭·스크롤 계산용 `data-infow` 만 갱신(13개월 표 재생성 비용 회피).
+  · 기존 `#rsNameW` 셀렉트는 유지 — 드래그로 만든 임의 폭은 `이름 사용자 지정 (405px)` 옵션으로 반영(`rsSyncNameWSel`). 방막기 드래그와 충돌하지 않도록 핸들에서 `pointerdown` stopPropagation.
+  · 적용 파일: `deploy/index.html`, `docs/design-admin/prototype.html`(동기).
+  · 검증: 로컬·**라이브 Playwright 통과** — 이름 우측 +150px→`--w3 380px`·`data-infow 642`, 이름 좌측 −25px→인실 55px/이름 405px(총합 유지), 더블클릭 초기화, 리로드·재렌더 후 유지(localStorage), 고정열 `left` 재계산 정상, 콘솔에러 0.
+  · 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app` → 라이브 = 로컬 바이트 동일(1,568,149).
+
+- **2026-07-30** 배치도 학생정보 모달의 **DORMITORY RESERVED INFORMATION = 레거시 `student_room.php` 와 동일한 방 패턴**:
+  · 레거시 원본 확인(Playwright, 읽기전용): 배치도 이름 클릭 → `open_student(s_idx)` → `adm/student_room.php?s_idx=…` 팝업. 그 표는 **예약행(room_reserve 예약단위) 1건 = 1행** 으로 `ROOM NUMBER / CAPACITY(‘4bed’ 처럼 침대수) / PERIOD` 를 나열. 실측: s_idx 98597 → `311 · 3bed · 2026-05-17~06-13`, 연장분 s_idx 100134 → `337 · 4bed · 06-14~06-20`, `337 · 4bed · 06-21~06-27`.
+  · 신전산 문제: 이 표가 항상 **1행 고정**이었고 값도 클릭한 방(`room`)·`s_period`(→ `2wk`)를 그대로 찍어 **방번호·정원 모두 레거시와 불일치**(예: 337 구간인데 `311 / 2wk` 표시).
+  · 조치 ①(API) `/api/data` roomstat 세그먼트에 **`si`(예약주체 s_idx)** 추가 — 동명이인·연장(별도 s_idx) 예약이 섞이지 않게.
+  · 조치 ②(화면) 모달에서 `_rsv`(예약행 단위, 병합 없음)를 만들어 표를 **행 반복 렌더** — 방번호는 방 그대로, CAPACITY 는 `room_info.i_limit` 에서 뽑은 **`N bed`**, PERIOD 는 각 예약행 구간. `si` 매칭 0건이면 이름 매칭으로 폴백. 기존 **ROOM MOVE PATH** 는 이 `_rsv` 를 같은 방 연속구간으로 병합해 그대로 유지(레거시에 없는 부가 정보).
+  · 적용 파일: `deploy/api/data.js`, `deploy/index.html`, `docs/design-admin/prototype.html`(동기).
+  · 검증: 로컬 Playwright(실 DB) — SHANG BOWEN 모달이 `337 / 4bed / 06-14~06-20`, `337 / 4bed / 06-21~06-27` 로 **레거시 캡처와 행·값 일치**, 콘솔에러 0.
+  · 배포: `vercel deploy --prod` → 라이브(`smeag-bay`) = 로컬 바이트 동일(1,568,149).
+  · ⚠ 남은 것: 레거시는 **클릭한 예약의 s_idx** 로 팝업을 열지만, 신전산은 이름칸이 침대 단위 합성문자열이라 학생 s_idx 를 **이름 매칭**으로 정한다 — 원본/연장처럼 같은 이름의 s_idx 가 여러 개면 그중 하나(먼저 매칭된 레코드) 기준으로 표가 그려진다.

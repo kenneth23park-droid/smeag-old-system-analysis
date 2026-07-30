@@ -80,13 +80,13 @@ function verifySession(token) {
     return body;
   } catch { return null; }
 }
-function actorOf(req) {
-  const s = verifySession(readCookie(req, COOKIE));
-  if (s && (s.id || s.username)) return { name: String(s.id || s.username).slice(0, 40), verified: true };
-  const h = req.headers["x-sme-user"];
-  if (h) return { name: String(h).replace(/[^\w.@-]/g, "").slice(0, 40) || "anonymous", verified: false };
-  return { name: "anonymous", verified: false };
+// 작성자(actor)는 **서버 세션에서만** 얻는다. 클라이언트가 보내는 X-SME-User 헤더는 위조가
+// 가능하므로 더 이상 신뢰하지 않는다(무시). 세션이 없으면 호출 자체가 401 로 끊긴다.
+// /api/auth 세션 클레임: { mb_id, mb_name, mb_level, ... }
+function actorOf(session) {
+  return { name: String(session.mb_id || "").slice(0, 40), verified: true };
 }
+const WRITE_MIN_LEVEL = 8;   // 방막기 쓰기는 내부 운영 권한(관리자/매니저)만
 
 // ── 입력 정규화 ──────────────────────────────────────────────────────────────
 const isYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
@@ -129,7 +129,18 @@ async function readBody(req) {
 // ── 핸들러 ───────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
-  const actor = actorOf(req);
+
+  // 인증: 조회·쓰기 모두 로그인 필수. 쓰기는 Lv8 이상만(외부에서 전 객실을 뒤집는 것을 차단).
+  const session = verifySession(readCookie(req, COOKIE));
+  if (!session) {
+    return res.status(401).json({ ok: false, error: "no_session",
+      message: "로그인 세션이 없습니다. 다시 로그인하세요." });
+  }
+  if (req.method === "POST" && Number(session.mb_level || 0) < WRITE_MIN_LEVEL) {
+    return res.status(403).json({ ok: false, error: "forbidden",
+      message: "방막기 변경 권한이 없습니다. 담당 매니저에게 요청하세요." });
+  }
+  const actor = actorOf(session);
 
   try {
     if (req.method === "GET") {

@@ -396,7 +396,7 @@
   .gantt .c2{position:sticky;left:calc(var(--w0) + var(--w1));z-index:1}
   .gantt .c3{position:sticky;left:calc(var(--w0) + var(--w1) + var(--w2));z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
   /* 열 경계 드래그 핸들 — 이름열은 좌(인실↔이름 경계 이동)·우(이름폭) 양쪽 모두 조절 */
-  .gantt thead th .rs-rz{position:absolute;top:0;bottom:0;width:9px;z-index:5;cursor:col-resize}
+  .gantt thead th .rs-rz{position:absolute;top:0;bottom:0;width:9px;z-index:5;cursor:col-resize;touch-action:none} /* touch-action:none — 터치 드래그가 표 스크롤로 새지 않게 */
   .gantt thead th .rs-rz.r{right:0}
   .gantt thead th .rs-rz.l{left:0}
   .gantt thead th .rs-rz:hover::after,.gantt thead th .rs-rz.on::after{content:'';position:absolute;top:2px;bottom:2px;left:50%;width:3px;margin-left:-1.5px;background:var(--accent);border-radius:2px}
@@ -527,8 +527,9 @@
   table.rp-info th,table.rp-info td,table.rp-cand th,table.rp-cand td{border:1px solid var(--border);padding:7px 9px;text-align:left}
   table.rp-info th{background:var(--surface-2);color:var(--dim);white-space:nowrap;width:96px}
   /* 레거시 reserve_move.php 학생정보 표 = 라벨·값·라벨·값 4칸 페어 레이아웃(한 줄에 두 항목) */
+  table.rp-info.pair{table-layout:fixed}   /* 값 2칸을 같은 폭으로 — 레거시와 같은 좌우 대칭 */
   table.rp-info.pair th{width:118px;text-align:center;color:var(--text);font-weight:800}
-  table.rp-info.pair td{width:auto}
+  table.rp-info.pair td{width:auto;word-break:break-word}
   table.rp-info.pair th.rp-cmt-h{vertical-align:middle}
   table.rp-info.pair td.rp-cmt{padding:4px}
   .rp-ta{width:100%;min-height:84px;border:1px solid var(--border);background:var(--surface-2);
@@ -678,6 +679,21 @@ table.permx{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;
 .permx .chk input:disabled+.box{opacity:.55;cursor:not-allowed}
 .permx .chk input:disabled{cursor:not-allowed}
 .permx .cell.lock .chk{cursor:not-allowed}
+/* chgref — 변경환불홀딩 접수 체크목록 (행정팀 A4) */
+.cg-flt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.cg-flt>label{font-size:11px;font-weight:800;color:var(--dim);letter-spacing:.02em}
+.cg-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cg-selinfo{font-size:12px;font-weight:750;color:var(--accent-ink);margin-right:auto}
+.cg-tbl td,.cg-tbl th{white-space:nowrap}
+.cg-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.cg-tbl .cg-amt{font-variant-numeric:tabular-nums;font-weight:750}
+.cg-tbl .cg-ag{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.cg-tbl .cg-etc{max-width:190px;overflow:hidden;text-overflow:ellipsis}
+.cg-tbl .cg-name{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}
+.cg-tbl .cg-name:hover{color:var(--accent-ink)}
+.cg-tbl tr.cg-od td{background:color-mix(in srgb,var(--female) 7%,transparent)}
+.cg-tbl tr.cg-od td.mono{color:var(--female);font-weight:800}
+.cg-odtag{display:inline-block;background:var(--female);color:#fff;border-radius:4px;padding:0 4px;font-size:10px;font-weight:800;margin-left:3px}
 /* agencylist */
 .agl-wrap .rs-ctrl{min-width:200px}
 .agl-wrap table.grid tbody tr{cursor:pointer}
@@ -860,12 +876,14 @@ function rsBindColResize(m){
   const tbl=m.querySelector('table.gantt');if(!tbl)return;
   tbl.querySelectorAll('thead .rs-rz').forEach(h=>{
     const idx=+h.dataset.rz, pair=h.dataset.rzpair==='1';
-    h.addEventListener('pointerdown',e=>e.stopPropagation()); // 방막기 드래그와 충돌 방지
     h.addEventListener('click',e=>e.stopPropagation());
-    h.addEventListener('mousedown',e=>{
-      if(e.button!==0)return;
-      e.preventDefault();e.stopPropagation();
+    // 포인터 이벤트로 마우스·터치·펜 모두 지원(태블릿 조작). setPointerCapture 로 커서가 핸들을 벗어나도 추적
+    h.addEventListener('pointerdown',e=>{
+      e.stopPropagation();                                   // 방막기 드래그와 충돌 방지
+      if(e.button!==0&&e.pointerType==='mouse')return;
+      e.preventDefault();
       const x0=e.clientX, w0=roomFilter.colW.slice();
+      try{h.setPointerCapture(e.pointerId);}catch(_){}
       h.classList.add('on');document.body.classList.add('rs-resizing');
       const move=ev=>{const w=w0.slice();let d=ev.clientX-x0;
         if(pair){ // 경계 이동: 인실이 늘면 이름이 그만큼 줄어 전체 좌측폭은 그대로
@@ -873,10 +891,11 @@ function rsBindColResize(m){
           w[idx]=w0[idx]+d;w[3]=w0[3]-d;
         }else w[idx]=Math.max(RS_COLW_MIN[idx],Math.min(900,w0[idx]+d));
         roomFilter.colW=w;rsApplyColW(tbl,w);};
-      const up=()=>{document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);
+      const up=()=>{h.removeEventListener('pointermove',move);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);
+        try{h.releasePointerCapture(e.pointerId);}catch(_){}
         h.classList.remove('on');document.body.classList.remove('rs-resizing');
         rsColWSave();rsSyncNameWSel(roomFilter.colW[3]);};
-      document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);});
+      h.addEventListener('pointermove',move);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);});
     h.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation(); // 기본폭 복원
       const w=roomFilter.colW.slice();
       if(pair){w[3]=Math.max(RS_COLW_MIN[3],w[3]+w[idx]-RS_COLW_DEF[idx]);w[idx]=RS_COLW_DEF[idx];}
@@ -2699,6 +2718,262 @@ R.financial__init=function(root){
   });
 };
 
+/* ===== R.chgref — 변경환불홀딩 접수 체크목록 (행정팀 요청 A4) =====================
+   원천: legacy.student_change (26,857행 · 2025-01-01 이후 2,247건 서빙) ⨝ student_info
+   컬럼 순서(API CHGREF_COLS와 1:1):
+     0 IDX 1 SID 2 AGENCY 3 NAME_EN 4 STUDENT 5 APPLY 6 CENTER 7 CHANGE 8 ADD_COURSE
+     9 ETC_FEE 10 REFUND 11 HOLDING 12 PROCESS 13 RESULT 14 DUE 15 COMPLETE 16 MANAGER
+     17 PERIOD 18 GAP
+   레거시 화면(student_list_change.php)의 15컬럼을 그대로 재현하고, 행정팀 요청분을 추가:
+     · 기간·캠퍼스·유형·RESULT 필터   · RESULT 상태배지
+     · info_due_date 초과 건 빨강 경고(누락 방지)   · 체크박스 일괄(엑셀/인보이스)
+   ⚠ 확정(상태전이)·삭제는 student_change 쓰기계층(RPC)이 아직 없어 비활성이다(A2에서 배선).
+================================================================================ */
+var CG={IDX:0,SID:1,AGENCY:2,NAME:3,STUDENT:4,APPLY:5,CENTER:6,CHANGE:7,ADD:8,ETC:9,
+        REFUND:10,HOLDING:11,PROCESS:12,RESULT:13,DUE:14,COMPLETE:15,MANAGER:16,PERIOD:17,GAP:18};
+// info_result 코드 → [표시(KO), 표시(EN), pill 클래스]
+var CG_RESULT={
+  '':          ['확정대기중','Pending','warn'],
+  center:      ['센터수납 미처리','Center pending','install'],
+  account:     ['계좌수납 미처리','Account pending','install'],
+  collection:  ['수금완료','Collected','good'],
+  refund:      ['환급완료','Refunded','return'],
+  holding:     ['홀딩확정','Holding','warn'],
+  cancel:      ['취소','Cancelled','neutral']
+};
+var CG_TYPES=[['','::'+'ALL TYPES'+'::'],['change','CHANGE'],['add','ADD COURSE'],['etc','ETC FEE'],
+              ['refund','REFUND'],['holding','HOLDING']];
+function cgRows(){return (REAL&&REAL.chgref&&REAL.chgref.rows)||[];}
+function cgResult(code){return CG_RESULT[String(code||'').toLowerCase()]||CG_RESULT[''];}
+function cgDone(r){ // 처리완료로 볼 수 있는 상태(완료일 있음 또는 종결 코드)
+  var c=String(r[CG.RESULT]||'').toLowerCase();
+  return !!r[CG.COMPLETE]||c==='collection'||c==='refund'||c==='holding'||c==='cancel';
+}
+function cgOverdue(r){ // 약속기한(info_due_date) 초과 & 미완료 → 경과일
+  if(!r[CG.DUE]||cgDone(r))return 0;
+  var d=Date.parse(r[CG.DUE]+'T00:00:00Z');if(!isFinite(d))return 0;
+  var days=Math.floor((Date.parse(_ymd(new Date())+'T00:00:00Z')-d)/86400000);
+  return days>0?days:0;
+}
+function cgTypeOf(r){ // 유형 판정(복수 가능)
+  var t=[];
+  if(r[CG.CHANGE])t.push('change');
+  if(r[CG.ADD])t.push('add');
+  if(r[CG.ETC])t.push('etc');
+  if(r[CG.REFUND])t.push('refund');
+  if(r[CG.HOLDING])t.push('holding');
+  return t;
+}
+function cgState(){return window._cgState||(window._cgState={from:'',to:'',center:'',type:'',result:'',q:'',shown:50,sel:{}});}
+function cgFiltered(){
+  var s=cgState(),q=String(s.q||'').trim().toLowerCase();
+  return cgRows().filter(function(r){
+    if(s.from&&(!r[CG.APPLY]||r[CG.APPLY]<s.from))return false;
+    if(s.to&&(!r[CG.APPLY]||r[CG.APPLY]>s.to))return false;
+    if(s.center&&String(r[CG.CENTER]||'').toUpperCase()!==s.center)return false;
+    if(s.type&&cgTypeOf(r).indexOf(s.type)<0)return false;
+    if(s.result!==''&&s.result!=null&&s.result!=='__all'){
+      if(s.result==='__overdue'){if(!cgOverdue(r))return false;}
+      else if(String(r[CG.RESULT]||'').toLowerCase()!==s.result)return false;
+    }
+    if(q){var hay=(r[CG.AGENCY]+' '+r[CG.NAME]+' '+r[CG.STUDENT]+' '+r[CG.MANAGER]).toLowerCase();
+      if(hay.indexOf(q)<0)return false;}
+    return true;
+  });
+}
+function cgListHtml(){
+  var s=cgState(),all=cgFiltered();
+  var shown=Math.min(s.shown||50,all.length),pg=all.slice(0,shown);
+  window._cgPage=pg;
+  var HDR=['<input type="checkbox" id="cgAll" title="'+esc(T('현재 페이지 전체 선택','Select all on page'))+'">',
+    'AGENCY',T('이름(영문)','NAME'),T('학생(한글)','STUDENT'),'APPLY DATE','CENTER',
+    'CHANGE','ADD COURSE','ETC FEE','REFUND','HOLDING','MODIFY','INVOICE','RESULT','COMPLETE DATE'];
+  var body=pg.length?pg.map(function(r,i){
+    var res=cgResult(r[CG.RESULT]),od=cgOverdue(r),idx=r[CG.IDX];
+    var money=function(v){return v?'<span class="cg-amt">'+esc(v)+'</span>':'—';};
+    return '<tr'+(od?' class="cg-od"':'')+'>'
+      +'<td><input type="checkbox" class="cg-ck" data-idx="'+esc(idx)+'"'+(s.sel[idx]?' checked':'')+'></td>'
+      +'<td class="cg-ag" title="'+esc(_agName(r[CG.AGENCY])||'')+'">'+esc(r[CG.AGENCY]||'—')+'</td>'
+      +'<td><b class="cg-name" data-sid="'+esc(r[CG.SID])+'">'+esc(r[CG.NAME]||'—')+'</b></td>'
+      +'<td>'+((r[CG.STUDENT]&&r[CG.STUDENT]!==r[CG.NAME])?esc(r[CG.STUDENT]):'—')+'</td>'
+      +'<td class="mono">'+esc(r[CG.APPLY]||'—')
+        +(od?' <span class="cg-odtag" title="'+esc(T('약속기한 초과','Past due date'))+'">+'+od+'d</span>':'')+'</td>'
+      +'<td>'+campusChipName(r[CG.CENTER])+'</td>'
+      +'<td>'+(r[CG.CHANGE]?'<span class="pill install">'+esc(r[CG.CHANGE])+'</span>':'—')+'</td>'
+      +'<td>'+(r[CG.ADD]?esc(r[CG.ADD]):'—')+'</td>'
+      +'<td class="cg-etc" title="'+esc(r[CG.ETC]||'')+'">'+(r[CG.ETC]?esc(r[CG.ETC]):'—')+'</td>'
+      +'<td class="num">'+money(r[CG.REFUND])+'</td>'
+      +'<td class="num">'+money(r[CG.HOLDING])+'</td>'
+      +'<td><button class="btn xs cg-mod" data-i="'+i+'">'+T('상세','View')+'</button></td>'
+      +'<td><button class="btn xs cg-inv" data-i="'+i+'" title="'+esc(T('멱등 인보이스 발행(중복 자동 차단)','Idempotent invoice publish'))+'">🧾</button></td>'
+      +'<td><span class="pill '+res[2]+'">'+T(res[0],res[1])+'</span></td>'
+      +'<td class="mono">'+esc(r[CG.COMPLETE]||'—')+'</td>'
+      +'</tr>';
+  }).join(''):'<tr><td colspan="15" style="text-align:center;color:var(--dim);padding:18px">'+T('결과 없음','No results')+'</td></tr>';
+  var tbl='<div class="twrap"><table class="grid cg-tbl"><thead><tr>'
+    +HDR.map(function(h,i){return '<th'+(i===9||i===10?' class="num"':'')+'>'+h+'</th>';}).join('')
+    +'</tr></thead><tbody>'+body+'</tbody></table></div>';
+  var more=all.length>shown
+    ?'<div class="pager"><button class="btn primary" id="cgMore">'+T('더 보기','Load more')+' (+'+Math.min(50,all.length-shown)+')</button>'
+      +'<span class="pginfo">'+T('표시','Showing')+' <b>'+shown.toLocaleString()+'</b> / '+all.length.toLocaleString()+T('건','')+'</span></div>'
+    :'<div class="pager"><span class="pginfo">'+T('전체 표시','All shown')+' · '+all.length.toLocaleString()+T('건','')+'</span></div>';
+  return tbl+more;
+}
+R.chgref=function(m){
+  var u=(m&&m.u)||'student_list_change.php',s=cgState();
+  var hdr='<div class="ph"><h1>'+T('변경·환불·홀딩 접수','Change / Refund / Hold')+'</h1>'
+    +'<span class="sub">'+T('접수 체크목록 — 확정 대기·기한 관리','Intake checklist — pending & due management')+'</span>'
+    +'<span class="url">'+esc(u)+'</span>'
+    +'<span class="actions" style="margin-left:auto">'+((REAL&&REAL.chgref)?REALBADGE:'')+'</span></div>';
+  if(!cgRows().length)
+    return hdr+'<div class="card pad" style="color:var(--dim)">'
+      +T('접수 데이터가 없습니다 (REAL.chgref 미주입 — /api/data?parts=chgref).','No intake data (REAL.chgref not injected — /api/data?parts=chgref).')+'</div>';
+  var all=cgFiltered(),tot=cgRows().length;
+  var pend=all.filter(function(r){return !cgDone(r);}).length;
+  var od=all.filter(function(r){return cgOverdue(r);}).length;
+  var rf=all.filter(function(r){return r[CG.REFUND];}).length;
+  var CENTERS=['CAPITAL','ENCANTO','CLASSIC'];
+  var opt=function(list,cur){return list.map(function(p){return '<option value="'+esc(p[0])+'"'+(String(p[0])===String(cur)?' selected':'')+'>'+esc(p[1])+'</option>';}).join('');};
+  var resOpts=[['__all','::ALL RESULTS::'],['__overdue','⚠ '+T('기한초과만','Overdue only')]]
+    .concat(Object.keys(CG_RESULT).map(function(k){return [k,T(CG_RESULT[k][0],CG_RESULT[k][1])];}));
+  return hdr
+  +'<div class="kpis" style="grid-template-columns:repeat(4,1fr)">'
+    +'<div class="kpi"><div class="k">'+T('접수 건수','INTAKE')+'</div><div class="v mono">'+all.length.toLocaleString()+'</div>'
+      +'<div class="d">'+T('전체','of')+' '+tot.toLocaleString()+' · student_change</div></div>'
+    +'<div class="kpi"><div class="k">'+T('확정 대기','PENDING')+'</div><div class="v mono" style="color:var(--warn)">'+pend.toLocaleString()+'</div>'
+      +'<div class="d">'+T('완료일·종결코드 없음','no complete date')+'</div></div>'
+    +'<div class="kpi"><div class="k">'+T('기한 초과','OVERDUE')+'</div><div class="v mono" style="color:var(--female)">'+od.toLocaleString()+'</div>'
+      +'<div class="d">info_due_date</div></div>'
+    +'<div class="kpi"><div class="k">'+T('환불 포함','WITH REFUND')+'</div><div class="v mono" style="color:var(--return)">'+rf.toLocaleString()+'</div>'
+      +'<div class="d">info_refund_amount</div></div>'
+  +'</div>'
+  +'<div class="card pad cg-flt">'
+    +'<label>'+T('접수 기간','Apply period')+'</label>'
+    +'<input class="rs-ctrl" type="date" id="cgFrom" value="'+esc(s.from)+'"> ~ '
+    +'<input class="rs-ctrl" type="date" id="cgTo" value="'+esc(s.to)+'">'
+    +'<button class="btn xs" id="cgP30">'+T('최근 30일','Last 30d')+'</button>'
+    +'<button class="btn xs" id="cgPAll">'+T('전체 기간','All time')+'</button>'
+    +'<label>CENTER</label><select class="rs-ctrl" id="cgCenter"><option value="">::ALL::</option>'
+      +CENTERS.map(function(c){return '<option'+(s.center===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select>'
+    +'<label>'+T('유형','Type')+'</label><select class="rs-ctrl" id="cgType">'+opt(CG_TYPES,s.type)+'</select>'
+    +'<label>RESULT</label><select class="rs-ctrl" id="cgResult">'+opt(resOpts,(s.result===''?'__all':s.result))+'</select>'
+    +'<input class="rs-ctrl" type="search" id="cgQ" placeholder="'+esc(T('유학원·이름·담당자 검색','Agency / name / manager'))+'" value="'+esc(s.q)+'" style="width:190px">'
+    +'<button class="btn primary" id="cgGo">🔍 '+T('조회','Search')+'</button>'
+    +'<button class="btn" id="cgClear">✕ '+T('초기화','Reset')+'</button>'
+  +'</div>'
+  +'<div class="cg-bar">'
+    +'<span class="cg-selinfo" id="cgSelInfo">'+T('선택 0건','0 selected')+'</span>'
+    +'<button class="btn" id="cgXls">📊 '+T('엑셀 (선택/전체)','Excel (selected/all)')+'</button>'
+    +'<button class="btn" id="cgBulkInv">🧾 '+T('선택 일괄 인보이스','Bulk invoice')+'</button>'
+    +'<button class="btn" id="cgConfirm" disabled title="'+esc(T('student_change 쓰기계층(RPC) 미배선 — A2에서 연결','student_change write layer (RPC) not wired yet — comes with A2'))+'">✅ '+T('선택 일괄 확정','Bulk confirm')+'</button>'
+    +'<button class="btn" id="cgDel" disabled title="'+esc(T('소프트 삭제도 쓰기계층 필요 — A2에서 연결','Soft delete also needs the write layer — comes with A2'))+'">🗑 '+T('삭제','Delete')+'</button>'
+  +'</div>'
+  +'<div class="note" style="margin:10px 0 12px">'
+    +'⚠ <b>'+T('기한초과','Overdue')+'</b> — '+T('약속기한(info_due_date)이 지났는데 완료일이 없는 건은 <b>빨강</b>으로 표시하고 경과일(+Nd)을 붙입니다.','Rows past info_due_date without a complete date are shown in <b>red</b> with elapsed days (+Nd).')
+    +' &nbsp;·&nbsp; '+T('확정·삭제 버튼은 쓰기계층(RPC) 배선 후 활성화됩니다 — 지금은 <b>조회·추출·발행</b>만 동작합니다.','Confirm/Delete activate once the write RPC is wired — for now <b>read, export and publish</b> work.')
+  +'</div>'
+  +'<div id="cgList">'+cgListHtml()+'</div>';
+};
+R.chgref__init=function(root){
+  if(!cgRows().length)return;
+  var s=cgState(),listBox=root.querySelector('#cgList');
+  var val=function(id){var e=root.querySelector('#'+id);return e?e.value:'';};
+  var apply=function(){
+    s.from=val('cgFrom');s.to=val('cgTo');s.center=val('cgCenter');s.type=val('cgType');
+    var rv=val('cgResult');s.result=(rv==='__all'?'__all':rv);
+    s.q=val('cgQ');s.shown=50;renderMain();};
+  var go=root.querySelector('#cgGo');if(go)go.onclick=apply;
+  var q=root.querySelector('#cgQ');if(q)q.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();apply();}});
+  ['cgFrom','cgTo','cgCenter','cgType','cgResult'].forEach(function(id){
+    var e=root.querySelector('#'+id);if(e)e.addEventListener('change',apply);});
+  var clr=root.querySelector('#cgClear');if(clr)clr.onclick=function(){
+    window._cgState={from:'',to:'',center:'',type:'',result:'__all',q:'',shown:50,sel:{}};renderMain();};
+  var p30=root.querySelector('#cgP30');if(p30)p30.onclick=function(){
+    var t=new Date(),f=new Date(t.getTime()-30*86400000);
+    s.from=_ymd(f);s.to=_ymd(t);s.shown=50;renderMain();};
+  var pAll=root.querySelector('#cgPAll');if(pAll)pAll.onclick=function(){s.from='';s.to='';s.shown=50;renderMain();};
+  var selCount=function(){return Object.keys(s.sel).filter(function(k){return s.sel[k];}).length;};
+  var paint=function(){
+    var n=selCount(),info=root.querySelector('#cgSelInfo');
+    if(info)info.textContent=T('선택 '+n+'건',n+' selected');
+    var bi=root.querySelector('#cgBulkInv');if(bi)bi.disabled=!n;};
+  paint();
+  // 선택분(없으면 필터 전체) 반환
+  var picked=function(){
+    var n=selCount();
+    if(!n)return cgFiltered();
+    return cgFiltered().filter(function(r){return s.sel[r[CG.IDX]];});};
+  var xls=root.querySelector('#cgXls');if(xls)xls.onclick=function(){
+    var rows=picked();
+    var H=['IDX','AGENCY',T('유학원명','AGENCY NAME'),T('이름(영문)','NAME'),T('학생(한글)','STUDENT'),
+      'APPLY DATE','CENTER','CHANGE','ADD COURSE','ETC FEE','REFUND','HOLDING',
+      T('원기간','ORIGIN PERIOD'),T('변경차액','GAP'),'PROCESS','RESULT','DUE',T('기한초과(일)','OVERDUE'),'COMPLETE',T('담당자','MANAGER')];
+    toXls(H,rows.map(function(r){var res=cgResult(r[CG.RESULT]);
+      return [r[CG.IDX],r[CG.AGENCY],_agName(r[CG.AGENCY]),r[CG.NAME],r[CG.STUDENT],r[CG.APPLY],r[CG.CENTER],
+        r[CG.CHANGE],r[CG.ADD],r[CG.ETC],r[CG.REFUND],r[CG.HOLDING],r[CG.PERIOD],r[CG.GAP],
+        r[CG.PROCESS],T(res[0],res[1]),r[CG.DUE],cgOverdue(r)||'',r[CG.COMPLETE],r[CG.MANAGER]];}),
+      'SMEAG_변경환불홀딩_'+_ymd(new Date())+'.xls',[]);
+    if(window.adminAuthLog)try{window.adminAuthLog('chgref_excel',{n:rows.length},'read');}catch(_){}
+  };
+  var bulk=root.querySelector('#cgBulkInv');if(bulk)bulk.onclick=async function(){
+    var rows=picked().filter(function(r){return !cgDone(r);});
+    if(!rows.length){msgBox(T('발행 대상 없음','Nothing to publish'),
+      '<div style="font-size:13.5px">'+T('선택한 건이 없거나 모두 이미 종결 상태입니다.','No selection, or all selected rows are already closed.')+'</div>','warn');return;}
+    bulk.disabled=true;var ok=0;
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i];
+      try{await publishInvoice(null,{target:'chgref:'+r[CG.IDX],amount:Number(String(r[CG.GAP]||'').replace(/[^0-9.\-]/g,''))||null});ok++;}catch(e){}
+    }
+    bulk.disabled=false;
+    toast(T('일괄 발행 완료','Bulk publish done'),T(ok+'건 발행 요청(중복은 자동 차단)',ok+' requested (duplicates auto-blocked)'),true);
+  };
+  if(listBox)listBox.addEventListener('click',function(e){
+    var more=e.target.closest('#cgMore');
+    if(more){s.shown=(s.shown||50)+50;listBox.innerHTML=cgListHtml();paint();return;}
+    var all=e.target.closest('#cgAll');
+    if(all){(window._cgPage||[]).forEach(function(r){s.sel[r[CG.IDX]]=all.checked;});
+      listBox.innerHTML=cgListHtml();paint();return;}
+    var ck=e.target.closest('.cg-ck');
+    if(ck){s.sel[ck.dataset.idx]=ck.checked;paint();return;}
+    var inv=e.target.closest('.cg-inv');
+    if(inv){var ri=(window._cgPage||[])[+inv.dataset.i];
+      if(ri)publishInvoice(inv,{target:'chgref:'+ri[CG.IDX],
+        amount:Number(String(ri[CG.GAP]||'').replace(/[^0-9.\-]/g,''))||null});
+      return;}
+    var mod=e.target.closest('.cg-mod');
+    if(mod){var r2=(window._cgPage||[])[+mod.dataset.i];if(r2)cgDetail(r2);return;}
+    var nm=e.target.closest('.cg-name');
+    if(nm){var sid=nm.dataset.sid,SF=(REAL&&REAL.studentsFull&&REAL.studentsFull.rows)||[];
+      var st=SF.filter(function(x){return String(x[18])===String(sid);})[0];
+      if(st)openStudentEdit(st,'edit');
+      else toast(T('학생 정보 없음','Student not found'),T('현재 조회창(2025년 이후) 밖의 학생입니다.','Outside the current data window (2025+).'),false);
+      return;}
+  });
+};
+// 접수 1건 상세(읽기 전용) — 서류폼(A2) 배선 전까지의 확인 창
+function cgDetail(r){
+  var res=cgResult(r[CG.RESULT]),od=cgOverdue(r);
+  var row=function(k,v){return '<tr><th style="text-align:left;padding:4px 8px;color:var(--dim);font-weight:700;white-space:nowrap">'+k+'</th><td style="padding:4px 8px">'+(v||'—')+'</td></tr>';};
+  msgBox(T('접수 상세','Intake detail')+' #'+esc(r[CG.IDX]),
+    '<table style="width:100%;font-size:12.5px">'
+    +row('AGENCY',esc(_agName(r[CG.AGENCY]))+' <span style="color:var(--dim)">('+esc(r[CG.AGENCY])+')</span>')
+    +row(T('학생','Student'),'<b>'+esc(r[CG.NAME])+'</b>'+(r[CG.STUDENT]&&r[CG.STUDENT]!==r[CG.NAME]?' / '+esc(r[CG.STUDENT]):''))
+    +row(T('접수일','Apply date'),esc(r[CG.APPLY])+(od?' <span style="color:var(--female);font-weight:800">+'+od+'d '+T('기한초과','overdue')+'</span>':''))
+    +row('CENTER',campusChipName(r[CG.CENTER]))
+    +row(T('원 기간','Origin period'),esc(r[CG.PERIOD]))
+    +row('CHANGE',r[CG.CHANGE]?'<span class="pill install">'+esc(r[CG.CHANGE])+'</span>':'—')
+    +row('ADD COURSE',esc(r[CG.ADD]))+row('ETC FEE',esc(r[CG.ETC]))
+    +row('REFUND',esc(r[CG.REFUND]))+row('HOLDING',esc(r[CG.HOLDING]))
+    +row(T('변경차액','Gap price'),esc(r[CG.GAP]))
+    +row('PROCESS',esc(r[CG.PROCESS]))
+    +row('RESULT','<span class="pill '+res[2]+'">'+T(res[0],res[1])+'</span>')
+    +row('DUE / COMPLETE',esc(r[CG.DUE]||'—')+' / '+esc(r[CG.COMPLETE]||'—'))
+    +row(T('담당자','Manager'),esc(r[CG.MANAGER]))
+    +'</table>'
+    +'<div style="margin-top:10px;font-size:11.5px;color:var(--dim)">'
+    +T('수정(변경환불 서류폼)은 A2 단계에서 연결됩니다. 현재는 읽기 전용입니다.','Editing (the change/refund form) arrives with A2. Read-only for now.')+'</div>');
+}
+
 // ─── Agency 통계(파생): BRANCH/GROUP RECORD(캠퍼스별) · EACH NATIONALITY(국적별) ───
 function _agName(code){var f=(DICT.uhak||[]).find(function(o){return o.v===code;});return f?f.t:(code||'(미지정)');}
 R.agencystat=function(m){
@@ -3622,11 +3897,24 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
   const _cc=S(12); const course=[per?per+'주':null,_cc?'코스 '+_cc:null].filter(Boolean).join(' · ')||'-';
   // 레거시가 보여준 그대로의 문자열(fee_class2 · fee_dorm2) 우선, 없으면 파생값 폴백
   const sid=S(18), courseTxt=S(19)||course, dormTxt=S(20)||dorm;
-  // 방 이동경로: roomstat 전 그룹에서 이 학생 이름의 점유 세그먼트를 모아 시간순 정렬 → 연속 동일방 병합
-  const _rpath=(function(){const grs=(REAL&&REAL.roomstat&&REAL.roomstat.groups)||[];const nm=(''+(S(2,name)||name||'')).trim();if(!nm)return [];
-    const segs=[];grs.forEach(g=>{const cat=(g.name||'').split('/')[0].trim();(g.rooms||[]).forEach(r=>{(r.beds||[]).forEach(bed=>{(bed.segs||[]).forEach(sg=>{if(sg&&sg.nm&&(''+sg.nm).trim()===nm)segs.push({room:r.no,cat:cat,s:sg.s,e:sg.e});});});});});
-    segs.sort((a,b)=>(''+(a.s||'')).localeCompare(''+(b.s||'')));
-    const st=[];segs.forEach(x=>{const last=st[st.length-1];const key=x.cat+'|'+x.room;
+  // _rsv: 예약행 단위(레거시 student_room.php 의 DORMITORY RESERVED INFORMATION 과 동일 — 병합 없음)
+  // _rpath: 위 예약행을 같은 방 연속구간으로 병합한 이동경로
+  const _rsvAll=(function(){const grs=(REAL&&REAL.roomstat&&REAL.roomstat.groups)||[];const nm=(''+(S(2,name)||name||'')).trim();
+    const segs=[];grs.forEach(g=>{const cat=(g.name||'').split('/')[0].trim();(g.rooms||[]).forEach(r=>{
+      const cap=parseInt(r.per||'',10)||0;
+      (r.beds||[]).forEach(bed=>{(bed.segs||[]).forEach(sg=>{if(!sg)return;
+        // s_idx 우선 매칭(연장은 별도 s_idx라 레거시처럼 그 예약만) · 없으면 이름 폴백
+        const hit=sid?(''+(sg.si||''))===(''+sid):(sg.nm&&(''+sg.nm).trim()===nm);
+        if(hit)segs.push({room:r.no,cat:cat,cap:cap,s:sg.s,e:sg.e});});});});});
+    segs.sort((a,b)=>(''+(a.s||'')).localeCompare(''+(b.s||'')));return segs;})();
+  // s_idx 매칭이 0건이면(윈도우 밖·데이터 누락) 이름 폴백으로 한 번 더
+  const _rsv=(function(){if(_rsvAll.length||!sid)return _rsvAll;
+    const grs=(REAL&&REAL.roomstat&&REAL.roomstat.groups)||[];const nm=(''+(S(2,name)||name||'')).trim();if(!nm)return [];
+    const segs=[];grs.forEach(g=>{const cat=(g.name||'').split('/')[0].trim();(g.rooms||[]).forEach(r=>{const cap=parseInt(r.per||'',10)||0;
+      (r.beds||[]).forEach(bed=>{(bed.segs||[]).forEach(sg=>{if(sg&&sg.nm&&(''+sg.nm).trim()===nm)segs.push({room:r.no,cat:cat,cap:cap,s:sg.s,e:sg.e});});});});});
+    segs.sort((a,b)=>(''+(a.s||'')).localeCompare(''+(b.s||'')));return segs;})();
+  const _rpath=(function(){
+    const st=[];_rsv.forEach(x=>{const last=st[st.length-1];const key=x.cat+'|'+x.room;
       if(last&&last.key===key){if((''+(x.e||''))>(''+(last.e||'')))last.e=x.e;if((''+(x.s||''))<(''+(last.s||'')))last.s=x.s;}
       else st.push({key:key,room:x.room,cat:x.cat,s:x.s,e:x.e});});
     return st;})();
@@ -3664,7 +3952,8 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
         </table>
         <div class="rp-t" style="margin-top:14px">※ DORMITORY RESERVED INFORMATION</div>
         <table class="rp-info dorm"><tr><th>ROOM NUMBER</th><th>CAPACITY</th><th>PERIOD</th></tr>
-          <tr><td class="mono">${esc(room||dorm||'-')}</td><td>${esc(per?per+'wk':'-')}</td><td class="mono">${esc(begin)} ~ ${esc(end)}</td></tr></table>
+          ${_rsv.length?_rsv.map(x=>`<tr><td class="mono">${esc(x.room)}</td><td>${x.cap?x.cap+'bed':'-'}</td><td class="mono">${esc((''+(x.s||'')).slice(0,10))} ~ ${esc((''+(x.e||'')).slice(0,10))}</td></tr>`).join('')
+            :`<tr><td class="mono">${esc(room||dorm||'-')}</td><td>-</td><td class="mono">${esc(begin)} ~ ${esc(end)}</td></tr>`}</table>
         <div class="rp-t" style="margin-top:14px">※ ROOM MOVE PATH ${T('(방 이동경로)','(room move history)')}</div>
         ${_rpath.length?`<div class="rp-path">${_rpath.map((x,i)=>`<span class="rp-node"${i===_rpath.length-1?' data-cur="1"':''}><b>${esc(x.cat)} ${esc(x.room)}</b><small>${esc((''+(x.s||'')).slice(0,10))} ~ ${esc((''+(x.e||'')).slice(0,10))}</small></span>`).join('<span class="rp-arrow">→</span>')}</div>
           <table class="rp-info"><tr><th>#</th><th>ROOM</th><th>PERIOD</th></tr>${_rpath.map((x,i)=>`<tr><td class="mono">${i+1}</td><td class="mono">${esc(x.cat)} ${esc(x.room)}</td><td class="mono">${esc((''+(x.s||'')).slice(0,10))} ~ ${esc((''+(x.e||'')).slice(0,10))}</td></tr>`).join('')}</table>`
@@ -3770,7 +4059,7 @@ function openStudentEdit(row,act){
   const commBase=tuition;
   const _cm=calcComm(row[1],row[12],row[14],commBase); const comAmt=_cm.total; const netAmt=grand-comAmt;
   // 인보이스 발행 이력(발행 시 write-layer 기록 — 현재는 구조/현재값 표시)
-  const invRows=`<tr><td class="mono">1th</td><td>${link('AGENCY')} ${link('STUDENT')}</td><td class="mono">${g(6)||'—'}</td><td class="mono">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>`;
+  const invRows=`<tr><td class="mono">1th</td><td>${link('AGENCY')} ${link('STUDENT')}</td><td class="mono">${g(6)||'—'}</td><td class="mono" id="smiInvLine">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>`;
   const ov=el('div','modal-ov');ov.id='smiModal';
   ov.innerHTML=`<div class="modal smi">
     <div class="modal-h"><b>STUDENT MANAGEMENT INFORMATION</b><span class="smi-badge">${actLbl}</span>
@@ -3803,8 +4092,8 @@ function openStudentEdit(row,act){
       <tr class="smi-dc"><td colspan="3" style="text-align:right;font-weight:800">TOTAL</td><td class="mono"><b>${dormTot.toLocaleString()} $</b></td><td colspan="2"><button class="btn xs" id="smiDormDel">DORMITORY DELETE</button></td></tr>
       ${sec('DETAIL COST')}
       ${rw('REGIST FEE',`<b>${regist} $</b> &nbsp;Admission Fee`,'TUITION FEE',`<b>${tuition.toLocaleString()} $</b> &nbsp;${wk} weeks-${g(12)}`)}
-      ${rw('DORMITORY FEE',`<b>${dormTot.toLocaleString()} $</b> &nbsp;${wk} weeks`,'ETC FEE',`${ipt(String(etcFee))} $`)}
-      ${rw('PRE PAY<br><i>(커미션제외)</i>',`${ipt(String(prePay))} $ <span style="color:var(--dim);font-size:11px">tuition/dorm 조정분</span>`,'TOTAL',`<b style="color:var(--accent-ink);font-size:15px">${grand.toLocaleString()} $</b>`)}
+      ${rw('DORMITORY FEE',`<b>${dormTot.toLocaleString()} $</b> &nbsp;${wk} weeks`,'ETC FEE',`<input id="smiEtcFee" class="smi-i" value="${etcFee}"> $`)}
+      ${rw('PRE PAY<br><i>('+T('커미션제외','excl. commission')+')</i>',`<input id="smiPrePay" class="smi-i" value="${prePay}"> $ <span style="color:var(--dim);font-size:11px">tuition/dorm ${T('조정분 · 커미션 기준학비에서 차감하지 않음','adjustment · not deducted from the commission base')}</span>`,'TOTAL',`<b id="smiTotal" style="color:var(--accent-ink);font-size:15px">${grand.toLocaleString()} $</b>`)}
       ${sec('PAY INFORMATION')}
       ${rw('PAY CHECK<br><i>(납부확인)</i>',`<select class="smi-i" id="smiPayStat" style="max-width:150px">${PAYSTAT.map(([v,l])=>`<option value="${v}"${v===payStat?' selected':''}>${l}</option>`).join('')}</select>
         <select class="smi-i" id="smiPayChan" style="max-width:170px">${PAYCHAN.map(([v,l])=>`<option value="${v}"${v===payChan?' selected':''}>${l}</option>`).join('')}</select>`,
@@ -3827,13 +4116,14 @@ function openStudentEdit(row,act){
       ${sec('COMMISSION INFO')}
       ${rw('COMMISSION<br><i>'+T('나라 정율% + 코스 정액 + 빌딩 정액','Country %% + Course fixed + Building fixed')+'</i>',`<div style="font-size:12px;line-height:1.6">
         <b>${(row[1]||'ETC').toUpperCase()}</b> ${_cm.pct}% × ${T('학비','tuition')} ${commBase.toLocaleString()} = <b>${_cm.ratePart.toLocaleString()}</b>
-        <span style="color:var(--dim);font-size:11px">(PRE PAY ${prePay.toLocaleString()}$ ${T('커미션 미반영','excluded from commission')})</span>
+        <span style="color:var(--dim);font-size:11px">(PRE PAY <b id="smiPpNote">${prePay.toLocaleString()}</b>$ ${T('커미션 미반영','excluded from commission')})</span>
         &nbsp;+&nbsp; ${T('코스','Course')}(${esc(row[12]||'-')}) <b>${_cm.courseAmt.toLocaleString()}</b>
         &nbsp;+&nbsp; ${T('빌딩','Bldg')}(${esc(row[14]||'-')}) <b>${_cm.bldgAmt.toLocaleString()}</b>
-        <span style="color:var(--good);font-weight:800">= COMMISSION ${comAmt.toLocaleString()} $</span></div>`,'ETC COMMISSION',`${ipt('0')} $ <span style="color:var(--dim);font-size:11px">program 조정분</span>`)}
+        &nbsp;+&nbsp; ETC <b id="smiEtcComEcho">0</b>
+        <span style="color:var(--good);font-weight:800">= COMMISSION <span id="smiCom">${comAmt.toLocaleString()}</span> $</span></div>`,'ETC COMMISSION',`<input id="smiEtcCom" class="smi-i" value="0"> $ <span style="color:var(--dim);font-size:11px">program ${T('조정분','adjustment')}</span>`)}
       <tr class="smi-dc"><th>INVOICE</th><th>AGENCY / STUDENT</th><th>DATE</th><th>TOTAL · COM · NET</th></tr>
       ${invRows}
-      <tr class="smi-dc"><td style="font-weight:800;color:var(--good)">FINANCIAL</td><td colspan="3" class="mono" style="color:var(--good);font-weight:800">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>
+      <tr class="smi-dc"><td style="font-weight:800;color:var(--good)">FINANCIAL</td><td colspan="3" class="mono" style="color:var(--good);font-weight:800" id="smiFin">TOTAL ${grand.toLocaleString()} · COM ${comAmt.toLocaleString()} · NET ${netAmt.toLocaleString()}</td></tr>
       ${rw('INVOICE PUBLISH',`<label class="smi-r"><input type="checkbox" id="smiNewInv"> NEW INVOICE PUBLISH</label> <span style="color:var(--dim);font-size:11px">발행 시 멱등키로 중복발행 차단 · write-layer 기록</span>`,null)}
     </table></div>
     <div class="modal-foot"><button class="btn" id="smiCancel">LIST</button><button class="btn primary" id="smiSave">SUBMIT</button></div>
@@ -3922,6 +4212,31 @@ function openStudentEdit(row,act){
     });
     gate();
   })();
+  // DETAIL COST / COMMISSION 라이브 재계산
+  //  · TOTAL = REGIST + TUITION + DORM + ETC FEE − PRE PAY
+  //  · COMMISSION = (학비 기준 규칙합) + ETC COMMISSION  ← PRE PAY·ETC FEE 는 커미션에 반영하지 않음(정책)
+  let curGrand=grand, curCom=comAmt;
+  {
+    const q=s=>ov.querySelector(s);
+    const eEtcFee=q('#smiEtcFee'), ePrePay=q('#smiPrePay'), eEtcCom=q('#smiEtcCom');
+    const num=(el,dflt)=>{const v=parseFloat(String(el&&el.value||'').replace(/[^0-9.\-]/g,''));return isFinite(v)?v:(dflt||0);};
+    const recalc=()=>{
+      const etcF=num(eEtcFee,0), pp=num(ePrePay,0), etcC=num(eEtcCom,0);
+      curGrand=regist+tuition+dormTot+etcF-pp;
+      curCom=_cm.total+etcC;                 // commBase(=prePay 차감 전 학비) 기반 — pp 는 여기 들어오지 않는다
+      const net=curGrand-curCom;
+      const set=(sel,txt)=>{const e=q(sel);if(e)e.textContent=txt;};
+      set('#smiTotal',curGrand.toLocaleString()+' $');
+      set('#smiPpNote',pp.toLocaleString());
+      set('#smiEtcComEcho',etcC.toLocaleString());
+      set('#smiCom',curCom.toLocaleString());
+      set('#smiFin',`TOTAL ${curGrand.toLocaleString()} · COM ${curCom.toLocaleString()} · NET ${net.toLocaleString()}`);
+      const inv=q('#smiInvLine');
+      if(inv)inv.textContent=`TOTAL ${curGrand.toLocaleString()} · COM ${curCom.toLocaleString()} · NET ${net.toLocaleString()}`;
+    };
+    [eEtcFee,ePrePay,eEtcCom].forEach(e=>{if(e)e.addEventListener('input',recalc);});
+    recalc();
+  }
   // 여권 생년월일 → 출발일 기준 만나이 라이브 표시 + row[17] 저장
   const birthEl=ov.querySelector('#smiBirth'),ageEl=ov.querySelector('#smiAge'),ageInput=ov.querySelector('#smiAgeInput');
   const depEl2=()=>row[7]||'';
@@ -3959,7 +4274,7 @@ function openStudentEdit(row,act){
   ov.querySelector('#smiSave').onclick=async(ev)=>{
     const newInv=ov.querySelector('#smiNewInv');
     if(newInv&&newInv.checked){                      // NEW INVOICE PUBLISH → 멱등 발행(중복 차단)
-      await publishInvoice(ev.currentTarget,{target:'student:'+((row[2]||row[3]||'')+'|'+(row[7]||'')),amount:grand});
+      await publishInvoice(ev.currentTarget,{target:'student:'+((row[2]||row[3]||'')+'|'+(row[7]||'')),amount:curGrand});
       return;}                                       // 발행 결과(성공/중복 안내) 확인 후 사용자가 닫도록 모달 유지
     if(window.adminAuthLog)try{window.adminAuthLog('student_'+act+'_save',{name:row[2]||row[3],room:row[13]},'update');}catch(_){}
     toast(`${actLbl} 저장 완료`,`${row[2]||row[3]||'학생'} · ${row[13]||''} (멱등 처리)`,true);close();};

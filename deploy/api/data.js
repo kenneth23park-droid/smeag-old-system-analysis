@@ -29,6 +29,7 @@ const COOKIE = "sme_session";
 const SLICE_FROM = "2025-01-01";   // 학생 슬라이스 시작(등록/출발/시작/종료 중 하나가 이 날짜 이후)
 const MAX_DEPOSITS = 3000;
 const MAX_CHANGELOG = 300;
+const MAX_CHGREF = 3000;    // 변경환불 접수(2025-01-01 이후 실측 2,247건) — 상한 여유
 
 const PG = {
   host: process.env.PG_HOST,
@@ -119,15 +120,20 @@ function pickupWeek(today) {
 }
 
 // ── 조각별 조회 ──────────────────────────────────────────────────────────────
-// studentsFull: 화면이 쓰는 23칸 배열 순서
+// studentsFull: 화면이 쓰는 31칸 배열 순서
 //  0 AGENCY 1 NAT 2 NAME(EN) 3 KOR 4 AGE 5 SEX 6 APPLY 7 DEPA 8 BEGIN 9 END
 //  10 PERI 11 STATUS 12 COURSE 13 ROOM 14 CAMPUS 15 항공/픽업 16 항공(변경전) 17 여권생일
 //  18 SID(s_idx) 19 COURSE_TXT(fee_class2) 20 DORM_TXT(fee_dorm2) 21 AGENT_CMT(s_info) 22 STAFF_CMT(comment)
 //  18~22 는 레거시 ROOM REPLACEMENT(reserve_move.php) 학생정보 표를 그대로 재현하기 위해 추가.
 //  코멘트 2칸은 text 라 페이로드가 커질 수 있어 400자로 자른다(표시 전용).
+//  23~30 은 행정팀 요청(A3 센터수납 현장결제 · A5 완납확인)용 납부칸 — 레거시 student_info 원값.
+//   23 PAY_STATUS(N 미납/Y 완납/X 분납/R 반환, 빈값 다수) 24 PAY_CHANNEL(account/center)
+//   25 EX_DATE(환율적용일) 26 EX_RATE(적용환율) 27 CPAY_AMT(센터납부금액) 28 CPAY_UNIT(기본 peso)
+//   29 CPAY_DATE(센터납부일) 30 CPAY_MEMO(센터납부 메모)
 const STUDENT_COLS = ["AGENCY", "NAT", "NAME_EN", "KOR", "AGE", "SEX", "APPLY", "DEPA", "BEGIN", "END",
   "PERI", "STATUS", "COURSE", "ROOM", "CAMPUS", "FLIGHT", "FLIGHT_PREV", "BIRTH",
-  "SID", "COURSE_TXT", "DORM_TXT", "AGENT_CMT", "STAFF_CMT"];
+  "SID", "COURSE_TXT", "DORM_TXT", "AGENT_CMT", "STAFF_CMT",
+  "PAY_STATUS", "PAY_CHANNEL", "EX_DATE", "EX_RATE", "CPAY_AMT", "CPAY_UNIT", "CPAY_DATE", "CPAY_MEMO"];
 
 // 레거시 날짜칸은 varchar(''·'0000-00-00' 혼재) → 형식 맞는 값만 통과
 const D = (col) => `case when ${col} ~ '^\\d{4}-\\d{2}-\\d{2}' then left(${col},10) else '' end`;
@@ -144,7 +150,11 @@ async function loadStudents(q, scope) {
             coalesce(s_room,'') a13, coalesce(s_campus,'') a14, coalesce(s_flight,'') a15,
             app.jumin_to_birth(s_jumin) a17,
             coalesce(s_idx,0) a18, coalesce(fee_class2,'') a19, coalesce(fee_dorm2,'') a20,
-            left(coalesce(s_info,''),400) a21, left(coalesce("comment",''),400) a22
+            left(coalesce(s_info,''),400) a21, left(coalesce("comment",''),400) a22,
+            upper(trim(coalesce(pay_status,''))) a23, lower(trim(coalesce(pay_channel,''))) a24,
+            ${D("exchange_date")} a25, trim(coalesce(exchange_rate,'')) a26,
+            trim(coalesce(center_pay_amount,'')) a27, lower(trim(coalesce(center_pay_unit,''))) a28,
+            ${D("center_pay_date")} a29, left(coalesce(center_pay_memo,''),250) a30
        from legacy.student_info
       where ${where.join(" and ")}
       order by a7 desc, a6 desc`, params);
@@ -163,7 +173,8 @@ async function loadStudents(q, scope) {
       r.a10 ? String(r.a10) : "", r.a11, r.a12, r.a13, r.a14,
       /^(0|\.|-)?$/.test(r.a15.trim()) ? "" : r.a15.trim(), "",
       birth(r.a17),
-      r.a18 ? String(r.a18) : "", r.a19.trim(), r.a20.trim(), r.a21.trim(), r.a22.trim()]),
+      r.a18 ? String(r.a18) : "", r.a19.trim(), r.a20.trim(), r.a21.trim(), r.a22.trim(),
+      r.a23, r.a24, r.a25, r.a26, r.a27, r.a28, r.a29, r.a30.trim()]),
   };
 }
 
@@ -200,7 +211,9 @@ async function loadRoomstat(q, month) {
   for (const s of segs.rows) {
     const who = nameById.get(s.s_idx);
     if (!who || !who.nm) continue;                          // 이름 없는 예약행은 표시 대상 아님
-    const seg = { s: s.s, e: s.e, nm: who.nm, st: s.st === "I" ? "" : s.st, et: s.et === "I" ? "" : s.et };
+    // si: 예약주체 s_idx — 학생정보 모달의 DORMITORY RESERVED INFORMATION(레거시 student_room.php)에서
+    //     동명이인·연장(별도 s_idx) 예약을 섞지 않고 정확히 그 학생의 예약행만 뽑는 데 사용
+    const seg = { s: s.s, e: s.e, nm: who.nm, si: s.s_idx, st: s.st === "I" ? "" : s.st, et: s.et === "I" ? "" : s.et };
     if (who.status === "holding" || who.status === "holdinguse") seg.h = 1;
     let arr = segByBed.get(s.r_idx);
     if (!arr) segByBed.set(s.r_idx, (arr = []));
@@ -330,6 +343,53 @@ async function loadChangelog(q, scope) {
        from legacy.room_change_log${agencyWhere}
       order by change_idx desc limit $1`, params);
   return rows;
+}
+
+// chgref: 변경환불홀딩 접수 목록(student_list_change.php) — 행정팀 요청 A4
+//   원천 legacy.student_change(26,857행) ⨝ legacy.student_info(영문명·상태)
+//   · 유형칸 판정(레거시 화면 컬럼과 동일한 5종):
+//     CHANGE=코스 변경(old≠new) · ADD=추가코스 · ETC=기타비용 · REFUND=환불액 · HOLDING=홀딩액
+//     ⚠ 기숙사는 old/new 컬럼 의미가 달라(old=room_list.r_idx, new=기숙사인실) 대소비교가 불가하므로
+//       CHANGE 판정에 쓰지 않는다. 기숙사 변경내역은 건별 상세(A2 서류폼)에서 다룬다.
+//   · info_etc_title 등 tinytext 에 개행이 섞여 있어 한 줄로 정리(표시 전용).
+//   · apply_date 는 '2026-07-13(18:18:12)' 형태라 앞 10자만 날짜로 쓴다.
+const CHGREF_COLS = ["IDX", "SID", "AGENCY", "NAME_EN", "STUDENT", "APPLY", "CENTER",
+  "CHANGE", "ADD_COURSE", "ETC_FEE", "REFUND", "HOLDING",
+  "PROCESS", "RESULT", "DUE", "COMPLETE", "MANAGER", "PERIOD", "GAP"];
+
+async function loadChgref(q, scope) {
+  const params = [SLICE_FROM];
+  let agencyWhere = "";
+  if (scope.agency) { params.push(scope.agency); agencyWhere = ` and lower(coalesce(sc.uhak_id,'')) = lower($${params.length})`; }
+  // 개행·중복공백 제거용(표시 전용). 원본은 건드리지 않는다.
+  const L = (col) => `btrim(regexp_replace(coalesce(${col},''), '\\s+', ' ', 'g'))`;
+  const { rows } = await q(
+    `select sc.change_idx idx, sc.s_idx sid, coalesce(sc.uhak_id,'') agency,
+            coalesce(nullif(${L("si.e_name")},''), ${L("sc.k_name")}) name_en,
+            coalesce(nullif(${L("si.k_name")},''), ${L("sc.k_name")}) student,
+            left(coalesce(sc.apply_date,''),10) apply, upper(coalesce(sc.apply_sme_campus,'')) center,
+            case when ${L("sc.info_course_old_detail")} <> ${L("sc.info_course_new_detail")}
+                 then 'COURSE' else '' end chg,
+            ${L("sc.info_add_detail")} add_course,
+            left(${L("sc.info_etc_title")},60) etc_fee,
+            ${L("sc.info_refund_amount")} refund,
+            ${L("sc.info_holding_amount")} holding,
+            lower(${L("sc.info_process")}) process, lower(${L("sc.info_result")}) result,
+            ${D("sc.info_due_date")} due, ${D("sc.info_complete_date")} complete,
+            ${L("sc.apply_sme_manager")} manager,
+            ${L("sc.origin_period")} period,
+            ${L("sc.change_gap_price")} gap
+       from legacy.student_change sc
+       left join legacy.student_info si on si.s_idx = sc.s_idx
+      where left(coalesce(sc.apply_date,''),10) >= $1${agencyWhere}
+      order by sc.change_idx desc
+      limit ${MAX_CHGREF}`, params);
+  return {
+    cols: CHGREF_COLS,
+    rows: rows.map((r) => [String(r.idx), String(r.sid || ""), r.agency, r.name_en, r.student,
+      r.apply, r.center, r.chg, r.add_course, r.etc_fee, r.refund, r.holding,
+      r.process, r.result, r.due, r.complete, r.manager, r.period, r.gap]),
+  };
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -698,21 +758,68 @@ const TABLE_LOADERS = {
 };
 
 // 버전 스탬프: 최신 갱신 흔적(학생 timestamp · 예약 최대키 · 변경이력 최대키)
-async function loadStamp(q) {
+// 신규 명세화면 조각(members·boards·elec…)은 위 4개 테이블과 무관하게 바뀌므로, 요청한 조각에
+// 해당하는 최대키를 함께 넣는다. 넣지 않으면 게시판에 새 글이 올라와도 stamp 가 그대로라
+// ETag 가 안 바뀌고 클라이언트가 304 를 받아 옛 데이터를 '● DB 최신' 배지와 함께 계속 본다.
+// 비용을 위해 전부 PK/인덱스 최대값만 쓰고, 요청한 조각의 것만 계산한다.
+const PART_STAMP = {
+  members: `coalesce((select max(mb_no) from cms.g4_member)::text,'')`,
+  points: `coalesce((select max(po_id) from cms.g4_point)::text,'')`,
+  visits: `coalesce((select max(vs_date) from cms.g4_visit_sum)::text,'')`,
+  commission: `coalesce((select max(no) from legacy.uhak_agency_com)::text,'')`,
+  courses: `coalesce((select max(i_idx) from legacy.course_info)::text,'')`,
+  tuition: `coalesce((select max(idx) from legacy.tution_fee)::text,'')`,
+  boards: `coalesce((select max(wr_id) from cms."g4_write_office_GAC")::text,'')
+           || '/' || coalesce((select max(wr_id) from cms.g4_write_office_holding)::text,'')
+           || '/' || coalesce((select max(wr_id) from cms.g4_write_office_share)::text,'')`,
+  elec: `coalesce((select max(re_idx) from legacy.room_elec)::text,'')`,
+  agencyvisit: `coalesce((select max(d_idx) from legacy.uhak_day_info)::text,'')`,
+  dayoff: `coalesce((select max(idx) from legacy.smeag_dayoff)::text,'')
+           || '/' || coalesce((select max(idx) from legacy.smeag_sched_info)::text,'')`,
+  // farmgym 은 student_payment 기반 → 기존 sp_max 로 이미 감지됨
+};
+async function loadStamp(q, parts) {
+  const extra = (parts || []).filter((p) => PART_STAMP[p]);
+  const extraSel = extra.map((p, i) => `${PART_STAMP[p]} x${i}`).join(", ");
   const { rows } = await q(
     `select coalesce(to_char((select max("timestamp") from legacy.student_info),'YYYY-MM-DD"T"HH24:MI:SS'),'') si_ts,
             coalesce((select max(s_idx) from legacy.student_info)::text,'')      si_max,
             coalesce((select max(rr_idx) from legacy.room_reserve)::text,'')     rr_max,
             coalesce((select max(change_idx) from legacy.room_change_log)::text,'') cl_max,
-            coalesce((select max(student_payment_ctr) from legacy.student_payment)::text,'') sp_max`);
+            coalesce((select max(change_idx) from legacy.student_change)::text,'') sc_max,
+            coalesce((select max(student_payment_ctr) from legacy.student_payment)::text,'') sp_max
+            ${extraSel ? "," + extraSel : ""}`);
   const r = rows[0] || {};
-  return { si_ts: r.si_ts, si_max: r.si_max, rr_max: r.rr_max, cl_max: r.cl_max, sp_max: r.sp_max };
+  const out = { si_ts: r.si_ts, si_max: r.si_max, rr_max: r.rr_max, cl_max: r.cl_max, sc_max: r.sc_max, sp_max: r.sp_max };
+  extra.forEach((p, i) => { out[p] = r["x" + i]; });
+  return out;
+}
+
+// ── 인가(authorization) ──────────────────────────────────────────────────────
+// 레거시 로그인은 cms.g4_member 전체(2,000여 계정, 레벨 제한 없음)를 통과시킨다. 즉 로그인에
+// 성공했다는 사실만으로는 아무것도 보증하지 않는다. 그래서 조각마다 최소 레벨을 둔다.
+//   internal : 내부 운영자료(회원명부·포인트·접속통계·게시판·직원휴무·전기수도·커미션·변경이력) → Lv8+
+//   business : 학생/기숙사 업무 → Lv8+ 또는 '유학원 스코프가 확정된' 계정(자기 유학원만 조회)
+//   master   : 코스·학비 마스터 → 로그인만 (없으면 다른 화면의 코스명 매핑이 깨진다. PII 아님)
+const STAFF_LEVEL = 8;
+const PART_ACCESS = {
+  members: "internal", points: "internal", visits: "internal", boards: "internal",
+  dayoff: "internal", elec: "internal", commission: "internal", changelog: "internal",
+  students: "business", roomstat: "business", groups: "business", pickup: "business",
+  deposits: "business", chgref: "business", farmgym: "business", agencyvisit: "business",
+  courses: "master", tuition: "master",
+};
+function partAllowed(part, level, scope) {
+  const kind = PART_ACCESS[part] || "internal";
+  if (kind === "master") return true;
+  if (level >= STAFF_LEVEL) return true;
+  return kind === "business" && !!scope.agency;    // 유학원 확정 계정만, 그것도 자기 유학원만
 }
 const stampVersion = (stamp) =>
   crypto.createHash("sha1").update(Object.values(stamp).join("|")).digest("hex").slice(0, 16);
 
 // ── 엔트리 ───────────────────────────────────────────────────────────────────
-const ALL_PARTS = ["students", "roomstat", "groups", "pickup", "deposits", "changelog",
+const ALL_PARTS = ["students", "roomstat", "groups", "pickup", "deposits", "changelog", "chgref",
   // 명세화면 라이브(out.tables["<레거시 URL>"] 로 응답)
   "members", "points", "visits", "commission", "courses", "tuition",
   "farmgym", "boards", "elec", "agencyvisit", "dayoff"];
@@ -749,17 +856,31 @@ export default async function handler(req, res) {
     const q = (sql, params) => client.query(sql, params);
 
     // 유학원 계정 스코프: Lv8 미만이고 아이디가 실제 uhak_id 로 존재하면 본인 유학원만
+    const level = Number(session.mb_level || 0);
     const scope = { agency: null };
-    if (Number(session.mb_level || 0) < 8) {
+    if (level < STAFF_LEVEL) {
       const { rows } = await q(
         `select 1 from legacy.student_info where lower(coalesce(uhak_id,'')) = lower($1) limit 1`,
         [S(session.mb_id)]);
       if (rows.length) scope.agency = S(session.mb_id);
     }
 
-    const stamp = await loadStamp(q);
-    const version = stampVersion(stamp) + ":" + parts.join(".") + (parts.includes("roomstat") ? ":" + month : "")
-      + (parts.includes("pickup") ? ":" + from + "_" + to : "") + (scope.agency ? ":" + scope.agency : "");
+    // 인가: 조각별 최소권한. 직원(Lv8+)도 아니고 유학원으로도 확정되지 않은 계정(일반회원 등)은
+    // 마스터 조각 외에는 아무것도 받지 못한다(deny 기본값).
+    const allowed = parts.filter((p) => partAllowed(p, level, scope));
+    const denied = parts.filter((p) => !allowed.includes(p));
+    if (parts.length && !allowed.length) {
+      res.statusCode = 403;
+      return res.end(JSON.stringify({
+        ok: false, error: "forbidden", denied,
+        message: "이 자료를 조회할 권한이 없습니다. 담당 매니저에게 권한을 요청하세요.",
+      }));
+    }
+
+    const stamp = await loadStamp(q, allowed);
+    const version = stampVersion(stamp) + ":" + allowed.join(".") + (allowed.includes("roomstat") ? ":" + month : "")
+      + (allowed.includes("pickup") ? ":" + from + "_" + to : "")
+      + ":L" + (level >= STAFF_LEVEL ? "staff" : "ext") + (scope.agency ? ":" + scope.agency : "");
     const etag = `W/"${version}"`;
 
     if (wantStamp) {
@@ -790,6 +911,7 @@ export default async function handler(req, res) {
     if (parts.includes("pickup")) out.pickup = await loadPickup(q, from, to, scope);
     if (parts.includes("deposits")) out.deposits = await loadDeposits(q, scope);
     if (parts.includes("changelog")) out.changelog = await loadChangelog(q, scope);
+    if (parts.includes("chgref")) out.chgref = await loadChgref(q, scope);
     // 명세화면 조각: out.tables["<레거시 URL>"] = {cols, rows} · 500행 상한 초과 URL 은 out.truncated 에 기록
     // (같은 커넥션이라 pg 는 동시 쿼리 미지원 → 순차 실행)
     for (const p of parts) {
