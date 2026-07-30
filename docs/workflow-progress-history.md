@@ -413,3 +413,10 @@
   · 화면: 표시범위 라벨을 `from/to` → 없으면 `meta.window` → 둘 다 없으면 **라벨 자체 생략** 으로 폴백(`rsRange`). deploy/index.html · prototype.html 동일.
   · 생성기: `build_roomstat_real.py` 가 `roomstat.from/to` 를 함께 출력, `inject_realdata.py` 는 구버전 JSON 도 `meta.window` 로 from/to 를 채워 주입(재실행 시 자동 보정).
   · 검증: 배치도 배지 `(2025-01-01~2027-12-31)` 정상 표시. 전체 60개 화면 순회 스윕에서 `undefined`/`NaN`/`[object Object]` 0건, 콘솔에러 0.
+
+- **2026-07-30** **배치도 방 셀 이름·기간 오버레이(반투명) + 투명도 조절 — 룰러 아래 컨트롤**:
+  · 구간막대마다 `<span class="dlab">학생명 · MM/DD~MM/DD</span>` 를 렌더 시 심고(점유 세그먼트 = `occStore`(bed.occ) 의 창클램프 목록 재사용), 표시는 **테이블 클래스 `rs-dlab` + CSS 변수 `--dlabop`** 로만 제어 → 토글·투명도 변경에 **재렌더 없음**.
+  · 컨트롤: 룰러 버튼 **바로 아래**(`.rs-lblstack` 세로 스택) 에 `🏷 이름·기간` 토글 + **range 슬라이더(10~100%, 기본 50%)** + 현재값 표시. 슬라이더를 움직이면 자동 ON. 상태는 localStorage(`smeag-dlab`,`smeag-dlabop`) 유지, 재렌더 후 `__xhDlab.apply()` 로 복원.
+  · z-index 미지정(DOM 순서상 막대·X캡 위, 좌측 고정열 z-index:1 아래) → **라벨이 구분/방번호/인실/이름 고정열을 덮지 않음**. X 무늬 위 가독성용 얇은 후광(text-shadow).
+  · 검증(Playwright): 기본 OFF·라벨 273개 심김, 토글 ON→`display:block`, 10/25/50/90% 전환 시 `--dlabop`·표시값 동기화, 그룹 변경 재렌더 후 상태 유지, 페이지에러 0. 캡처 `exploration/shots/new_roomstat_dlab.png`.
+  · 배포 + `smeag-bay.vercel.app` 별칭 재지정 완료.
