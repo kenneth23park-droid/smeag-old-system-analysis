@@ -1,6 +1,9 @@
 {
   "outputDirectory": ".",
   "cleanUrls": true,
+  "rewrites": [
+    { "source": "/login", "destination": "/api/auth" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

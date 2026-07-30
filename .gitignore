@@ -37,3 +37,4 @@ migration/reports/
 
 # 연결테스트(실 anon 키 포함) — 커밋 금지
 legacy-bridge/conn_test.php
+deploy/node_modules/

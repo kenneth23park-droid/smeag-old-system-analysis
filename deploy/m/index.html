@@ -193,6 +193,7 @@ main.mv-main.has-search{top:calc(105px + env(safe-area-inset-top,0px))}
 <div class="mv-appbar">
   <div class="ttl"><span class="logo">S</span><span><span id="mvTitle">홈</span> <span class="sub" id="mvSub"></span></span></div>
   <span class="sp"></span>
+  <button class="mv-ibtn" id="mvLiveBtn" title="DB 최신 데이터 다시 불러오기">⟳</button>
   <button class="mv-ibtn" id="mvLangBtn" title="Language" style="font-size:12px;font-weight:800">EN</button>
   <button class="mv-ibtn" id="mvSearchBtn" title="검색">🔍</button>
   <button class="mv-ibtn" id="mvThemeBtn" title="테마">◑</button>
@@ -223,6 +224,79 @@ main.mv-main.has-search{top:calc(105px + env(safe-area-inset-top,0px))}
 let REAL=null; /*__REALDATA__*/
 /* let/const 는 window 프로퍼티가 아니므로 window.REAL/window.DICT 접근 섹션을 위해 브리지 */
 setTimeout(function(){try{window.REAL=REAL;window.DICT=DICT;}catch(e){}},0);
+
+/* ===== 라이브 DB 최신화 — 메뉴를 고르면 /api/data 로 최신값을 받고 그 데이터로 렌더 =====
+   · 데스크톱(index.html)과 같은 엔드포인트(읽기전용·세션쿠키 필수).
+   · 조각별 TTL 캐시 + ETag → 같은 화면 재진입 시 재조회하지 않음.
+   · 미로그인(쿠키 없음)·실패 시에는 기존 데이터로 계속 표시.                                */
+const MVLIVE={at:{},etags:{},inflight:{},ttls:{students:60000,roomstat:300000,pickup:120000,changelog:60000,deposits:120000},ttl:60000,month:'',ts:0,off:false,err:''};
+const MVPARTS={dash:['students','roomstat'],enroll:['students'],stdlist:['students'],
+  roomstat:['roomstat','students'],pickup:['pickup','students'],changelog:['changelog'],cash:['students']};
+function mvLiveMonth(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function mvLiveTag(state){
+  const b=document.getElementById('mvLiveBtn');if(!b)return;
+  const t=MVLIVE.ts?new Date(MVLIVE.ts).toLocaleTimeString('ko-KR',{hour12:false}):'';
+  if(state==='sync'){b.textContent='⟳';b.style.opacity='.45';b.title='DB에서 최신 데이터를 불러오는 중…';}
+  else{b.style.opacity='1';
+    b.textContent=state==='ok'?'⟳':(state==='err'?'⚠':'○');
+    b.title=state==='ok'?('DB 최신 '+t+' · 눌러서 다시 조회'):(state==='err'?('DB 오류: '+MVLIVE.err):'로그인 필요 — /login 에서 로그인하면 실데이터 조회');}
+}
+async function mvLiveSync(it,force){
+  if(MVLIVE.off||!window.fetch)return 'skip';
+  const parts=MVPARTS[(it&&it.k)||'']||['students'];
+  const month=mvLiveMonth(),now=Date.now();
+  const need=parts.filter(p=>force||!MVLIVE.at[p]||(now-MVLIVE.at[p])>(MVLIVE.ttls[p]||MVLIVE.ttl)||(p==='roomstat'&&MVLIVE.month!==month));
+  if(!need.length){mvLiveTag('ok');return 'fresh';}
+  const qs=new URLSearchParams({parts:need.join(',')});if(need.indexOf('roomstat')>=0)qs.set('month',month);
+  const key=qs.toString();
+  if(MVLIVE.inflight[key])return MVLIVE.inflight[key];
+  mvLiveTag('sync');
+  const run=async()=>{
+    try{
+      const headers={};if(!force&&MVLIVE.etags[key])headers['If-None-Match']=MVLIVE.etags[key];
+      const r=await fetch('/api/data?'+key,{credentials:'same-origin',cache:'no-store',headers});
+      if(r.status===401){MVLIVE.off=true;mvLiveTag('auth');return 'fail';}
+      if(r.status===304){need.forEach(p=>{MVLIVE.at[p]=Date.now();});MVLIVE.ts=Date.now();mvLiveTag('ok');return 'fresh';}
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const j=await r.json();if(!j||!j.ok)throw new Error((j&&j.message)||'bad response');
+      if(!REAL)REAL={};
+      if(j.studentsFull)REAL.studentsFull=j.studentsFull;
+      if(j.roomstat){REAL.roomstat=j.roomstat;MVLIVE.month=j.month||month;}
+      if(j.pickup)REAL.pickup=j.pickup;
+      if(j.groups)REAL.groups=j.groups;
+      if(j.deposits)REAL.deposits=j.deposits;
+      if(j.changelog)REAL.changelog=j.changelog;
+      try{window.REAL=REAL;}catch(e){}
+      const et=r.headers&&r.headers.get&&r.headers.get('ETag');if(et)MVLIVE.etags[key]=et;
+      need.forEach(p=>{MVLIVE.at[p]=Date.now();});MVLIVE.ts=Date.now();MVLIVE.err='';mvLiveTag('ok');
+      return 'updated';
+    }catch(e){MVLIVE.err=String((e&&e.message)||e);mvLiveTag('err');return 'fail';}
+    finally{delete MVLIVE.inflight[key];}
+  };
+  return (MVLIVE.inflight[key]=run());
+}
+/* 메뉴 이동 진입점: DB 최신화 → 렌더 */
+/* 이미 데이터가 있으면(빌드 주입 스냅샷 포함) 먼저 그리고 최신값은 도착 시 교체 */
+function mvHave(p){
+  if(!REAL)return false;
+  if(p==='students')return !!(REAL.studentsFull&&REAL.studentsFull.rows&&REAL.studentsFull.rows.length);
+  if(p==='roomstat')return !!(REAL.roomstat&&REAL.roomstat.groups&&REAL.roomstat.groups.length);
+  if(p==='pickup')return !!(REAL.pickup&&REAL.pickup.rows);
+  if(p==='deposits')return !!(REAL.deposits&&REAL.deposits.length);
+  if(p==='changelog')return !!(REAL.changelog&&REAL.changelog.length);
+  return false;
+}
+async function navRender(it){
+  const parts=MVPARTS[(it&&it.k)||'']||['students'];
+  const cold=!MVLIVE.off&&parts.some(p=>!MVLIVE.at[p]&&!mvHave(p));
+  if(cold){
+    const m=document.getElementById('mvMain');
+    if(m)m.innerHTML='<div class="mv-empty"><span class="ico">⟳</span>DB에서 최신 데이터를 불러오는 중…</div>';
+    await mvLiveSync(it);render(it);return;
+  }
+  render(it);
+  if(await mvLiveSync(it)==='updated')render(it);
+}
 const DICT=/*__DICT__*/{"uhak":[{"v":"","t":"AGENCY"},{"v":"doa","t":"\"DELGER OD AND\" LLC"},{"v":"amahn","t":"(1)AMAHN"},{"v":"ames","t":"(1)AMES"},{"v":"blueocean","t":"(1)BLUE OCEAN GROUP"},{"v":"OEA","t":"(1)BrainClick Vietnam/OEA Vietnam"},{"v":"bridgeblue","t":"(1)Bridge Blue"},{"v":"bbblue","t":"(1)Bridge Blue"},{"v":"catta","t":"(1)CATTA"},{"v":"EBVN","t":"(1)EduBridge Viet Nam"},{"v":"eduvietglobal","t":"(1)Eduviet Global"},{"v":"eduzone","t":"(1)Eduzone"},{"v":"Futurelink","t":"(1)Futurelink"},{"v":"gitizen","t":"(1)gitizen"},{"v":"hathai","t":"(1)Ha Thai Tour and Travel"},{"v":"hungcuong","t":"(1)Hung Cuong"},{"v":"idc","t":"(1)IDC"},{"v":"indec","t":"(1)INTELLECTUAL DEVELOPMENT COMPANY (IND"},{"v":"Interconex","t":"(1)Interconex"},{"v":"isd","t":"(1)International Study Development JSC."},{"v":"Jellyfish","t":"(1)Jellyfish"},{"v":"ladeco","t":"(1)LADECO CORP"},{"v":"lienchau","t":"(1)Lien Chau Company, Ltd."},{"v":"megastudy","t":"(1)MEGA STUDY FPT"},{"v":"newstar","t":"(1)newstar"},{"v":"AIT","t":"(1)PHUONG ANH"},{"v":"queensland","t":"(1)Queensland"},{"v":"sunmoon","t":"(1)sunmoon"},{"v":"sunrisevietnam","t":"(1)Sunrise Vietnam Agency"},{"v":"tve","t":"(1)Tan Viet Education"},{"v":"tec","t":"(1)TEC Academy"},{"v":"viet","t":"(1)Viet Vision"},{"v":"aauco","t":"(2)A Au Co"},{"v":"AMA","t":"(2)AMA"},{"v":"coc","t":"(2)COC Vietnam"},{"v":"compass","t":"(2)COMPASS EDU"},{"v":"dtu","t":"(2)Duc Tu Trading Corporation-DTU"},{"v":"edulinks","t":"(2)EDULINKS"},{"v":"GOLDENWAY","t":"(2)GOLDENWAY"},{"v":"icsa","t":"(2)ICSA"},{"v":"inec","t":"(2)INEC"},{"v":"mice","t":"(2)MICE"},{"v":"newsky","t":"(2)New Sky"},{"v":"newworld","t":"(2)New World"},{"v":"saigontourist","t":"(2)Saigon Tourist"},{"v":"udc","t":"(2)United Education Corporation"},{"v":"VINAM","t":"(2)VI NAM INTERNATIONAL COMPANY"},{"v":"vicom","t":"(2)VICOM"},{"v":"vietclever","t":"(2)Vietclever"}],"nation":[{"v":"","t":"COUNTRY"},{"v":"kor","t":"KOR[한국]"},{"v":"chi","t":"CHI[중국]"},{"v":"jap","t":"JAP[일본]"},{"v":"twa","t":"TWA[대만]"},{"v":"vtn","t":"VTN[베트남]"},{"v":"tha","t":"THA[태국]"},{"v":"rus","t":"RUS[러시아]"},{"v":"mgl","t":"MGL[몽고]"},{"v":"om","t":"OM[오만]"},{"v":"etc","t":"ETC[기타]"}],"now_status":[{"v":"","t":"CONDITION"},{"v":"normal","t":"NORMAL[정상]"},{"v":"extend","t":"EXTEND[연장]"},{"v":"refund","t":"REFUND[환불]"},{"v":"exchange","t":"EXCHANGE[변경]"},{"v":"out","t":"OUT[퇴교]"},{"v":"holding","t":"HOLDING[홀딩]"},{"v":"holdinguse","t":"HOLDINGUSE[홀딩사용]"},{"v":"graduated","t":"GRADUATED[졸업]"},{"v":"cancel","t":"취소"},{"v":"paycancel","t":"납부취소"},{"v":"waiting","t":"보류"},{"v":"checking","t":"관리"},{"v":"etc","t":"ETC[기타]"}],"campus":[{"v":"","t":"::캠퍼스::"},{"v":"sparta","t":"엔칸토"},{"v":"classic","t":"클래식"},{"v":"capital","t":"캐피탈"}],"pay_status":[{"v":"","t":"납부상태"},{"v":"N","t":"미납(UNPAID)"},{"v":"Y","t":"완납(PAID)"},{"v":"X","t":"분납(INSTALL)"},{"v":"R","t":"반환(RETURN)"}],"pay_channel":[{"v":"","t":"납부방법"},{"v":"center","t":"센터수금(center)"},{"v":"account","t":"계좌수금(account)"}],"room_gubun":[{"v":"1","t":"TEMPORARY/FAMILY"},{"v":"68","t":"CAPITAL1/MALE"},{"v":"71","t":"CAPITAL1/FEMALE"},{"v":"69","t":"CAPITAL2/MALE"},{"v":"75","t":"CAPITAL2/FEMALE"},{"v":"82","t":"S hotel(H)_M/MALE"},{"v":"83","t":"S hotel(H)_F/FEMALE"},{"v":"137","t":"Amethyst(AM)_F/FEMALE"},{"v":"130","t":"ENCANTO2/FAMILY"},{"v":"133","t":"ENCANTO(VIP)/FAMILY"}],"course_info1":[{"v":"","t":"::FIRST COURSE::"},{"v":"14","t":"ESL(CAPITAL)"},{"v":"16","t":"Pre-IELTS"},{"v":"17","t":"IELTS 5.5"},{"v":"18","t":"IELTS 6.0"},{"v":"31","t":"IELTS 6.5"},{"v":"32","t":"IELTS 7.0"},{"v":"25","t":"TOEIC 600"},{"v":"26","t":"TOEIC 700"},{"v":"50","t":"TOEFL 4.0(80)"},{"v":"38","t":"GAC Level 1"},{"v":"52","t":"Business"}],"pay_result":[{"v":"","t":"::비용처리::"},{"v":"center","t":"센터수납미처리(Center not yet)"},{"v":"account","t":"계좌수납미처리(Account not yet)"},{"v":"collection","t":"수금완료(Paid)"},{"v":"refund","t":"환급완료(Refunded)"},{"v":"holding","t":"홀딩확정(Holding)"},{"v":"cancel","t":"취소(Cancel)"}],"r_limit":[{"v":"","t":"::per/room::"},{"v":"1","t":"1per/room"},{"v":"2","t":"2per/room"},{"v":"3","t":"3per/room"},{"v":"4","t":"4per/room"},{"v":"5","t":"5per/room"}]};
 
 /* ================= 런타임 번역(기본 영어) — 데스크톱과 동일 방식 ================= */
@@ -457,7 +531,7 @@ function selectTab(tab){
   document.querySelectorAll('.mv-tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
   if(tab==='more'){openMenuSheet();return;}
   const t=TABS.find(x=>x.tab===tab);const items=itemsForTab(tab);
-  const first=items[0]||t.route;render(Object.assign({tab:tab},first,{u:first.u||t.route.u||''}));
+  const first=items[0]||t.route;navRender(Object.assign({tab:tab},first,{u:first.u||t.route.u||''}));
 }
 
 /* 전체메뉴 시트 */
@@ -471,12 +545,12 @@ function openMenuSheet(){
     const it=JSON.parse(el.dataset.nav);closeSheet();
     // 탭 하이라이트
     const tab=it.tab||'more';document.querySelectorAll('.mv-tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===tab));
-    render(Object.assign({tab:tab},it));});
+    navRender(Object.assign({tab:tab},it));});
 }
 
 /* 스위처 클릭 위임 */
 document.getElementById('mvMain').addEventListener('click',e=>{const el=e.target.closest('.mv-switch [data-nav]');
-  if(!el)return;render(JSON.parse(el.dataset.nav));});
+  if(!el)return;navRender(JSON.parse(el.dataset.nav));});
 
 /* 검색바 → 현재 섹션에 검색어 전달(섹션이 window.__mvSearch 훅 제공 시) */
 document.getElementById('mvSearchBtn').addEventListener('click',()=>{
@@ -1916,7 +1990,12 @@ window.M_table = (function(){
   const gate=document.getElementById('mvGate'),msg=document.getElementById('mvGateMsg');
   function showGate(){gate.classList.add('on');}
   function hideGate(){gate.classList.remove('on');}
-  function boot(){buildTabs();selectTab('home');try{i18nApply(document.body);}catch(e){}}
+  function boot(){buildTabs();selectTab('home');try{i18nApply(document.body);}catch(e){}
+    const lb=document.getElementById('mvLiveBtn');   // ⟳ 수동 최신화(현재 화면)
+    if(lb&&!lb._wired){lb._wired=1;lb.addEventListener('click',function(){
+      if(MVLIVE.off){toast('로그인 필요','/login 에서 로그인하면 DB 실데이터를 조회합니다.',false);return;}
+      navRender(CUR);});}
+  }
   // 언어 토글(기본 영어) — 데스크톱과 동일 저장키
   (function(){var lb=document.getElementById('mvLangBtn'); if(lb){ lb.textContent=(LANG==='en'?'EN':'한');
     lb.addEventListener('click',function(){ LANG=(LANG==='en'?'ko':'en'); try{localStorage.setItem('smeag-lang',LANG);}catch(e){}

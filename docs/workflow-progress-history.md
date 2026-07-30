@@ -356,15 +356,47 @@
   · 검색 시 첫 방이 걸러져 그룹명이 사라지는 문제 대비: 검색 중 `table.gantt.rs-filtering` → 남은 모든 행에 구분 라벨 표시(프로토타입에도 동일 적용).
   · Playwright 검증(deploy/index.html, CAPITAL·MALE·전체그룹): 헤더 `Group|Room Number|Room Type|Name`, 첫방 grp-first+CAPITAL1, 후속방 병합표시, 방번호 번호만, '301' 검색 시 2행 각각 구분 라벨 표시, 콘솔에러 0(로컬 file:// 의 /api/auth 제외).
 
+- **2026-07-30** **배치도 방구분(카테고리) 파리티 — 구시스템 24개 확인 후 신시스템 반영**:
+  · 근거(원본 읽기전용): `sql/room_category.sql` `g_display='Y'` = **30그룹**, `bldg_type='E'`(CAPITAL 센터) **24개** / `bldg_type='S'`(ENCANTO 센터) **6개**. `sql/room_list.sql`(r_state='Y') 조인 = **416방/1016베드**. 레거시 `room_stat2.php` 드롭다운 30개 목록과 일치(크롤 `exploration/crawl_results.json` 대조).
+  · 원인: 신시스템 배치도는 `REAL.roomstat` 미주입 시 **목데이터 4그룹(TEMPORARY·CAPITAL1/M·CAPITAL2/F·S hotel(H))** 만 생성 → 방구분 드롭다운이 3개로 보였음(구시스템 24개 대비 부족).
+  · 조치: 목데이터를 레거시 실구성 압축표(`LEGACY_CATS`, `g_name|성별|센터|방번호*침대수`)로 교체 → **30그룹/416방/1016베드**, g_order 순서까지 레거시와 동일. `deploy/index.html` + `docs/design-admin/prototype.html` 동시 적용.
+  · `campusOf` 정정: `TEMPORARY`→CAPITAL(bldg E), `Casablu`→**ENCANTO**(bldg S, 기존엔 CAPITAL로 오분류).
+  · 용어 정리: 레거시 `room_gubun`=방구분=**카테고리** → 그룹 셀렉트 라벨을 `방구분(카테고리)/Room category`, 인실 셀렉트는 `인실(정원)/Beds per room`(신시스템 추가필터)로 명확화.
+  · Playwright 검증: CAPITAL+전체성별 → 방구분 **24개**(TEMPORARY … Canberry(Cb)_Family, 레거시 순서 동일), ENCANTO → **6개**(Casablu·ENCANTO2·3·4·VIP·O), 전체선택 렌더 **335방/713베드**(=bldg E 실측치), 인실=3 필터 85방·전부 3-person, Amethyst(AM)_F 단일선택 19방, 페이지에러 0.
+
 - **2026-07-30** **배치도 방셀 "클릭 안 됨 · 정보 안 보임" 수정 (배포본 누락 이관 + 인실칸 잘림)**:
   · 원인1(핵심): 2026-07-29 프로토타입에만 적용했던 좁은/일반 뷰포트 가로넘침 수정이 **배포본 `deploy/index.html`에 미이관**. `.app{grid-template-columns:1fr}` + `.main{overflow-x:hidden}`(min-width 없음) → 넓은 배치도 표가 그리드 트랙을 밀어 래퍼가 뷰포트 초과(1280 화면에서 twW **1651**), 표 내부 가로스크롤 대신 페이지째 넘쳐 화면 밖 방셀은 보이지도·클릭되지도 않음. → `.app{grid-template-columns:minmax(0,1fr)}` + `.main{...;min-width:0}` 이관(twW 1280→**1232**, 1024→**976**).
   · 원인2: 상단 필터 셀렉트 줄(inline flex)이 `flex-wrap` 없어 폭 1375px로 넘침 → 1280 화면에서 검색창이 화면 밖. → `flex-wrap:wrap` 추가(2줄 배치).
   · 원인3: 인실(Room Type) 칸 58px < `3-person` 칩 폭 → 이름열(sticky) 아래로 잘려 "3-perso"로 보임. → 컬럼 80px, `.c3` sticky offset 240→**262px**, `INFOW=GRPW(96)+86+80+nameW`. `deploy/index.html` + `docs/design-admin/prototype.html` 동일 적용.
   · Playwright 검증(1600/1280/1024/820): 방번호셀 클릭→ROOM REPLACEMENT 모달, 일자레인 클릭→셀액션 팝업(#cellpop), 이름 클릭→학생정보 모달 모두 정상, 인실칩 전체 표시, 페이지에러 0.
 
-- **2026-07-30** **상단바 우측 컨트롤(캠퍼스·DB배지·부서·EN·전체화면·테마·계정) 화면 밖 밀림 수정** (`deploy/index.html` + `prototype.html`):
-  · 증상: 노트북 폭(1280~1600)에서 상단바 내용 실폭이 약 1915px → 우측 컨트롤이 뷰포트 밖으로 밀려 보이지도 클릭되지도 않음(페이지째 가로 넘침도 유발).
-  · 조치 ① 압축: `≤1980px` 간격 18→10·좌우패딩 12·`.cat` 패딩 축소·`ADMIN·신규` 부가라벨 숨김, `≤1660px` 카테고리 아이콘·`캠퍼스` 라벨 숨김 → 실폭 1915→약 1434px.
-  · 조치 ② 안전장치: `.top{flex-wrap:wrap;height:auto;min-height:56px}` + `justify-content:flex-end` + `.brand{margin-right:auto}` → 그래도 안 들어가면 **2줄로 감싸고 우측 정렬 유지**(어떤 폭에서도 컨트롤이 잘리지 않음). 드롭다운 메뉴는 `.cats`에 overflow를 주지 않아 그대로 펼쳐짐.
-  · Playwright 검증(2560/1920/1728/1600/1440/1366/1280/1024): 페이지 가로넘침 0·상단바 밖으로 나간 요소 0(1600 이상 1줄 56px, 1440 이하 2줄 86~90px), 카테고리 드롭다운 정상 표시, 배치도 방셀 클릭(방번호·일자레인·이름) 정상, 페이지에러 0.
-  · **라이브 배포 완료**: `smeag-kd0x2bc5a-jitnet-7048s-projects.vercel.app`(READY) → 별칭 `smeag-bay.vercel.app` 재지정. 라이브 HTML 대조: 상단바 압축/2줄 규칙·`.c3 262px`·인실 80px·`.main{min-width:0}`·필터 `flex-wrap` 전부 반영 확인, `/login` 200.
+- **2026-07-30** **배치도 이름 클릭 → 학생정보 + 그 학생의 방 셀(점유구간) 동시 강조** (`deploy/index.html`):
+  · 기존: 이름 클릭 시 STUDENT INFORMATION 모달만 열림(방 셀에서 그 학생이 어느 날짜·어느 방을 쓰는지 눈으로 못 찾음).
+  · 추가: `rsHighlight(name, scroll)` — `window._rsOcc`(침대별 점유 세그먼트)에서 그 이름의 세그먼트를 배치도 전 범위에서 찾아 `.dlanein` 위에 `.rs-hl` 오버레이(accent 테두리+반투명 배경)를 올리고, 이름칸 행(`tr.rs-hl-row`)·방번호 셀(`tbody.rs-hl-block`)·클릭한 이름칩(`.rs-nameseg.on`)을 함께 강조. 방을 옮긴 학생은 **여러 방 행이 동시에** 강조된다.
+  · 강조구간이 가시창 밖이면 그 날짜로 가로 스크롤(첫 세그먼트 -2일 위치, smooth).
+  · 세그먼트 정보가 없는 샘플데이터(REAL 미주입) 폴백: 이름이 일치하는 침대의 재실 막대(.dbar) 전체 강조.
+  · 유지/해제: 모달을 닫아도 강조 유지(배치도에서 계속 추적) · **Esc** 로 해제(`rsClearHl`) · 다른 이름 클릭 시 자동 교체. 스크롤로 이름칸이 재렌더돼도(`rsUpdateNames`) 강조 칩 복원. 모달 상단에 안내 note 추가(EN/한).
+  · Playwright 검증(file://, CAPITAL1/Male): 이름칩 클릭 → `.rs-hl` 생성 + `tr.rs-hl-row` 1행 + STUDENT INFORMATION 모달, Esc → 강조 0개, 페이지에러 0. 모바일(`deploy/m/index.html`)에는 배치도 이름칩이 없어 대상 아님.
+  · **라이브 배포 완료**: `smeag-eil3qdwxk-jitnet-7048s-projects.vercel.app` → 별칭 `smeag-bay.vercel.app` 재지정. 라이브 Playwright 검증: 이름칩 클릭 → `.rs-hl` 강조 + 행/방번호 강조 + STUDENT INFORMATION 모달(안내 note), Esc → 해제, 페이지에러 0. (이후 화면 변경은 **항상 배포까지** 진행)
+
+- **2026-07-30** **배치도 실데이터 주입 빌드 + 라이브 반영** (구시스템과 내용이 달랐던 근본 원인 해소):
+  · 원인: 배포본 `deploy/index.html` 은 `let REAL=null` 상태로 나가서 **목데이터(fakeName 랜덤 이름·랜덤 입퇴실)** 로 렌더 → 방 골격만 맞고 셀 내용이 레거시와 전부 달랐음. (`/api/data` 라이브 경로는 로그인 세션 필요)
+  · `migration/build_roomstat_real.py` 신설 — sql 덤프(읽기전용) 조인: `room_category(g_display='Y')` 30그룹 × `room_list(r_state='Y')` 416방/1016베드 × `room_reserve`(2025-01-01~2027-12-31 창) → 침대슬롯별 연속구간 세그먼트 **12,887건**, `student_info` 로 표시이름·홀딩플래그. 값 파서는 escape(`\'`,`''`)·콤마 포함 문자열·멀티라인 text 연속행 방어.
+  · seg.h(홀딩) 대상에 `checking`/`waiting` 포함 — 'Tammy for …' 등 담당자 임시선점이 실학생 뒤 이름칸에 끼는 문제 제거(레거시 규칙 재현).
+  · `migration/inject_realdata.py` 신설 — `let REAL=null; /*__REALDATA__*/` 자리를 `JSON.parse('…')` 로 교체(멱등). 세션 없이도 실데이터 표시, 로그인 시 `/api/data` 응답이 덮어씀. index.html 367KB → 1.5MB.
+  · **버그 수정**: `genderOf` 가 `'CAPITAL3 / FEMALE'`(슬래시 뒤 공백)을 못 읽어 **성별=FEMALE/FAMILY 선택 시 방구분 드롭다운이 비활성**됐음 → `/\/\s*FEMALE/` 등으로 수정(FEMALE·FAMILY 를 MALE 보다 먼저 판정). deploy·prototype 동일 적용.
+  · 검증(Playwright): 301-1 `준블락_single use` · 301-2 `staff_준매니저` · 519호 4침대 `Margarita Rodikova-XU WEI / RINKA MIYASHITA-LIN CHUN CHIEN-TASHIRO KAON / Sofia Ryzhmanova-HSU JIA JIE / Sofia Kiseleva` = 레거시 대조값 일치. 방구분 CAPITAL 24개(남8·여8·공용8)/ENCANTO 6개, 전체 조회 335방·713베드 렌더 405ms, 이름 누락 0건, 페이지에러 0.
+  · 배포: `vercel deploy --prod` + **`vercel alias set` 로 `smeag-bay.vercel.app` 별칭 재지정**(직전 배포는 별칭이 이동하지 않아 구버전이 보이고 있었음) → dpl_CyvMFZPLmYxJCLkAWawoiUViWbSs.
+
+- **2026-07-30** **메뉴를 고르면 DB를 먼저 최신화하고 그 값으로 화면을 그린다 (라이브 조회 `/api/data` 신설)**:
+  · 요구: "메뉴 선택 시 데이터베이스를 갱신하고 최신 정보를 보여줄 것". 기존은 빌드시 주입 스냅샷(`inject_realdata.py`)이라 화면이 배포시점 값에 고정.
+  · `deploy/api/data.js` 신설 — Vercel 서버리스 → Supabase Postgres **읽기 전용**(select 만, 레거시 MySQL 무접속). 인증은 `/api/auth` 가 발급한 httpOnly 쿠키 세션(`sme_session`) 필수, 없으면 401. **유학원 계정(Lv8 미만 + 아이디가 실제 uhak_id)은 자기 유학원 학생만** 조회(PII 최소노출, 검증 `blued` → 1,297건).
+  · 조각(parts) 단위 조회 — `students`(legacy.student_info 2025년 이후 슬라이스 **12,389건**, 화면 18칸 배열) · `roomstat`(선택월 ±6개월 창: room_category 30그룹 × room_info 418방 × room_list 1,024베드 × room_reserve 일자행을 예약단위로 압축한 **6,351구간**) · `pickup`(주간 목→다음주 수, 편명·도착시각 파싱 + 신입(In) 판정) · `groups`(student_group_info 12) · `deposits`(student_payment ⨝ student_info, 상한 3,000건) · `changelog`(room_change_log 최근 300).
+  · 생년월일은 `app.jumin_to_birth(s_jumin)` 결과가 **1930~올해 범위일 때만** 채택(외국인은 주민칸이 여권번호 등 잡값이라 1820년대 같은 오연도가 나옴) → 나머지는 기존 화면 로직대로 저장나이 근사(≈) 표시.
+  · 클라이언트(`deploy/index.html`): 메뉴 클릭·해시이동 → `goMenu()` = **DB 최신화 → 렌더**. 조각별 TTL 캐시(학생 60초·배치도 5분·그룹 10분) + ETag 304 + 동일요청 중복발사 차단(inflight). 이미 데이터가 있으면(주입 스냅샷 포함) 즉시 그린 뒤 새 값 도착 시 교체, 없으면 "불러오는 중" 후 렌더. 상단에 **상태배지**(`DB 최신 HH:MM:SS` / 갱신중 / 오류·캐시표시 / 로그인 필요)와 **수동 ⟳ 버튼**(현재 화면 강제 재조회). 배치도 월 이동은 즉시 표시 + 백그라운드로 해당 창 보강. 로그인 게이트 `enter()` 직후 자동 최신화. 실패 시 이전 데이터 유지 + 토스트.
+  · 모바일(`deploy/m/index.html`): 탭·전체메뉴·스위처 이동을 `navRender()`(최신화 → 렌더)로 통일, 앱바 ⟳ 버튼 = 상태표시 겸 수동 재조회.
+  · **부하 대책**(질문 반영): ① 조회 인덱스 9개 추가(`legacy.student_info` s_departure/s_sdate/s_edate/s_regdate/lower(uhak_id)/e_name/timestamp, `student_payment.deposit_day`, `room_reserve(rr_date,r_idx)`) — 인덱스는 **Supabase 이관본에만**, 원본 MySQL 불가침. ② warm 인스턴스 커넥션 재사용 ③ 버전스탬프(=변경 흔적 해시) 기반 서버 메모리 캐시 90초 ④ 픽업 신입판정 쿼리를 전체 90k 그룹핑 → 대상자 한정 CTE로 축소(2,418ms → **576ms**).
+  · 측정(실 DB): 학생 cold **1,451ms/2,191KB** → 메모리캐시 **134ms** → 304 **134ms/0KB**, 배치도 cold **1,423ms/573KB** → 캐시 137ms, 버전스탬프 136ms, 픽업 576ms, 입금 639ms, 변경이력 290ms.
+  · 검증(Playwright, 로컬서버+실 핸들러): 부팅 1회 조회 → 배지 `DB 최신`, 수강등록관리 **12,389건** 실데이터, 배치도 30그룹·"실데이터(MySQL) 2026-01-01~2027-01-31", 같은 메뉴 재진입 **추가호출 0**, ⟳ → 재조회, 주간픽업 65행(날짜그룹 헤더 포함), BACK-UP LOG 300행, Group Students 12행(`?parts=groups`), DEPOSIT 3,000행(`?parts=deposits`), Deposit(test) 캐시재사용 0회, 모바일 탭 이동(홈 students+roomstat / 픽업 62행) 정상, 페이지에러 0.
+  · 검증 하네스: `exploration/live-data/`(perf·probe·e2e·e2e2·e2e_m + README).
+  · 남은 제약: `REAL.tables`(레거시 크롤 표 16종)는 DB 파생이 아니라 그대로 스냅샷 사용 · DEPOSIT 3,000건 상한(전체 12,336건 중 최신순) · 로그인 세션이 없으면(게이트 폴백 로그인) 라이브 조회 대신 스냅샷/샘플 표시.

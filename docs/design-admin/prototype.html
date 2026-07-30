@@ -404,8 +404,14 @@
   .gantt tbody.room-block>tr>td{border-top:0}
   .gantt tbody.room-block>tr:first-child>td.info{border-top:2px solid var(--border)}
   /* 구분(그룹) 칸: 그룹 첫 방에만 라벨 표시 → 같은 그룹은 한 칸으로 보임. 검색 중엔 모든 행에 표시 */
+  .gantt td.c0 .grpname{position:absolute;top:4px;left:6px;display:inline-block}              /* 세로 스크롤 시 JS가 헤더 바로 아래로 위치 고정(rsPinGrpLabels) */
   .gantt tbody.room-block:not(.grp-first) td.c0 .grpname{visibility:hidden}
+  .gantt tbody.room-block.grp-pin td.c0 .grpname{visibility:visible}                          /* 그룹의 화면상 첫 방에 라벨 표시(그룹 안에서 라벨 유지) */
   .gantt.rs-filtering tbody.room-block td.c0 .grpname{visibility:visible}
+  /* 같은 그룹 = 한 셀: 그룹 내부 가로선 제거, 그룹 마지막 방에서만 아래 경계(그룹 끝) */
+  .gantt tbody.room-block td.c0{border-bottom:0}
+  .gantt tbody.room-block.grp-last td.c0{border-bottom:2px solid var(--accent)}
+  .gantt.rs-filtering tbody.room-block td.c0{border-bottom:1px solid var(--gline)} /* 검색 중엔 행마다 라벨 → 칸 구분 복원 */
   .gantt tbody.room-block>tr:first-child>td.c0{border-top:0}                                   /* 같은 그룹 내: 그룹칸 경계 제거(시각적 병합) */
   .gantt tbody.room-block.grp-first>tr:first-child>td.info{border-top:2px solid var(--accent)} /* 그룹 첫 방: 그룹 구분선(강조) */
   .gantt tbody.room-block>tr:first-child>td.c1{box-shadow:inset 3px 0 0 var(--accent-weak)}
@@ -438,6 +444,12 @@
   .gantt tbody.room-block.rs-blocked td.dlane{background:color-mix(in srgb,var(--female) 16%,var(--surface))}
   .gantt tbody.room-block.rs-blocked td.c1{box-shadow:inset 3px 0 0 var(--female)}
   .gantt .rs-lock{margin-right:2px;font-size:9px;vertical-align:middle}
+  /* 이름 클릭 → 그 학생의 점유구간(방×날짜 셀) 강조 */
+  .gantt .rs-hl{position:absolute;top:0;bottom:0;pointer-events:none;z-index:4;border-radius:3px;
+    box-shadow:inset 0 0 0 2px var(--accent);background:color-mix(in srgb,var(--accent) 18%,transparent)}
+  .gantt tr.rs-hl-row td.c3,.gantt tr.rs-hl-row td.c2,.gantt tr.rs-hl-row td.c1{background:var(--accent-weak)}
+  .gantt tbody.room-block.rs-hl-block>tr:first-child>td.c1{box-shadow:inset 3px 0 0 var(--accent)}
+  .gantt .rs-nameseg.on{background:var(--accent);color:#fff;padding:0 3px}
   .twrap.dorm-scroll.panning{cursor:grabbing;scroll-behavior:auto;user-select:none}
   .twrap.dorm-scroll.panning *{cursor:grabbing !important}
 
@@ -1336,7 +1348,8 @@ R.roomstat=()=>{
     // CAPITAL 권역(bldg_type='E'): CAPITAL*·TEMPORARY·S hotel·Amethyst·Canberry·Citadines·Commercial·RECORD ROOM
     if(u.startsWith('CAPITAL')||/TEMPORARY|S ?HOTEL|AMETHYST|CANBERRY|CITADINES|COMMERCIAL|RECORD ROOM/.test(u))return 'CAPITAL';
     return 'ETC';};
-  const genderOf=n=>{const u=(n||'').toUpperCase();return /\/MALE|\/ MALE/.test(u)?'MALE':/\/FEMALE/.test(u)?'FEMALE':/\/FAMILY/.test(u)?'FAMILY':'';};
+  // '건물 / 성별' 의 공백 유무를 모두 허용(FEMALE 이 MALE 을 포함하므로 FEMALE·FAMILY 를 먼저 판정)
+  const genderOf=n=>{const u=(n||'').toUpperCase();return /\/\s*FEMALE/.test(u)?'FEMALE':/\/\s*FAMILY/.test(u)?'FAMILY':/\/\s*MALE/.test(u)?'MALE':'';};
   const bldgOf=n=>(n||'').split('/')[0].trim(); // 그룹명 '건물(구분)/성별' 중 구분 부분(예 CAPITAL2, S hotel(H)_M)
   // 구분(그룹) 표시라벨: '건물/성별' 전체명, 성별부는 언어연동(남자/여자/공용) — 레거시 표기 재현
   const grpLabel=n=>{const [bd,gd]=(n||'').split('/');const g=(gd||'').trim().toUpperCase();
@@ -1390,8 +1403,8 @@ R.roomstat=()=>{
     g.rooms.forEach((r,ri)=>{
       const h=r.beds.length*22;
       const bxk='BX|'+bldg.toUpperCase()+'|'+(''+r.no).toUpperCase(); const rblk=_blkSet.has(bxk);
-      const gfirst=ri===0; // 그룹의 첫 방 → 그룹칸에 그룹명 표시(그 외 방은 빈칸+경계없음=시각적 병합)
-      body+=`<tbody class="room-block${rblk?' rs-blocked':''}${gfirst?' grp-first':''}" data-bx="${esc(bxk)}" style="contain-intrinsic-size:auto ${h}px">`;
+      const gfirst=ri===0, glast=ri===g.rooms.length-1; // 그룹 첫 방=라벨 표시, 마지막 방=그룹 아래 경계 (사이 가로선 제거 → 한 칸으로 병합)
+      body+=`<tbody class="room-block${rblk?' rs-blocked':''}${gfirst?' grp-first':''}${glast?' grp-last':''}" data-bx="${esc(bxk)}" data-grp="${esc(bldg)}" style="contain-intrinsic-size:auto ${h}px">`;
       r.beds.forEach((bed,bi)=>{
         const rs=r.beds.length; // 같은 방(모든 침대)에서 그룹·방번호·인실 셀을 하나로 병합(rowspan)
         const lead=bi===0
@@ -1426,7 +1439,7 @@ R.roomstat=()=>{
       <span><i style="background:var(--female)"></i> ${T('여자 (FEMALE)','FEMALE')}</span>
       <span><i style="background:#ca8a04"></i> ${T('공용 (FAMILY)','FAMILY')}</span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;align-items:center">
       <select id="rsCenter" class="rs-ctrl" title="${T('센터','Center')}">${[['',T('::센터를 선택하세요::','::Select center::')],['ALL',T('전체 센터','All centers')],['ENCANTO','ENCANTO CENTER'],['CAPITAL','CAPITAL CENTER']].map(([v,l])=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsGender" class="rs-ctrl" title="${T('성별','Gender')}">${[['',T('::성별을 선택하세요::','::Select gender::')],['ALL',T('전체 성별','All gender')],['MALE',T('남 (MALE)','MALE')],['FEMALE',T('여 (FEMALE)','FEMALE')],['FAMILY',T('공용 (FAMILY)','FAMILY')]].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsGroup" class="rs-ctrl" title="${T('방구분(카테고리) — 레거시 room_gubun','Room category (legacy room_gubun)')}"${grpOpts.length?'':' disabled'}><option value="">${T('::방구분을 선택하세요::','::Select room category::')}</option><option value="ALL" ${roomFilter.group==='ALL'?'selected':''}>${T('방구분 전체 (SELECT ALL)','All categories (SELECT ALL)')}</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
@@ -2777,9 +2790,9 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   if(tw){const ms=+tw.dataset.mstart,mw=+tw.dataset.mwidth,iw=+tw.dataset.infow;
     tw.scrollLeft=Math.max(0,ms-((tw.clientWidth-iw-mw)/2)); // 선택월을 가시영역 중앙으로
     // 가로 스크롤 시 이름칸을 좌측 가시일 기준으로 실시간 갱신(rAF 스로틀)
-    let _raf=0;const onSc=()=>{if(_raf)return;_raf=requestAnimationFrame(()=>{_raf=0;rsUpdateNames(tw);});};
+    let _raf=0;const onSc=()=>{if(_raf)return;_raf=requestAnimationFrame(()=>{_raf=0;rsUpdateNames(tw);rsPinGrpLabels(tw);});};
     tw.addEventListener('scroll',onSc,{passive:true});
-    rsUpdateNames(tw);
+    rsUpdateNames(tw);rsPinGrpLabels(tw);
     // ── 방막기(드래그) ──
     const bmBtn=m.querySelector('#rsBlockMode');
     if(window._blkMode)tw.classList.add('blkmode');
@@ -2836,7 +2849,64 @@ function rsBarOccAt(tr,i){                    // 그 날짜가 '재실(패턴 X)
     if(i>=Math.round(l/cw)&&i<Math.round((l+w)/cw))return true;}
   return false;}
 
+// ─── 이름 클릭 → 그 학생의 점유구간(방×날짜 셀) 강조 ───
+// 배치도 전 범위(같은 학생이 방을 옮긴 경우 여러 방 행)에서 그 이름의 세그먼트를 찾아 막대 위에 강조 오버레이를 올린다.
+let _rsHlName='';
+function rsClearHl(){_rsHlName='';
+  document.querySelectorAll('.gantt .rs-hl').forEach(x=>x.remove());
+  document.querySelectorAll('.gantt tr.rs-hl-row').forEach(x=>x.classList.remove('rs-hl-row'));
+  document.querySelectorAll('.gantt tbody.rs-hl-block').forEach(x=>x.classList.remove('rs-hl-block'));
+  document.querySelectorAll('.gantt .rs-nameseg.on').forEach(x=>x.classList.remove('on'));}
+function rsHighlight(name,scroll){
+  rsClearHl();name=(''+(name||'')).trim();if(!name)return 0;
+  const tw=document.querySelector('.twrap.dorm-scroll');if(!tw)return 0;
+  _rsHlName=name;
+  const cw=+tw.dataset.cellw||19,infow=+tw.dataset.infow||298,store=window._rsOcc||[];
+  let hits=0,first=-1;
+  tw.querySelectorAll('.gantt td.name').forEach(cell=>{
+    const list=store[+(cell.dataset.occ||-1)];
+    const tr=cell.closest('tr'),inner=tr&&tr.querySelector('td.dlane .dlanein');if(!inner)return;
+    if(list&&list.length){                  // 실데이터: 그 학생의 점유 세그먼트만 정확히 강조
+      const segs=list.filter(s=>(''+s[0]).trim()===name);if(!segs.length)return;
+      segs.forEach(s=>{const sp=document.createElement('span');sp.className='rs-hl';
+        sp.style.left=(s[1]*cw)+'px';sp.style.width=((s[2]-s[1]+1)*cw)+'px';inner.appendChild(sp);
+        hits++;if(first<0||s[1]<first)first=s[1];});
+    }else{                                  // 세그먼트 정보 없음(샘플데이터): 그 침대의 재실 막대 전체 강조
+      if(!(''+(cell.dataset.name||'')).split(' / ').some(n=>n.trim()===name))return;
+      inner.querySelectorAll('.dbar').forEach(b=>{const sp=document.createElement('span');sp.className='rs-hl';
+        sp.style.left=b.style.left;sp.style.width=b.style.width;inner.appendChild(sp);
+        hits++;const l=parseFloat(b.style.left)||0;const i=Math.round(l/cw);if(first<0||i<first)first=i;});
+    }
+    tr.classList.add('rs-hl-row');
+    const blk=tr.closest('tbody.room-block');if(blk)blk.classList.add('rs-hl-block');
+    cell.querySelectorAll('.rs-nameseg').forEach(g=>{if((g.dataset.name||'').trim()===name)g.classList.add('on');});
+  });
+  if(scroll&&first>=0){                     // 강조구간이 가시창 밖이면 그 날짜로 가로스크롤
+    const cols=Math.max(1,Math.floor((tw.clientWidth-infow)/cw));
+    const left=Math.round((tw.scrollLeft||0)/cw);
+    if(first<left||first>left+cols-2)tw.scrollTo({left:Math.max(0,(first-2)*cw),behavior:'smooth'});}
+  return hits;}
 // 현재 스크롤 위치(좌측 가시일)를 기준으로 각 이름칸 재계산 — 값이 바뀐 칸만 갱신
+// 세로 스크롤: 각 그룹의 '화면에 보이는 첫 방'에만 구분 라벨 표시 → 그룹 중간까지 내려가도 라벨이 헤더 아래에 남는다.
+// (rowspan 은 tbody 를 넘을 수 없어 그룹 전체를 한 셀로 만들 수 없으므로, 라벨 위치를 스크롤에 맞춰 옮긴다)
+function rsPinGrpLabels(tw){
+  const tbl=tw&&tw.querySelector('table.gantt');if(!tbl)return;
+  const wr=tw.getBoundingClientRect(),th=tbl.querySelector('thead');
+  // 화면 밖 tbody 는 content-visibility:auto 로 렌더 스킵돼 rect/offsetTop 이 부정확 → 헤더 바로 아래 한 점을
+  // elementFromPoint 로 찍어 '지금 헤더 밑에 걸린 방'을 찾는다(O(1), 렌더된 요소만 대상).
+  if(!th)return;
+  // 헤더는 th 셀이 sticky(thead 자체 rect 은 스크롤과 함께 올라감) → 시각적 헤더 밑 = 래퍼 top + thead 높이
+  const wrr=tw.getBoundingClientRect(), line=wrr.top+(th.offsetHeight||43)+4, x=wrr.left+20;
+  const hit=document.elementFromPoint(x,line+22), tb=hit&&hit.closest&&hit.closest('tbody.room-block'); // 라벨이 들어갈 여유가 있는 방을 잡도록 기준선보다 조금 아래를 찍는다
+  tbl.querySelectorAll('tbody.grp-pin').forEach(t=>{                 // 이전 고정 해제(라벨 위치 원복)
+    if(t===tb)return; t.classList.remove('grp-pin');
+    const ps=t.querySelector('td.c0 .grpname'); if(ps)ps.style.top='';});
+  if(!tb||tb.style.display==='none')return;
+  tb.classList.add('grp-pin');
+  const c=tb.querySelector('td.c0'); if(!c)return;
+  const cr=c.getBoundingClientRect(), s=c.querySelector('.grpname');
+  if(s)s.style.top=Math.max(4,Math.min(line-cr.top,cr.height-17))+'px';  // 칸 안에서만 이동
+}
 function rsUpdateNames(tw){
   const store=window._rsOcc;if(!store||!tw)return;
   const cw=+tw.dataset.cellw||22;
@@ -2848,6 +2918,7 @@ function rsUpdateNames(tw){
     if(cell.dataset.cur===key)return;     // 변화 없으면 스킵(성능)
     cell.dataset.cur=key;cell.dataset.name=key;cell.classList.toggle('rs-name',!!key);
     cell.innerHTML=key?'<div class="rs-nmwrap">'+names.map(nm=>`<span class="rs-nameseg" data-name="${esc(nm)}" title="${esc(nm)} — 클릭 → 학생정보">${esc(korDisp(nm))}</span>`).join('<span class="rs-sep"> - </span>')+'</div>':'';
+    if(_rsHlName)cell.querySelectorAll('.rs-nameseg').forEach(g=>{if((g.dataset.name||'').trim()===_rsHlName)g.classList.add('on');}); // 이름칸 재렌더 후 강조 유지
   });}
 function renderAll(){if(!curMenu)curMenu=MENU[curCat][0];renderCats();renderMain();i18nApply(document.body);}
 function applyHash(){const [cat,idx]=location.hash.replace('#','').split('.');
@@ -3204,6 +3275,7 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
     ${infoOnly?'':`<div class="rp-actions" style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--border)">${qbar}</div>`}
     <div class="modal-body${infoOnly?' single':''}">
       <div class="rp-left">
+        ${infoOnly?`<div class="note" style="margin:0 0 10px">${T('📍 배치도에서 이 학생의 <b>방 셀(점유구간)</b>을 강조했습니다 — 모달을 닫아도 유지 · <b>Esc</b> 로 해제.','📍 This student\'s <b>room cells (stay range)</b> are highlighted in the batch chart — kept after closing · press <b>Esc</b> to clear.')}</div>`:''}
         <div class="rp-t">※ STUDENT INFORMATION${stu&&stu.__idx!=null?' : '+stu.__idx:''}</div>
         <table class="rp-info">
           ${info('NAME',esc(S(2,name)))}${info('KOR',esc(S(3,name)))}
@@ -3425,6 +3497,7 @@ document.addEventListener('click',(e)=>{
     let room=rsBtn.dataset.room||(blk?((blk.querySelector('.rno')||{}).textContent||''):'');
     room=(''+room).replace(/\s+/g,' ').trim();
     const st=findStudent(name);const date=st?((st[7]||st[8])||''):'';
+    if(isName)rsHighlight(name,true);      // 이름 클릭 → 그 학생의 방 셀(점유구간)도 함께 강조 + 필요시 그 날짜로 스크롤
     openRoomReplace(null,room,name,date,isName);return;}   // 이름 클릭=infoOnly
   const lane=e.target.closest('.gantt td.dlane');
   if(lane){e.stopPropagation();
@@ -3435,7 +3508,7 @@ document.addEventListener('click',(e)=>{
     openCellPop(lane,e);return;}
   if(!e.target.closest('#cellpop'))closeCellPop();
 });
-document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();closeDropdowns();}});
+document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeCellPop();closeDropdowns();rsClearHl();}}); // Esc → 학생 강조 해제
 
 // ─── 십자 안내선 (마우스 휠/가운데 클릭 토글) — 날짜·학생 추적 ───
 (function(){

@@ -8,7 +8,8 @@
 //
 // 라우팅(모두 이 함수 하나로):
 //   GET   ?           → 세션 있으면 랜딩, 없으면 로그인 폼
-//   POST  action=login  → 검증 → 쿠키 발급 → 303 리다이렉트
+//   POST  action=login  → 검증 → (관리자 강제변경 대상이면 변경화면) → 쿠키 발급 → 303
+//   POST  action=change → 비번 변경(관리자 Lv8+ 강제) → 쿠키 발급 → 303
 //   POST  action=logout → 쿠키 파기 → 303 리다이렉트
 //   GET   ?me           → 세션 JSON (프론트 연동용)
 //
@@ -94,6 +95,20 @@ async function authenticate(mb_id: string, mb_pw: string, ip: string | null) {
   return await r.json();
 }
 
+async function setPassword(mb_id: string, oldPw: string, newPw: string, ip: string | null) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/member_set_password`, {
+    method: "POST",
+    headers: {
+      apikey: SERVICE_KEY,
+      Authorization: `Bearer ${SERVICE_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ p_id: mb_id, p_old: oldPw, p_new: newPw, p_ip: ip }),
+  });
+  if (!r.ok) return { ok: false, error: "server_error" };
+  return await r.json();
+}
+
 // ── 응답 헬퍼 ───────────────────────────────────────────────────────────────
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (m) => (
@@ -150,6 +165,46 @@ function loginPage(error = "", idPrefill = ""): string {
 </body></html>`;
 }
 
+// ── 화면: 비밀번호 변경(관리자 강제) ────────────────────────────────────────
+function changePage(mbId: string, error = ""): string {
+  return `<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>비밀번호 변경 · SMEAG</title>
+<style>
+ *{box-sizing:border-box} body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+   font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+   background:linear-gradient(135deg,#1F4E78,#163a5a);color:#222}
+ .box{width:380px;max-width:92vw;background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);overflow:hidden}
+ header{background:#b8681c;color:#fff;padding:22px 24px} header h1{margin:0;font-size:18px} header p{margin:4px 0 0;font-size:12px;color:#f6e2cd}
+ form{padding:24px} label{display:block;font-size:13px;color:#334;margin:0 0 6px;font-weight:bold} .field{margin-bottom:15px}
+ input[type=password]{width:100%;padding:11px 12px;border:1px solid #ccd;border-radius:8px;font-size:14px}
+ input:focus{outline:none;border-color:#b8681c;box-shadow:0 0 0 3px rgba(184,104,28,.15)}
+ .who{font-size:13px;color:#556;margin-bottom:14px}.who b{color:#1F4E78}
+ button{width:100%;padding:12px;background:#b8681c;color:#fff;border:0;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer}
+ button:hover{background:#98550f}
+ .err{background:#fbe2d6;color:#c2410c;border:1px solid #e6a07f;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+ .hint{font-size:11.5px;color:#8896a4;margin-top:-8px;margin-bottom:14px}
+</style></head><body>
+ <div class="box">
+  <header><h1>🔒 비밀번호 변경 필요</h1><p>관리자 계정은 보안을 위해 최초 로그인 시 변경해야 합니다</p></header>
+  <form method="post" autocomplete="off">
+   <input type="hidden" name="action" value="change">
+   <input type="hidden" name="mb_id" value="${esc(mbId)}">
+   <div class="who">계정 <b>${esc(mbId)}</b></div>
+   ${error ? `<div class="err">${esc(error)}</div>` : ""}
+   <div class="field"><label for="old">현재 비밀번호</label>
+    <input type="password" id="old" name="old_password" maxlength="40" required autofocus></div>
+   <div class="field"><label for="np">새 비밀번호</label>
+    <input type="password" id="np" name="new_password" maxlength="40" required></div>
+   <div class="hint">8자 이상 · 아이디와 다르게 · 단순한 값 금지</div>
+   <div class="field"><label for="np2">새 비밀번호 확인</label>
+    <input type="password" id="np2" name="new_password2" maxlength="40" required></div>
+   <button type="submit">변경하고 로그인</button>
+  </form>
+ </div>
+</body></html>`;
+}
+
 // ── 화면: 로그인 후 랜딩(스텁) ───────────────────────────────────────────────
 function landingPage(s: Record<string, any>): string {
   return `<!doctype html><html lang="ko"><head>
@@ -200,15 +255,42 @@ Deno.serve(async (req: Request) => {
       return new Response(null, { status: 303, headers: { Location: self, "Set-Cookie": clearCookieHeader() } });
     }
 
+    const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
+
+    // 비밀번호 변경(관리자 강제)
+    if (action === "change") {
+      const cid = String(form.get("mb_id") ?? "").trim();
+      const oldPw = String(form.get("old_password") ?? "");
+      const np1 = String(form.get("new_password") ?? "");
+      const np2 = String(form.get("new_password2") ?? "");
+      if (np1 !== np2) return htmlResp(changePage(cid, "새 비밀번호가 서로 일치하지 않습니다."), 400);
+      const cres = await setPassword(cid, oldPw, np1, ip);
+      if (cres && cres.ok) {
+        const jwt = await signSession({
+          mb_id: cres.mb_id, mb_name: cres.mb_name, mb_level: cres.mb_level,
+          source: "member_set", must_change: false,
+        });
+        return new Response(null, { status: 303, headers: { Location: self, "Set-Cookie": cookieHeader(jwt) } });
+      }
+      const cmsg = cres && cres.error === "weak_password"
+        ? `새 비밀번호가 정책에 맞지 않습니다 (${esc(cres.reason ?? "")}).`
+        : cres && cres.error === "bad_old_password"
+        ? "현재 비밀번호가 올바르지 않습니다."
+        : "비밀번호 변경에 실패했습니다. 잠시 후 다시 시도하세요.";
+      return htmlResp(changePage(cid, cmsg), 400);
+    }
+
+    // 로그인
     const mb_id = String(form.get("mb_id") ?? "").trim();
     const mb_pw = String(form.get("mb_password") ?? "");
-    const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
 
     const res = await authenticate(mb_id, mb_pw, ip);
     if (res && res.ok) {
+      // 관리자 강제변경 대상 → 세션 발급 전 변경 화면으로
+      if (res.must_change) return htmlResp(changePage(res.mb_id), 200);
       const jwt = await signSession({
         mb_id: res.mb_id, mb_name: res.mb_name, mb_level: res.mb_level,
-        source: res.source, must_change: !!res.must_change,
+        source: res.source, must_change: false,
       });
       return new Response(null, { status: 303, headers: { Location: self, "Set-Cookie": cookieHeader(jwt) } });
     }

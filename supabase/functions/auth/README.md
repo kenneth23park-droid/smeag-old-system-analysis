@@ -8,18 +8,27 @@
 
 | 파일 | 역할 |
 |---|---|
-| `index.ts` | 라우팅·화면·검증·세션 (의존성 0, Web Crypto만) |
+| `index.ts` | 라우팅·화면·검증·세션·강제변경 (의존성 0, Web Crypto만) |
 | `../../config.toml` | `verify_jwt=false` (공개 로그인) |
-| `migration/schema/member_auth_edge.sql` | 검증 RPC (적용·테스트 완료) |
+| `migration/schema/member_auth_edge.sql` | 검증 RPC `member_authenticate` (레이트리밋+IP로깅) |
+| `migration/schema/member_auth_forcechange.sql` | 관리자(Lv8+) 강제변경 정책 + `member_set_password` |
 
 ## 라우팅
 
 | 메서드 | 요청 | 동작 |
 |---|---|---|
 | GET | `/` | 세션 있으면 랜딩, 없으면 로그인 폼 |
-| POST | `action=login` | 검증 → 쿠키 발급 → 303 리다이렉트 |
+| POST | `action=login` | 검증 → (관리자 강제변경 대상이면 변경화면) → 쿠키 발급 → 303 |
+| POST | `action=change` | 비번 변경(Lv8+ 강제) → 쿠키 발급 → 303 |
 | POST | `action=logout` | 쿠키 파기 → 303 |
 | GET | `?me` | 세션 JSON (프론트 연동용) |
+
+## 관리자 강제 비밀번호 변경 (Lv8+)
+
+- 관리자(Lv8 이상)가 레거시 비번으로 로그인하면 `must_change=true` → **변경 화면**으로 유도.
+- 새 비번은 원본 `g4_member`가 아니라 `app.admin_users`(bcrypt)에 저장 → **원본 불가침**.
+- 변경 후 그 계정의 **옛 레거시 약한 비번은 무력화**(폴백 차단)됨. 검증 완료.
+- 유학원(Lv5·3)·스태프(Lv7)는 결정 A대로 기존 비번 유지(강제 아님).
 
 ## 배포 (한 번만, 로컬에 Supabase CLI 필요)
 
