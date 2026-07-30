@@ -387,6 +387,9 @@
   .gantt tbody.room-block{content-visibility:auto}
   .gantt tbody.room-block>tr>td{border-top:0}
   .gantt tbody.room-block>tr:first-child>td.info{border-top:2px solid var(--border)}
+  /* 구분(그룹) 칸: 그룹 첫 방에만 라벨 표시 → 같은 그룹은 한 칸으로 보임. 검색 중엔 모든 행에 표시 */
+  .gantt tbody.room-block:not(.grp-first) td.c0 .grpname{visibility:hidden}
+  .gantt.rs-filtering tbody.room-block td.c0 .grpname{visibility:visible}
   .gantt tbody.room-block>tr:first-child>td.c0{border-top:0}                                   /* 같은 그룹 내: 그룹칸 경계 제거(시각적 병합) */
   .gantt tbody.room-block.grp-first>tr:first-child>td.info{border-top:2px solid var(--accent)} /* 그룹 첫 방: 그룹 구분선(강조) */
   .gantt tbody.room-block>tr:first-child>td.c1{box-shadow:inset 3px 0 0 var(--accent-weak)}
@@ -1211,7 +1214,7 @@ R.dailyio=(m)=>{
   <div class="banner">기간 기본값: 이번주 목→다음주 수 (해당 기간 데이터 자동 표시) · reserve_info 실 입퇴실 집계</div>`;};
 
 R.roomstat=()=>{
-  const CELLW=19, nameW=+(roomFilter.nameW)||230, INFOW=86+58+nameW; // 방번호+인실+이름(조절가능) = 좌측 고정폭
+  const CELLW=19, nameW=+(roomFilter.nameW)||230, GRPW=96, INFOW=GRPW+86+58+nameW; // 구분+방번호+인실+이름(조절가능) = 좌측 고정폭
   const pad=n=>String(n).padStart(2,'0');
   const daysIn=(y,m)=>new Date(y,m,0).getDate();
   // 선택월(roomCenter) 기준 ±6개월 = 13개월
@@ -1283,27 +1286,29 @@ R.roomstat=()=>{
     groups=REAL.roomstat.groups.map(g=>({name:g.name,rooms:g.rooms.map(r=>({no:r.no,per:r.per,gender:r.gender,
       beds:(r.beds&&r.beds.length?r.beds:[{name:'',segs:[]}]).map(b=>{const oi=occStore.push(bedOcc(b.segs))-1;return {name:(b.segs&&b.segs.length?bedName(b.segs):(b.name||'')),occ:oi,pat:realPat(b.segs)};})}))}));
   }else{
-  groups=[];
-  // TEMPORARY — 공용(FAMILY), 1인실, 전실 공실
-  {const rooms=[];for(let i=0;i<16;i++)rooms.push({no:(100+i)+'-temp',gender:'fam',per:'1인실',beds:[{name:'',pat:pat('empty')}]});
-    groups.push({name:'TEMPORARY / FAMILY',rooms});}
-  // CAPITAL1 — 남자(MALE)
-  {const rooms=[];
-    rooms.push({no:'301-1',gender:'m',per:'1인실',beds:[{name:fakeName()+' _single use',pat:pat('full')}]});
-    rooms.push({no:'301-2',gender:'m',per:'1인실',beds:[{name:'staff_'+fakeName(),pat:pat('full')}]});
-    for(let r=302;r<=311;r++){const beds=[];
-      for(let b=0;b<3;b++){const tail=((r+b)%4===0)?' ('+fakeName().split(' ')[0]+' Univ.)':((r+b)%5===0)?' - holding student':'';
-        beds.push({name:nm(2+((r+b)%3))+tail,pat:pat(nextKind())});}
-      rooms.push({no:String(r),gender:'m',per:'3인실',beds});}
-    groups.push({name:'CAPITAL1 / MALE',rooms});}
-  // CAPITAL2 — 여자(FEMALE)
-  {const rooms=[];for(let r=401;r<=406;r++){const per=(r%3===0)?'2인실':'3인실';const bn=per==='2인실'?2:3;const beds=[];
-      for(let b=0;b<bn;b++)beds.push({name:nm(1+((r+b)%2)+1),pat:pat(nextKind())});
-      rooms.push({no:String(r),gender:'f',per,beds});}
-    groups.push({name:'CAPITAL2 / FEMALE',rooms});}
-  // S hotel(H) — 공용
-  {const rooms=[];for(let r=1;r<=4;r++){rooms.push({no:'H30'+r,gender:'fam',per:'2인실',beds:[{name:nm(2),pat:pat(nextKind())}]});}
-    groups.push({name:'S hotel(H) / FAMILY',rooms});}
+  // 레거시 방구분(room_category g_display='Y') 30그룹 = CAPITAL(bldg_type E) 24 + ENCANTO(bldg_type S) 6.
+  // room_list 실 구성(416방/1016베드)을 'g_name|성별(M/F/C)|센터(E=CAPITAL,S=ENCANTO)|방번호*침대수[/정원],…' 로 압축.
+  const LEGACY_CATS='TEMPORARY|C|E|100-temp*1,101-temp*1,102-temp*1,103-temp*1,104-temp*1,105-temp*1,106-temp*1,107-temp*1,108-temp*1,109-temp*1,110-temp*1,111-temp*1,112-temp*1,113-temp*1,115-temp*1;CAPITAL1|M|E|301-1*1,301-2*1,302*3,303*3,304*3,305*3,306*3,307*3,308*3,309*3,310*3,311*3,312*3;CAPITAL2|M|E|313*3,317*4,318*4,319*4,320*3,321*3,323*3,324*4,325*4,315*2,316*2,322*2,314*2;CAPITAL3|M|E|326*3,327*3,328*3,330*4,331*3,332*3,333*3,334*3,335*4,336*3,337*4,329-1*1,329-2*1;CAPITAL1|F|E|402*3,403*3,404*3,405*3,406*3,407*3,408*3,409*3,410*3,411*3,412*3,413*3,414*3,417*4,418*4,415*2,416*2,401-1*1,401-2*1;CAPITAL4|M|E|425*4,428*3,430*4,431*3,432*3,433*3,434*3,435*4,436*3,437*4,426*2,427*2,429-1*1,429-2*1;CAPITAL(4)_FAMILY|C|E|421*3,422*3,423*3,424*4,420*2,419*4;CAPITAL2|F|E|501-1*1,501-2*1,502*3,503*3,504*3,505*3,506*3,508*3,509*3,510*3,511*3,512*3,507*3;CAPITAL3|F|E|517*4,518*4,519*4,520*3,521*3,522*3,523*3,524*4,525*4,514*2,515*2,516*2,513*2;CAPITAL4|F|E|526*3,527*3,528*3,530*4,531*3,532*3,533*3,534*3,535*4,536*3,537*4,529-1*1,529-2*1;S hotel(H)_M|M|E|S-101*2,S-102*2,S-103*2,S-104*2,S-105*2,S-106*2,S-107*2,S-108*2,S-109*2,S-110*2,S-111*2,S-112*2,S-113*2,S-114*2,S-120*1,S-121*1,S-122*1,S-123*1,S-124*1,S-125*1,S-126*1,S-132*1,S-130*1,S-133*1,S-131*1,S-134*1,S-135*1,S-129*1,S-127*1,S-128*1,S-136*1,S-137*1,S-138*1,S-139*1,S-140*1,S-141*1,S-142*1,S-143*1,S-144*1,S-145*1,S-146*1,S-147*1,S-148*1,S-149*1,S-150*1,S-151*1,S-152*1,S-153*1,S-200*3;S hotel(H)_F|F|E|S-201*2,S-202*2,S-203*2,S-204*2,S-205*2,S-206*2,S-207*2,S-208*2,S-209*2,S-210*2,S-211*2,S-212*2,S-213*2,S-216*1,S-217*1,S-218*1,S-219*1,S-220*1,S-221*1,S-224*1,S-225*1,S-223*1,S-222*1,S-226*1,S-227*1,S-228*1,S-230*1,S-231*1,S-229*1;CAPITAL(O)_M|M|E|X-101*5,X-102*5,x-103*5,x-104*5,Self study 7floor manager room*5,Block C 7floor manager room*5,6floor manager room*5,Dinning*1,Law office*1;CAPITAL(O)_F|F|E|X-201*5,x-202*5,X-203*5;Commercial_Shop|C|E|ST-01*1,ST-02*1,ST-03*1,ST-04*1,ST-05*1,ST-06*1;CAPITAL RECORD ROOM|C|E|00000*5;Citadines hotel|C|E|CF001*3,CF002*3,CF003*3,CF004*3,CF005*2;S hotel(H)_Family|C|E|S_003*5/4,S_002*4,S_001*4,s_00003*3,s_00002*3,s_00001*3,s_00004*3,s_004*4;Amethyst(AM)_F|F|E|Am-011*1,Am-010*1,Am-008*1,Am-007*1,Am-006*1,Am-005*1,Am-004*1,Am-003*1,Am-002*1,Am-001*1,Am-012*1,Am-013*1,Am-014*1,Am-009*1,Am-015*1,Am-016*1,Am-017*1,Am-018*1,Am-019*1;Amethyst(AM)_M|M|E|Am-009*1,Am-008*1,Am-007*1,Am-006*1,Am-005*1,Am-004*1,Am-003*1,Am-002*1,Am-001*1,Am-010*1,Am-011*1,Am-012*1,Am-013*1,Am-014*1;Amethyst(AM)_Family|C|E|Am(Family)-004*2,Am(Family)-003*2,Am(Family)-002*2,Am(Family)-001*2,Am(Family)-005*3;Canberry(Cb)_F|F|E|Cb-401*1,Cb-402*1,Cb-403*1,Cb-404*1,Cb-405*1,Cb-406*1,Cb-407*1,Cb-408*1,Cb-409*1,Cb-410*1,100*2,101*2,102*2,103*2,104*2,105*2,106*2,107*2,108*2,109*2,110*2,111*2,112*2;Canberry(Cb)_M|M|E|Cb-311*1,Cb-312*1,Cb-313*1,Cb-314*1,Cb-315*1,Cb-316*1,Cb-317*1,Cb-318*1,Cb-319*1,Cb-320*1,100*2,112*2,102*2,103*2,104*2,105*2,106*2,107*2,108*2,109*2,101*2,111*2;Canberry(Cb)_Family|C|E|781*3,780*3,777*3,778*3,779*3,782*3,783*3,790*4,791*4,792*4;Casablu|C|S|08*1,07*1,06*1,05*1,04*1,03*1,02*1,01*1,11*2,12*2,13*2;ENCANTO2|C|S|E201*4,E202*4,E203*4,E204*4,E205*4,E206*4,E207*4,E208*4,E209*4,E210*4,E211*4,E212*4,E213*4,E214*4,E215*4,E216*4,E217*4,E218*4,E219*4,E220*4;ENCANTO3|C|S|E301*4,E302*4,E303*4,E304*4,E305*4,E306*4,E307*4,E308*4,E309*4,E310*4,E311*4,E312*4,E313*4,E314*4,E315*4,E316*4,E317*4,E318*4,E319*4,E320*4;ENCANTO4|C|S|E401*4,E402*4,E403*4,E404*4,E405*4,E406*4,E407*4,E408*4,E409*4,E410*4,E411*4,E412*4,E413*4,E414*4,E415*4,E416*4,E417*4,E418*4;ENCANTO(VIP)|C|S|VIP1(2nd floor)*8,VIP2(3rd floor)*8,VVIP Mr.Hwang room(4th floor)*8;ENCANTO(O)|C|S|O-005*5,O-001*1,O-002*2,O-004*3,Encanto managers*5,O-003*2,Encanto outsider1*5,Encanto outsider2*5,Encanto outsider3*5';
+  groups=LEGACY_CATS.split(';').map(spec=>{
+    const [gname,gd,bldg,rs]=spec.split('|');
+    const gen=gd==='M'?'m':gd==='F'?'f':'fam';
+    const gsuf=gd==='M'?'MALE':gd==='F'?'FEMALE':'FAMILY';
+    const isTemp=/^TEMPORARY/.test(gname);
+    const rooms=rs.split(',').map((rspec,ri)=>{
+      const [no,cnt]=rspec.split('*');
+      const [bedsN,limN]=(cnt||'1').split('/');
+      const bn=Math.max(1,+bedsN||1), per=(+limN||bn)+'인실';
+      const beds=[];
+      for(let b=0;b<bn;b++){
+        if(isTemp){beds.push({name:'',pat:pat('empty')});continue;} // 임시방은 기본 공실(레거시와 동일)
+        const k=ri+b;
+        const tail=(k%4===0)?' ('+fakeName().split(' ')[0]+' Univ.)':(k%5===0)?' - holding student':'';
+        beds.push({name:(bn===1?fakeName()+(ri===0?' _single use':''):nm(2+(k%2))+tail),pat:pat(nextKind())});
+      }
+      return {no,gender:gen,per,beds};
+    });
+    return {name:gname+' / '+gsuf,rooms};
+  });
   }
 
   // 레거시 필터: 센터(campus)·성별·방구분(인실)
@@ -1311,7 +1316,9 @@ R.roomstat=()=>{
     if(u.startsWith('ENCANTO'))return 'ENCANTO';
     if(u.startsWith('CLASSIC'))return 'CLASSIC';
     // CAPITAL 권역 기숙사(빌딩명이 CAPITAL로 시작하지 않아도 CAPITAL 소속): S hotel·Amethyst·Canberry·Casablu·Citadines·Commercial·RECORD ROOM
-    if(u.startsWith('CAPITAL')||/S ?HOTEL|AMETHYST|CANBERRY|CASABLU|CITADINES|COMMERCIAL|RECORD ROOM/.test(u))return 'CAPITAL';
+    if(/CASABLU/.test(u))return 'ENCANTO'; // 레거시 room_category.bldg_type='S' → ENCANTO 센터
+    // CAPITAL 권역(bldg_type='E'): CAPITAL*·TEMPORARY·S hotel·Amethyst·Canberry·Citadines·Commercial·RECORD ROOM
+    if(u.startsWith('CAPITAL')||/TEMPORARY|S ?HOTEL|AMETHYST|CANBERRY|CITADINES|COMMERCIAL|RECORD ROOM/.test(u))return 'CAPITAL';
     return 'ETC';};
   const genderOf=n=>{const u=(n||'').toUpperCase();return /\/MALE|\/ MALE/.test(u)?'MALE':/\/FEMALE/.test(u)?'FEMALE':/\/FAMILY/.test(u)?'FAMILY':'';};
   const bldgOf=n=>(n||'').split('/')[0].trim(); // 그룹명 '건물(구분)/성별' 중 구분 부분(예 CAPITAL2, S hotel(H)_M)
@@ -1355,10 +1362,10 @@ R.roomstat=()=>{
     }
     return `<td class="dlane" colspan="${TOTAL}"><span class="dlanein" style="width:${TOTAL*CELLW}px">${out}</span></td>`;
   };
-  const colg=`<colgroup><col style="width:96px"><col style="width:86px"><col style="width:58px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
+  const colg=`<colgroup><col style="width:${GRPW}px"><col style="width:86px"><col style="width:58px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
   const monRow=months.map(mo=>`<th class="mon${mo.off===0?' mon-cur':''}" colspan="${mo.days}">${mo.y} 년 ${pad(mo.m)} 월</th>`).join('');
   const dayRow=months.map(mo=>Array.from({length:mo.days},(_,i)=>`<th class="dh">${i+1}</th>`).join('')).join('');
-  const head=`<thead><tr><th class="c0" rowspan="2">${T('그룹','Group')}</th><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
+  const head=`<thead><tr><th class="c0" rowspan="2">${T('구분','Group')}</th><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
 
   let body='';
   const _blkSet=blockedRooms(); // 방막기(BX 키) 세트
@@ -1372,7 +1379,7 @@ R.roomstat=()=>{
       r.beds.forEach((bed,bi)=>{
         const rs=r.beds.length; // 같은 방(모든 침대)에서 그룹·방번호·인실 셀을 하나로 병합(rowspan)
         const lead=bi===0
-          ? `<td class="info grp c0" rowspan="${rs}" title="${esc(g.name)}">${gfirst?esc(bldg):''}</td>`
+          ? `<td class="info grp c0" rowspan="${rs}" title="${esc(g.name)}"><span class="grpname">${esc(bldg)}</span></td>`
             +`<td class="info rno c1 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT">${rblk?'<span class="rs-lock">🔒</span>':''}${r.no}</td>`
             +`<td class="info c2 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
           : '';
@@ -1406,8 +1413,8 @@ R.roomstat=()=>{
     <div style="display:flex;gap:8px;align-items:center">
       <select id="rsCenter" class="rs-ctrl" title="${T('센터','Center')}">${[['',T('::센터를 선택하세요::','::Select center::')],['ALL',T('전체 센터','All centers')],['ENCANTO','ENCANTO CENTER'],['CAPITAL','CAPITAL CENTER']].map(([v,l])=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsGender" class="rs-ctrl" title="${T('성별','Gender')}">${[['',T('::성별을 선택하세요::','::Select gender::')],['ALL',T('전체 성별','All gender')],['MALE',T('남 (MALE)','MALE')],['FEMALE',T('여 (FEMALE)','FEMALE')],['FAMILY',T('공용 (FAMILY)','FAMILY')]].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
-      <select id="rsGroup" class="rs-ctrl" title="${T('구분(그룹)','Group')}"${grpOpts.length?'':' disabled'}><option value="">${T('::그룹을 선택하세요::','::Select group::')}</option><option value="ALL" ${roomFilter.group==='ALL'?'selected':''}>${T('전체 그룹 (SELECT ALL)','All groups (SELECT ALL)')}</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
-      <select id="rsPer" class="rs-ctrl" title="${T('방구분(인실)','Room type')}">${[['',T('::방구분을 선택하세요::','::Select room type::')],['ALL',T('방구분 전체','All types')],['1',T('1인실','1-person')],['2',T('2인실','2-person')],['3',T('3인실','3-person')],['4',T('4인실','4-person')],['5',T('5인실','5-person')],['TEMP',T('임시방(TEMPORARY)','Temporary')]].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
+      <select id="rsGroup" class="rs-ctrl" title="${T('방구분(카테고리) — 레거시 room_gubun','Room category (legacy room_gubun)')}"${grpOpts.length?'':' disabled'}><option value="">${T('::방구분을 선택하세요::','::Select room category::')}</option><option value="ALL" ${roomFilter.group==='ALL'?'selected':''}>${T('방구분 전체 (SELECT ALL)','All categories (SELECT ALL)')}</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
+      <select id="rsPer" class="rs-ctrl" title="${T('인실(정원)','Beds per room')}">${[['',T('::인실을 선택하세요::','::Select beds/room::')],['ALL',T('인실 전체','All bed counts')],['1',T('1인실','1-person')],['2',T('2인실','2-person')],['3',T('3인실','3-person')],['4',T('4인실','4-person')],['5',T('5인실','5-person')],['TEMP',T('임시방(TEMPORARY)','Temporary')]].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="${T('인실 정렬','Sort by room type')}"><option value="">${T('인실 정렬','Room-type sort')}</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>${T('인실 ↑ 적은순','Type ↑ fewest')}</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>${T('인실 ↓ 많은순','Type ↓ most')}</option></select>
       <select id="rsNameW" class="rs-ctrl" title="${T('이름 컬럼 폭','Name column width')}">${[['160',T('이름 좁게','Name: narrow')],['230',T('이름 보통','Name: normal')],['320',T('이름 넓게','Name: wide')],['460',T('이름 아주넓게','Name: x-wide')]].map(([v,l])=>`<option value="${v}" ${nameW==+v?'selected':''}>${l}</option>`).join('')}</select>
       <input id="rsMonth" class="rs-ctrl" type="month" value="${roomCenter.y}-${pad(roomCenter.m)}" min="2020-01" max="2032-12" title="${T('연/월 이동(캘린더) — 아무 년/월이나 선택','Year/month picker')}" style="cursor:pointer">
@@ -2733,7 +2740,8 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   const rss=m.querySelector('#rsSearch');
   if(rss){const cnt=m.querySelector('#rsSearchCnt'),tbl=m.querySelector('table.gantt');
     const runFilter=()=>{const q=rss.value.trim().toLowerCase();roomFilter.q=rss.value;
-      if(!tbl)return;const tbodies=[...tbl.tBodies];let curHead=null,headShown=0,shown=0;
+      if(!tbl)return;tbl.classList.toggle('rs-filtering',!!q); // 검색 중엔 남은 행마다 구분(그룹) 라벨 표시
+      const tbodies=[...tbl.tBodies];let curHead=null,headShown=0,shown=0;
       tbodies.forEach(tb=>{
         if(tb.classList.contains('grp-head')){curHead=tb;headShown=0;tb.style.display=q?'none':'';return;}
         if(!tb.classList.contains('room-block'))return;

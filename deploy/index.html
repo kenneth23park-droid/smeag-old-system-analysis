@@ -302,7 +302,7 @@
   table.gantt thead th.mon{font-size:12px;color:var(--text);font-weight:800;height:24px}
   /* 월 행(top:0) 아래에 일 행을 고정 → 세로 스크롤 시 월·일 2행 모두 프리즈 */
   .gantt thead th.dh{position:sticky;top:24px;z-index:2;color:var(--text);font-weight:800}
-  .gantt thead th.c1,.gantt thead th.c2,.gantt thead th.c3{top:0}
+  .gantt thead th.c0,.gantt thead th.c1,.gantt thead th.c2,.gantt thead th.c3{top:0}
   .gantt .dh{font-size:10px;padding:3px 0}
   .gantt td.dcell{height:21px;text-align:center;font-weight:800;font-size:10.5px;color:color-mix(in srgb,var(--dim) 45%,var(--text));padding:0;cursor:pointer}
   .gantt td.dcell:hover{outline:2px solid var(--accent);outline-offset:-2px}
@@ -372,13 +372,17 @@
   .gantt td.crsv{background:var(--good);color:#fff}    /* 예약(R) = 초록 (레거시) */
   .gantt td.chold{background:color-mix(in srgb,var(--return) 60%,var(--surface));color:#fff}
   .gantt td.cempty{background:var(--surface)}
-  /* 틀고정: 좌측 3열 (방번호/인실/이름) — 가로 스크롤 시 실시간 고정 */
-  .gantt .c1{position:sticky;left:0;z-index:1}
-  .gantt .c2{position:sticky;left:86px;z-index:1}
-  .gantt .c3{position:sticky;left:144px;z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
+  /* 틀고정: 좌측 4열 (구분/방번호/인실/이름) — 가로 스크롤 시 실시간 고정 */
+  .gantt .c0{position:sticky;left:0;z-index:1;vertical-align:top;font-weight:800;color:var(--accent-ink);font-size:11px;letter-spacing:.3px;text-align:left}
+  .gantt .c1{position:sticky;left:96px;z-index:1}
+  .gantt .c2{position:sticky;left:182px;z-index:1}
+  .gantt .c3{position:sticky;left:240px;z-index:1;box-shadow:7px 0 9px -6px rgba(0,0,0,.32)} /* 이름열 오른쪽 구분 그림자(고정 경계 표시) */
   .gantt thead .c3{z-index:3}
-  .gantt thead .c1,.gantt thead .c2,.gantt thead .c3{z-index:3}
-  .gantt td.c1,.gantt td.c2,.gantt td.c3{background:var(--surface)}
+  .gantt thead .c0,.gantt thead .c1,.gantt thead .c2,.gantt thead .c3{z-index:3}
+  .gantt td.c0,.gantt td.c1,.gantt td.c2,.gantt td.c3{background:var(--surface)}
+  /* 구분(그룹) 칸: 그룹 첫 방에만 라벨 표시 → 같은 그룹은 한 칸으로 보임. 검색 중엔 모든 행에 표시 */
+  .gantt tbody.room-block:not(.grp-first) td.c0 .grpname{visibility:hidden}
+  .gantt.rs-filtering tbody.room-block td.c0 .grpname{visibility:visible}
   /* 구분 그룹 구분행 (rowspan 제거 대체) */
   .gantt tbody.grp-head td{background:var(--surface-2);border-bottom:2px solid var(--border);padding:0}
   .gantt .grp-label{position:sticky;left:0;display:inline-block;padding:7px 12px;font-weight:800;letter-spacing:.4px;color:var(--text)}
@@ -386,6 +390,8 @@
   .gantt tbody.room-block{content-visibility:auto}
   .gantt tbody.room-block>tr>td{border-top:0}
   .gantt tbody.room-block>tr:first-child>td.info{border-top:2px solid var(--border)}
+  .gantt tbody.room-block>tr:first-child>td.c0{border-top:0}                                   /* 같은 그룹 내: 구분칸 경계 제거(시각적 병합) */
+  .gantt tbody.room-block.grp-first>tr:first-child>td.info{border-top:2px solid var(--accent)} /* 그룹 첫 방: 그룹 구분선(강조) */
   .gantt tbody.room-block>tr:first-child>td.c1{box-shadow:inset 3px 0 0 var(--accent-weak)}
   /* 표 자체 스크롤 영역 → 세로로 내려가도 헤더/월버튼 고정, 월클릭 시 컬럼 가로스크롤 */
   .twrap.dorm-scroll{max-height:calc(100vh - 300px);overflow:auto}
@@ -1209,7 +1215,7 @@ R.dailyio=(m)=>{
   <div class="banner">기간 기본값: 이번주 목→다음주 수 (해당 기간 데이터 자동 표시) · reserve_info 실 입퇴실 집계</div>`;};
 
 R.roomstat=()=>{
-  const CELLW=19, nameW=+(roomFilter.nameW)||230, INFOW=86+58+nameW; // 방번호+인실+이름(조절가능) = 좌측 고정폭
+  const CELLW=19, nameW=+(roomFilter.nameW)||230, GRPW=96, INFOW=GRPW+86+58+nameW; // 구분+방번호+인실+이름(조절가능) = 좌측 고정폭
   const pad=n=>String(n).padStart(2,'0');
   const daysIn=(y,m)=>new Date(y,m,0).getDate();
   // 선택월(roomCenter) 기준 ±6개월 = 13개월
@@ -1281,27 +1287,29 @@ R.roomstat=()=>{
     groups=REAL.roomstat.groups.map(g=>({name:g.name,rooms:g.rooms.map(r=>({no:r.no,per:r.per,gender:r.gender,
       beds:(r.beds&&r.beds.length?r.beds:[{name:'',segs:[]}]).map(b=>{const oi=occStore.push(bedOcc(b.segs))-1;return {name:(b.segs&&b.segs.length?bedName(b.segs):(b.name||'')),occ:oi,pat:realPat(b.segs)};})}))}));
   }else{
-  groups=[];
-  // TEMPORARY — 공용(FAMILY), 1인실, 전실 공실
-  {const rooms=[];for(let i=0;i<16;i++)rooms.push({no:(100+i)+'-temp',gender:'fam',per:'1인실',beds:[{name:'',pat:pat('empty')}]});
-    groups.push({name:'TEMPORARY / FAMILY',rooms});}
-  // CAPITAL1 — 남자(MALE)
-  {const rooms=[];
-    rooms.push({no:'301-1',gender:'m',per:'1인실',beds:[{name:fakeName()+' _single use',pat:pat('full')}]});
-    rooms.push({no:'301-2',gender:'m',per:'1인실',beds:[{name:'staff_'+fakeName(),pat:pat('full')}]});
-    for(let r=302;r<=311;r++){const beds=[];
-      for(let b=0;b<3;b++){const tail=((r+b)%4===0)?' ('+fakeName().split(' ')[0]+' Univ.)':((r+b)%5===0)?' - holding student':'';
-        beds.push({name:nm(2+((r+b)%3))+tail,pat:pat(nextKind())});}
-      rooms.push({no:String(r),gender:'m',per:'3인실',beds});}
-    groups.push({name:'CAPITAL1 / MALE',rooms});}
-  // CAPITAL2 — 여자(FEMALE)
-  {const rooms=[];for(let r=401;r<=406;r++){const per=(r%3===0)?'2인실':'3인실';const bn=per==='2인실'?2:3;const beds=[];
-      for(let b=0;b<bn;b++)beds.push({name:nm(1+((r+b)%2)+1),pat:pat(nextKind())});
-      rooms.push({no:String(r),gender:'f',per,beds});}
-    groups.push({name:'CAPITAL2 / FEMALE',rooms});}
-  // S hotel(H) — 공용
-  {const rooms=[];for(let r=1;r<=4;r++){rooms.push({no:'H30'+r,gender:'fam',per:'2인실',beds:[{name:nm(2),pat:pat(nextKind())}]});}
-    groups.push({name:'S hotel(H) / FAMILY',rooms});}
+  // 레거시 방구분(room_category g_display='Y') 30그룹 = CAPITAL(bldg_type E) 24 + ENCANTO(bldg_type S) 6.
+  // room_list 실 구성(416방/1016베드)을 'g_name|성별(M/F/C)|센터(E=CAPITAL,S=ENCANTO)|방번호*침대수[/정원],…' 로 압축.
+  const LEGACY_CATS='TEMPORARY|C|E|100-temp*1,101-temp*1,102-temp*1,103-temp*1,104-temp*1,105-temp*1,106-temp*1,107-temp*1,108-temp*1,109-temp*1,110-temp*1,111-temp*1,112-temp*1,113-temp*1,115-temp*1;CAPITAL1|M|E|301-1*1,301-2*1,302*3,303*3,304*3,305*3,306*3,307*3,308*3,309*3,310*3,311*3,312*3;CAPITAL2|M|E|313*3,317*4,318*4,319*4,320*3,321*3,323*3,324*4,325*4,315*2,316*2,322*2,314*2;CAPITAL3|M|E|326*3,327*3,328*3,330*4,331*3,332*3,333*3,334*3,335*4,336*3,337*4,329-1*1,329-2*1;CAPITAL1|F|E|402*3,403*3,404*3,405*3,406*3,407*3,408*3,409*3,410*3,411*3,412*3,413*3,414*3,417*4,418*4,415*2,416*2,401-1*1,401-2*1;CAPITAL4|M|E|425*4,428*3,430*4,431*3,432*3,433*3,434*3,435*4,436*3,437*4,426*2,427*2,429-1*1,429-2*1;CAPITAL(4)_FAMILY|C|E|421*3,422*3,423*3,424*4,420*2,419*4;CAPITAL2|F|E|501-1*1,501-2*1,502*3,503*3,504*3,505*3,506*3,508*3,509*3,510*3,511*3,512*3,507*3;CAPITAL3|F|E|517*4,518*4,519*4,520*3,521*3,522*3,523*3,524*4,525*4,514*2,515*2,516*2,513*2;CAPITAL4|F|E|526*3,527*3,528*3,530*4,531*3,532*3,533*3,534*3,535*4,536*3,537*4,529-1*1,529-2*1;S hotel(H)_M|M|E|S-101*2,S-102*2,S-103*2,S-104*2,S-105*2,S-106*2,S-107*2,S-108*2,S-109*2,S-110*2,S-111*2,S-112*2,S-113*2,S-114*2,S-120*1,S-121*1,S-122*1,S-123*1,S-124*1,S-125*1,S-126*1,S-132*1,S-130*1,S-133*1,S-131*1,S-134*1,S-135*1,S-129*1,S-127*1,S-128*1,S-136*1,S-137*1,S-138*1,S-139*1,S-140*1,S-141*1,S-142*1,S-143*1,S-144*1,S-145*1,S-146*1,S-147*1,S-148*1,S-149*1,S-150*1,S-151*1,S-152*1,S-153*1,S-200*3;S hotel(H)_F|F|E|S-201*2,S-202*2,S-203*2,S-204*2,S-205*2,S-206*2,S-207*2,S-208*2,S-209*2,S-210*2,S-211*2,S-212*2,S-213*2,S-216*1,S-217*1,S-218*1,S-219*1,S-220*1,S-221*1,S-224*1,S-225*1,S-223*1,S-222*1,S-226*1,S-227*1,S-228*1,S-230*1,S-231*1,S-229*1;CAPITAL(O)_M|M|E|X-101*5,X-102*5,x-103*5,x-104*5,Self study 7floor manager room*5,Block C 7floor manager room*5,6floor manager room*5,Dinning*1,Law office*1;CAPITAL(O)_F|F|E|X-201*5,x-202*5,X-203*5;Commercial_Shop|C|E|ST-01*1,ST-02*1,ST-03*1,ST-04*1,ST-05*1,ST-06*1;CAPITAL RECORD ROOM|C|E|00000*5;Citadines hotel|C|E|CF001*3,CF002*3,CF003*3,CF004*3,CF005*2;S hotel(H)_Family|C|E|S_003*5/4,S_002*4,S_001*4,s_00003*3,s_00002*3,s_00001*3,s_00004*3,s_004*4;Amethyst(AM)_F|F|E|Am-011*1,Am-010*1,Am-008*1,Am-007*1,Am-006*1,Am-005*1,Am-004*1,Am-003*1,Am-002*1,Am-001*1,Am-012*1,Am-013*1,Am-014*1,Am-009*1,Am-015*1,Am-016*1,Am-017*1,Am-018*1,Am-019*1;Amethyst(AM)_M|M|E|Am-009*1,Am-008*1,Am-007*1,Am-006*1,Am-005*1,Am-004*1,Am-003*1,Am-002*1,Am-001*1,Am-010*1,Am-011*1,Am-012*1,Am-013*1,Am-014*1;Amethyst(AM)_Family|C|E|Am(Family)-004*2,Am(Family)-003*2,Am(Family)-002*2,Am(Family)-001*2,Am(Family)-005*3;Canberry(Cb)_F|F|E|Cb-401*1,Cb-402*1,Cb-403*1,Cb-404*1,Cb-405*1,Cb-406*1,Cb-407*1,Cb-408*1,Cb-409*1,Cb-410*1,100*2,101*2,102*2,103*2,104*2,105*2,106*2,107*2,108*2,109*2,110*2,111*2,112*2;Canberry(Cb)_M|M|E|Cb-311*1,Cb-312*1,Cb-313*1,Cb-314*1,Cb-315*1,Cb-316*1,Cb-317*1,Cb-318*1,Cb-319*1,Cb-320*1,100*2,112*2,102*2,103*2,104*2,105*2,106*2,107*2,108*2,109*2,101*2,111*2;Canberry(Cb)_Family|C|E|781*3,780*3,777*3,778*3,779*3,782*3,783*3,790*4,791*4,792*4;Casablu|C|S|08*1,07*1,06*1,05*1,04*1,03*1,02*1,01*1,11*2,12*2,13*2;ENCANTO2|C|S|E201*4,E202*4,E203*4,E204*4,E205*4,E206*4,E207*4,E208*4,E209*4,E210*4,E211*4,E212*4,E213*4,E214*4,E215*4,E216*4,E217*4,E218*4,E219*4,E220*4;ENCANTO3|C|S|E301*4,E302*4,E303*4,E304*4,E305*4,E306*4,E307*4,E308*4,E309*4,E310*4,E311*4,E312*4,E313*4,E314*4,E315*4,E316*4,E317*4,E318*4,E319*4,E320*4;ENCANTO4|C|S|E401*4,E402*4,E403*4,E404*4,E405*4,E406*4,E407*4,E408*4,E409*4,E410*4,E411*4,E412*4,E413*4,E414*4,E415*4,E416*4,E417*4,E418*4;ENCANTO(VIP)|C|S|VIP1(2nd floor)*8,VIP2(3rd floor)*8,VVIP Mr.Hwang room(4th floor)*8;ENCANTO(O)|C|S|O-005*5,O-001*1,O-002*2,O-004*3,Encanto managers*5,O-003*2,Encanto outsider1*5,Encanto outsider2*5,Encanto outsider3*5';
+  groups=LEGACY_CATS.split(';').map(spec=>{
+    const [gname,gd,bldg,rs]=spec.split('|');
+    const gen=gd==='M'?'m':gd==='F'?'f':'fam';
+    const gsuf=gd==='M'?'MALE':gd==='F'?'FEMALE':'FAMILY';
+    const isTemp=/^TEMPORARY/.test(gname);
+    const rooms=rs.split(',').map((rspec,ri)=>{
+      const [no,cnt]=rspec.split('*');
+      const [bedsN,limN]=(cnt||'1').split('/');
+      const bn=Math.max(1,+bedsN||1), per=(+limN||bn)+'인실';
+      const beds=[];
+      for(let b=0;b<bn;b++){
+        if(isTemp){beds.push({name:'',pat:pat('empty')});continue;} // 임시방은 기본 공실(레거시와 동일)
+        const k=ri+b;
+        const tail=(k%4===0)?' ('+fakeName().split(' ')[0]+' Univ.)':(k%5===0)?' - holding student':'';
+        beds.push({name:(bn===1?fakeName()+(ri===0?' _single use':''):nm(2+(k%2))+tail),pat:pat(nextKind())});
+      }
+      return {no,gender:gen,per,beds};
+    });
+    return {name:gname+' / '+gsuf,rooms};
+  });
   }
 
   // 레거시 필터: 센터(campus)·성별·방구분(인실)
@@ -1309,7 +1317,9 @@ R.roomstat=()=>{
     if(u.startsWith('ENCANTO'))return 'ENCANTO';
     if(u.startsWith('CLASSIC'))return 'CLASSIC';
     // CAPITAL 권역 기숙사(빌딩명이 CAPITAL로 시작하지 않아도 CAPITAL 소속): S hotel·Amethyst·Canberry·Casablu·Citadines·Commercial·RECORD ROOM
-    if(u.startsWith('CAPITAL')||/S ?HOTEL|AMETHYST|CANBERRY|CASABLU|CITADINES|COMMERCIAL|RECORD ROOM/.test(u))return 'CAPITAL';
+    if(/CASABLU/.test(u))return 'ENCANTO'; // 레거시 room_category.bldg_type='S' → ENCANTO 센터
+    // CAPITAL 권역(bldg_type='E'): CAPITAL*·TEMPORARY·S hotel·Amethyst·Canberry·Citadines·Commercial·RECORD ROOM
+    if(u.startsWith('CAPITAL')||/TEMPORARY|S ?HOTEL|AMETHYST|CANBERRY|CITADINES|COMMERCIAL|RECORD ROOM/.test(u))return 'CAPITAL';
     return 'ETC';};
   const genderOf=n=>{const u=(n||'').toUpperCase();return /\/MALE|\/ MALE/.test(u)?'MALE':/\/FEMALE/.test(u)?'FEMALE':/\/FAMILY/.test(u)?'FAMILY':'';};
   const bldgOf=n=>(n||'').split('/')[0].trim(); // 그룹명 '건물(구분)/성별' 중 구분 부분(예 CAPITAL2, S hotel(H)_M)
@@ -1353,24 +1363,25 @@ R.roomstat=()=>{
     }
     return `<td class="dlane" colspan="${TOTAL}"><span class="dlanein" style="width:${TOTAL*CELLW}px">${out}</span></td>`;
   };
-  const colg=`<colgroup><col style="width:86px"><col style="width:58px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
+  const colg=`<colgroup><col style="width:${GRPW}px"><col style="width:86px"><col style="width:58px"><col style="width:${nameW}px">${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
   const monRow=months.map(mo=>`<th class="mon${mo.off===0?' mon-cur':''}" colspan="${mo.days}">${mo.y} 년 ${pad(mo.m)} 월</th>`).join('');
   const dayRow=months.map(mo=>Array.from({length:mo.days},(_,i)=>`<th class="dh">${i+1}</th>`).join('')).join('');
-  const head=`<thead><tr><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
+  const head=`<thead><tr><th class="c0" rowspan="2">${T('구분','Group')}</th><th class="c1" rowspan="2">방번호</th><th class="c2" rowspan="2">인실</th><th class="c3" rowspan="2">이름</th>${monRow}</tr><tr>${dayRow}</tr></thead>`;
 
   let body='';
   const _blkSet=blockedRooms(); // 방막기(BX 키) 세트
   groups.forEach(g=>{
     const bldg=(g.name||'').split('/')[0].trim(); // 그룹명 '건물/성별' 중 건물 부분(예 CAPITAL3)
-    body+=`<tbody class="grp-head"><tr><td colspan="${3+TOTAL}"><span class="grp-label">${g.name}</span></td></tr></tbody>`;
-    g.rooms.forEach(r=>{
+    g.rooms.forEach((r,ri)=>{
       const h=r.beds.length*22;
       const bxk='BX|'+bldg.toUpperCase()+'|'+(''+r.no).toUpperCase(); const rblk=_blkSet.has(bxk);
-      body+=`<tbody class="room-block${rblk?' rs-blocked':''}" data-bx="${esc(bxk)}" style="contain-intrinsic-size:auto ${h}px">`;
+      const gfirst=ri===0; // 그룹의 첫 방 → 구분칸 라벨 표시(그 외 방은 숨김+경계없음 = 시각적 병합)
+      body+=`<tbody class="room-block${rblk?' rs-blocked':''}${gfirst?' grp-first':''}" data-bx="${esc(bxk)}" style="contain-intrinsic-size:auto ${h}px">`;
       r.beds.forEach((bed,bi)=>{
-        const rs=r.beds.length; // 같은 방(모든 침대)에서 방번호·인실 셀을 하나로 병합(rowspan)
+        const rs=r.beds.length; // 같은 방(모든 침대)에서 구분·방번호·인실 셀을 하나로 병합(rowspan)
         const lead=bi===0
-          ? `<td class="info rno c1 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT">${rblk?'<span class="rs-lock">🔒</span>':''}<span class="bldg">${esc(bldg)}</span>${r.no}</td>`
+          ? `<td class="info grp c0" rowspan="${rs}" title="${esc(g.name)}"><span class="grpname">${esc(bldg)}</span></td>`
+            +`<td class="info rno c1 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT">${rblk?'<span class="rs-lock">🔒</span>':''}${r.no}</td>`
             +`<td class="info c2 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
           : '';
         body+=`<tr>${lead}`
@@ -1403,8 +1414,8 @@ R.roomstat=()=>{
     <div style="display:flex;gap:8px;align-items:center">
       <select id="rsCenter" class="rs-ctrl" title="${T('센터','Center')}">${[['',T('::센터를 선택하세요::','::Select center::')],['ALL',T('전체 센터','All centers')],['ENCANTO','ENCANTO CENTER'],['CAPITAL','CAPITAL CENTER']].map(([v,l])=>`<option value="${v}" ${roomFilter.center===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsGender" class="rs-ctrl" title="${T('성별','Gender')}">${[['',T('::성별을 선택하세요::','::Select gender::')],['ALL',T('전체 성별','All gender')],['MALE',T('남 (MALE)','MALE')],['FEMALE',T('여 (FEMALE)','FEMALE')],['FAMILY',T('공용 (FAMILY)','FAMILY')]].map(([v,l])=>`<option value="${v}" ${roomFilter.gender===v?'selected':''}>${l}</option>`).join('')}</select>
-      <select id="rsGroup" class="rs-ctrl" title="${T('구분(그룹)','Group')}"${grpOpts.length?'':' disabled'}><option value="">${T('::그룹을 선택하세요::','::Select group::')}</option><option value="ALL" ${roomFilter.group==='ALL'?'selected':''}>${T('전체 그룹 (SELECT ALL)','All groups (SELECT ALL)')}</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
-      <select id="rsPer" class="rs-ctrl" title="${T('방구분(인실)','Room type')}">${[['',T('::방구분을 선택하세요::','::Select room type::')],['ALL',T('방구분 전체','All types')],['1',T('1인실','1-person')],['2',T('2인실','2-person')],['3',T('3인실','3-person')],['4',T('4인실','4-person')],['5',T('5인실','5-person')],['TEMP',T('임시방(TEMPORARY)','Temporary')]].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
+      <select id="rsGroup" class="rs-ctrl" title="${T('방구분(카테고리) — 레거시 room_gubun','Room category (legacy room_gubun)')}"${grpOpts.length?'':' disabled'}><option value="">${T('::방구분을 선택하세요::','::Select room category::')}</option><option value="ALL" ${roomFilter.group==='ALL'?'selected':''}>${T('방구분 전체 (SELECT ALL)','All categories (SELECT ALL)')}</option>${grpOpts.map(b=>`<option value="${esc(b)}" ${roomFilter.group===b?'selected':''}>${esc(grpLabel(b))}</option>`).join('')}</select>
+      <select id="rsPer" class="rs-ctrl" title="${T('인실(정원)','Beds per room')}">${[['',T('::인실을 선택하세요::','::Select beds/room::')],['ALL',T('인실 전체','All bed counts')],['1',T('1인실','1-person')],['2',T('2인실','2-person')],['3',T('3인실','3-person')],['4',T('4인실','4-person')],['5',T('5인실','5-person')],['TEMP',T('임시방(TEMPORARY)','Temporary')]].map(([v,l])=>`<option value="${v}" ${roomFilter.per===v?'selected':''}>${l}</option>`).join('')}</select>
       <select id="rsSort" class="rs-ctrl" title="${T('인실 정렬','Sort by room type')}"><option value="">${T('인실 정렬','Room-type sort')}</option><option value="asc" ${roomFilter.sortPer==='asc'?'selected':''}>${T('인실 ↑ 적은순','Type ↑ fewest')}</option><option value="desc" ${roomFilter.sortPer==='desc'?'selected':''}>${T('인실 ↓ 많은순','Type ↓ most')}</option></select>
       <select id="rsNameW" class="rs-ctrl" title="${T('이름 컬럼 폭','Name column width')}">${[['160',T('이름 좁게','Name: narrow')],['230',T('이름 보통','Name: normal')],['320',T('이름 넓게','Name: wide')],['460',T('이름 아주넓게','Name: x-wide')]].map(([v,l])=>`<option value="${v}" ${nameW==+v?'selected':''}>${l}</option>`).join('')}</select>
       <input id="rsMonth" class="rs-ctrl" type="month" value="${roomCenter.y}-${pad(roomCenter.m)}" min="2020-01" max="2032-12" title="${T('연/월 이동(캘린더) — 아무 년/월이나 선택','Year/month picker')}" style="cursor:pointer">
@@ -2731,7 +2742,8 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
   const rss=m.querySelector('#rsSearch');
   if(rss){const cnt=m.querySelector('#rsSearchCnt'),tbl=m.querySelector('table.gantt');
     const runFilter=()=>{const q=rss.value.trim().toLowerCase();roomFilter.q=rss.value;
-      if(!tbl)return;const tbodies=[...tbl.tBodies];let curHead=null,headShown=0,shown=0;
+      if(!tbl)return;tbl.classList.toggle('rs-filtering',!!q); // 검색 중엔 남은 행마다 구분(그룹) 라벨 표시
+      const tbodies=[...tbl.tBodies];let curHead=null,headShown=0,shown=0;
       tbodies.forEach(tb=>{
         if(tb.classList.contains('grp-head')){curHead=tb;headShown=0;tb.style.display=q?'none':'';return;}
         if(!tb.classList.contains('room-block'))return;
@@ -3519,6 +3531,14 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     display:flex;flex-direction:column;justify-content:center;}
   .aa-member{margin-top:18px;font-size:20px;font-weight:800;color:#4a5a63;letter-spacing:1px;}
   .aa-agency2{font-size:20px;font-weight:800;color:#2f8fd6;letter-spacing:1px;}
+  /* 지점(세부/딸락) 선택 */
+  .aa-branchsel{display:flex;gap:8px;margin-top:22px;}
+  .aa-branch{flex:1;padding:11px 6px;border:1px solid #cfd9e0;background:#fff;border-radius:9px;
+    font-size:16px;font-weight:800;color:#5a6a72;cursor:pointer;letter-spacing:1px;line-height:1.1;
+    transition:background .12s,border-color .12s,color .12s,box-shadow .12s;}
+  .aa-branch:hover{border-color:#2f8fd6;color:#2f8fd6;}
+  .aa-branch.active{background:#2f8fd6;border-color:#2f8fd6;color:#fff;box-shadow:0 2px 9px rgba(47,143,214,.35);}
+  .aa-branch small{display:block;font-size:9px;font-weight:600;opacity:.82;letter-spacing:.4px;margin-top:3px;}
   .aa-right{flex:1;padding:14px 8px 14px 30px;min-width:0;}
   .aa-welcome{margin:0 0 14px;font-size:13px;font-weight:700;color:#5b6b74;line-height:1.55;}
   .aa-welcome b{color:#ea6a1e;}
@@ -3589,6 +3609,10 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
           <div class="aa-brand"><span class="aa-sme">SME</span><span class="aa-ag">AG</span><span class="aa-ge">GLOBAL EDUCATION</span></div>
           <div class="aa-member">MEMBER LOGIN</div>
           <div class="aa-agency2">SMEAG AGENCY</div>
+          <div class="aa-branchsel" id="aaBranchSel" role="group" aria-label="지점 선택">
+            <button type="button" class="aa-branch active" data-branch="cebu">세부<small>CEBU</small></button>
+            <button type="button" class="aa-branch" data-branch="talak">딸락<small>TALAK</small></button>
+          </div>
         </div>
         <!-- 우: 로그인 -->
         <div class="aa-right">
@@ -3600,7 +3624,7 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
             <div class="aa-row"><label for="adminAuthPass">PW</label><input id="adminAuthPass" type="password" autocomplete="current-password" /></div>
             <button class="aa-login" type="submit">LOG-IN</button>
             <div class="adminAuth-msg" id="adminAuthLoginMsg"></div>
-            <div class="adminAuth-hint">admin1 · admin2 · master · manager · kenneth<br>초기 비밀번호는 아이디와 동일합니다.</div>
+            <div class="adminAuth-hint">기존 아이디 · 비밀번호로 로그인하세요.<br>관리자는 최초 로그인 시 비밀번호를 변경해야 합니다.</div>
           </form>
 
           <!-- 로그인 후 상태(Welcome + MY PAGE) -->
@@ -3703,6 +3727,20 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     });
   }
 
+  // ── 신 백엔드(/api/auth) 호출 ──────────────────────────────────────
+  //   레거시 계정(아이디/비번) 그대로 검증. 세션은 서버가 httpOnly 쿠키로 발급.
+  //   Accept:application/json → JSON 응답({ok, must_change, mb_id, mb_name, mb_level, message}).
+  function authApi(payload){
+    return fetch("/api/auth", {
+      method:"POST",
+      headers:{ "Content-Type":"application/x-www-form-urlencoded", "Accept":"application/json" },
+      credentials:"same-origin",
+      body: new URLSearchParams(payload).toString()
+    }).then(function(r){
+      return r.json().then(function(j){ j = j || {}; j._status = r.status; return j; });
+    });
+  }
+
   // ── 로그 기록 ───────────────────────────────────────────────────────
   function logLocal(user, action, detail, kind){
     var arr = readJSON(localStorage, LS_LOG, []);
@@ -3730,6 +3768,18 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
   function setSession(user){ writeJSON(sessionStorage, SS_KEY, { username:user, since:new Date().toISOString() }); }
   function clearSession(){ try{ sessionStorage.removeItem(SS_KEY); }catch(e){} }
 
+  // ── 지점(세부/딸락) ─────────────────────────────────────────────────
+  //   로그인 화면 왼쪽에서 선택. 화면은 동일하고 상단 메뉴 타이틀만 지점명으로.
+  var BR_KEY = "smeBranch";
+  var BRANCHES = { cebu:"세부", talak:"딸락" };
+  function getBranch(){ var b=null; try{ b=sessionStorage.getItem(BR_KEY); }catch(e){} return BRANCHES[b] ? b : "cebu"; }
+  function setBranch(b){ if(!BRANCHES[b]) b="cebu"; try{ sessionStorage.setItem(BR_KEY,b); }catch(e){} }
+  function applyBranch(){
+    var label = BRANCHES[getBranch()];
+    var brandEl = document.querySelector(".top .brand");
+    if(brandEl){ brandEl.innerHTML = '<span class="logo">S</span> ' + label + ' <small>ADMIN · 신규</small>'; }
+  }
+
   // ── DOM ─────────────────────────────────────────────────────────────
   var overlay   = document.getElementById("adminAuthOverlay");
   var loginForm = document.getElementById("adminAuthLoginForm");
@@ -3742,6 +3792,24 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
   var changeMsg = document.getElementById("adminAuthChangeMsg");
   var bar       = document.getElementById("adminAuthBar");
   var barWho    = document.getElementById("adminAuthBarWho");
+  var branchSel = document.getElementById("aaBranchSel");
+
+  // 지점 버튼: 클릭 시 선택 저장 + 활성 표시
+  if(branchSel){
+    branchSel.addEventListener("click", function(ev){
+      var btn = ev.target.closest(".aa-branch"); if(!btn) return;
+      setBranch(btn.getAttribute("data-branch"));
+      Array.prototype.forEach.call(branchSel.querySelectorAll(".aa-branch"), function(el){
+        el.classList.toggle("active", el === btn);
+      });
+    });
+    // 초기 활성 상태를 저장값과 동기화
+    (function(){ var cur = getBranch();
+      Array.prototype.forEach.call(branchSel.querySelectorAll(".aa-branch"), function(el){
+        el.classList.toggle("active", el.getAttribute("data-branch") === cur);
+      });
+    })();
+  }
 
   var pending = null; // 변경 폼 진행 중인 사용자/비번 컨텍스트
 
@@ -3765,11 +3833,15 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     showMsg(changeMsg, "최초 로그인입니다. 비밀번호를 변경하세요.", false);
     setTimeout(function(){ elNew.focus(); }, 30);
   }
-  function enter(user){
-    setSession(user);
+  function enter(u){
+    var uname = (typeof u === "string") ? u : (u && u.username) || "";
+    var disp  = (u && typeof u === "object" && u.name) ? u.name : uname;
+    var lvl   = (u && typeof u === "object" && u.level != null) ? u.level : null;
+    setSession(uname);
     overlay.classList.add("adminAuth-hidden");
-    barWho.textContent = user;
+    barWho.textContent = disp + (lvl != null ? (" · Lv" + lvl) : "");
     bar.classList.add("adminAuth-show");
+    applyBranch();   // 상단 메뉴 타이틀에 지점명(세부/딸락) 반영
     adminLog("enter", { page: location.pathname });
   }
 
@@ -3786,20 +3858,14 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     ev.preventDefault();
     var user = (elUser.value||"").trim();
     var pw   = elPass.value||"";
-    if(USERS.indexOf(user) < 0){ showMsg(loginMsg,"등록되지 않은 아이디입니다."); return; }
+    if(!user){ showMsg(loginMsg,"아이디를 입력하세요."); return; }
     if(!pw){ showMsg(loginMsg,"비밀번호를 입력하세요."); return; }
-
-    if(supaReady()){
-      rpc("admin_login", { p_user:user, p_pw:pw }).then(function(res){
-        if(!res || res.ok !== true){ showMsg(loginMsg, (res&&res.message)||"로그인 실패"); return; }
-        enter(user);   // 비밀번호 변경 강제 화면 비활성 — 로그인 즉시 진입
-      })["catch"](function(){
-        // Supabase 오류 → 폴백으로 재시도
-        doLoginFallback(user, pw);
-      });
-    } else {
-      doLoginFallback(user, pw);
-    }
+    showMsg(loginMsg, "확인 중…", true);
+    authApi({ action:"login", mb_id:user, mb_password:pw }).then(function(res){
+      if(res && res.ok && res.must_change){ showChange(res.mb_id || user, pw); return; }
+      if(res && res.ok){ enter({ username:res.mb_id || user, name:res.mb_name, level:res.mb_level }); return; }
+      showMsg(loginMsg, (res && res.message) || "아이디 또는 비밀번호가 올바르지 않습니다.");
+    })["catch"](function(){ showMsg(loginMsg, "서버에 연결할 수 없습니다. 잠시 후 다시 시도하세요."); });
   });
 
   // ── 비밀번호 변경 처리 ──────────────────────────────────────────────
@@ -3808,22 +3874,16 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
     if(!pending){ showLogin(); return; }
     var user = pending.user;
     var n1 = elNew.value||"", n2 = elNew2.value||"";
-    if(n1.length < 4){ showMsg(changeMsg,"새 비밀번호는 4자 이상이어야 합니다."); return; }
+    if(n1.length < 8){ showMsg(changeMsg,"새 비밀번호는 8자 이상이어야 합니다."); return; }
     if(n1 === user){ showMsg(changeMsg,"새 비밀번호는 아이디와 달라야 합니다."); return; }
     if(n1 === pending.oldPw){ showMsg(changeMsg,"새 비밀번호는 기존 비밀번호와 달라야 합니다."); return; }
     if(n1 !== n2){ showMsg(changeMsg,"두 비밀번호가 일치하지 않습니다."); return; }
 
-    if(supaReady()){
-      rpc("admin_change_password", { p_user:user, p_old:pending.oldPw, p_new:n1 }).then(function(res){
-        if(!res || res.ok !== true){ showMsg(changeMsg,(res&&res.message)||"변경 실패"); return; }
-        finishChange(user);
-      })["catch"](function(){
-        // 폴백 저장
-        changeFallback(user, n1); finishChange(user);
-      });
-    } else {
-      changeFallback(user, n1); finishChange(user);
-    }
+    showMsg(changeMsg, "변경 중…", true);
+    authApi({ action:"change", mb_id:user, old_password:pending.oldPw, new_password:n1, new_password2:n2 }).then(function(res){
+      if(res && res.ok){ finishChange({ username:res.mb_id || user, name:res.mb_name, level:res.mb_level }); return; }
+      showMsg(changeMsg, (res && res.message) || "변경에 실패했습니다.");
+    })["catch"](function(){ showMsg(changeMsg, "서버에 연결할 수 없습니다. 잠시 후 다시 시도하세요."); });
   });
 
   function changeFallback(user, newPw){
@@ -3859,17 +3919,20 @@ window.addEventListener('hashchange',()=>{applyHash();renderAll();});
 
   document.getElementById("adminAuthLogout").addEventListener("click", function(){
     adminLog("logout", {});
+    authApi({ action:"logout" })["catch"](function(){});   // 서버 쿠키 파기
     clearSession();
     elUser.value = ""; elPass.value = "";
     showLogin();
   });
 
-  // ── 초기화: 로그인 없이 바로 실행(게이트 비활성) ─────────────────
+  // ── 초기화: 서버 세션(httpOnly 쿠키) 확인 → 있으면 진입, 없으면 로그인 게이트 ──
   (function init(){
-    var s = session();
-    var user = (s && USERS.indexOf(s.username) >= 0) ? s.username : "admin";
-    if(!s) setSession(user);            // 기본 관리자 세션 자동 발급
-    enter(user);                        // 로그인 화면 없이 즉시 진입
+    fetch("/api/auth?me", { credentials:"same-origin", headers:{ "Accept":"application/json" } })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(s){
+        if(s && s.mb_id){ enter({ username:s.mb_id, name:s.mb_name, level:s.mb_level }); }
+        else { showLogin(); }
+      })["catch"](function(){ showLogin(); });
   })();
 
 })();

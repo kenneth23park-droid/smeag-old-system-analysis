@@ -349,3 +349,9 @@
   ① 로그인 카드 왼쪽(aa-left)에 세부(CEBU)/딸락(TALAK) 세그먼트 버튼 추가(기본 세부 활성). ② 선택값 sessionStorage(smeBranch) 저장, `applyBranch()`가 로그인 후 상단 메뉴 타이틀(.top .brand)을 지점명으로 교체 — 화면·기능은 동일, 타이틀만 세부/딸락. enter() 및 세션복원 시 반영. ③ Playwright 실검증(smeag-bay.vercel.app): 기본 cebu→딸락 클릭 talak 활성→fss_gn 로그인→메뉴 타이틀 "S 딸락 ADMIN · 신규" 확인(PASS). 테스트 로그 정리. 배포·별칭 재지정 완료.
 
 - **2026-07-29** 세로(버티컬)·좁은 뷰포트에서 배치도 방셀이 어긋나 보이던 문제 수정: 원인은 `.app` 그리드가 `1fr`이라 넓은 배치도 표가 트랙을 밀어 `.main`이 뷰포트를 초과(내부 스크롤이 아니라 페이지째 가로 넘침, twW 1651>vw). `.app{grid-template-columns:minmax(0,1fr)}` + `.main{min-width:0}` 로 트랙 축소 허용 → 래퍼가 뷰포트 내(852≤900)로 잡혀 표 내부 스크롤 복원. Playwright(900 세로) 검증: twW 1651→852. (모든 넓은 표에 공통 개선)
+
+- **2026-07-30** **신시스템(배포본 `deploy/index.html`)에도 배치도 '구분' 컬럼 적용** — 프로토타입에만 있던 첫 컬럼을 라이브 화면으로 이관:
+  · 좌측 고정 c0(구분/Group) 컬럼 신설(sticky left:0, c1/c2/c3 오프셋 96/182/240), 헤더 `${T('구분','Group')}`. `INFOW=GRPW(96)+86+58+nameW` 로 정정(프로토타입도 동일 수정 — 표 폭·선택월 센터링 오차 제거).
+  · 그룹의 첫 방(tbody `.grp-first`)만 라벨 표시, 나머지는 `.grpname{visibility:hidden}` + 그룹칸 상단 경계 제거 → **한 칸으로 병합돼 보임**. 방번호 컬럼에서 그룹 접두어(.bldg) 제거, 기존 grp-head 밴드 제거.
+  · 검색 시 첫 방이 걸러져 그룹명이 사라지는 문제 대비: 검색 중 `table.gantt.rs-filtering` → 남은 모든 행에 구분 라벨 표시(프로토타입에도 동일 적용).
+  · Playwright 검증(deploy/index.html, CAPITAL·MALE·전체그룹): 헤더 `Group|Room Number|Room Type|Name`, 첫방 grp-first+CAPITAL1, 후속방 병합표시, 방번호 번호만, '301' 검색 시 2행 각각 구분 라벨 표시, 콘솔에러 0(로컬 file:// 의 /api/auth 제외).
