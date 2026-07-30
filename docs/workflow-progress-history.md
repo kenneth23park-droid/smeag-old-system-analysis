@@ -461,3 +461,11 @@
   · 검증: 로컬 Playwright(실 DB) — SHANG BOWEN 모달이 `337 / 4bed / 06-14~06-20`, `337 / 4bed / 06-21~06-27` 로 **레거시 캡처와 행·값 일치**, 콘솔에러 0.
   · 배포: `vercel deploy --prod` → 라이브(`smeag-bay`) = 로컬 바이트 동일(1,568,149).
   · ⚠ 남은 것: 레거시는 **클릭한 예약의 s_idx** 로 팝업을 열지만, 신전산은 이름칸이 침대 단위 합성문자열이라 학생 s_idx 를 **이름 매칭**으로 정한다 — 원본/연장처럼 같은 이름의 s_idx 가 여러 개면 그중 하나(먼저 매칭된 레코드) 기준으로 표가 그려진다.
+  · **후속(같은 날)**: 핸들을 `mousedown/mousemove` → **Pointer Events**(`pointerdown` + `setPointerCapture` + `pointermove/up/cancel`)로 교체 — 마우스뿐 아니라 **터치·펜(태블릿)** 에서도 조절 가능. 핸들에 `touch-action:none` 을 줘서 터치 드래그가 표 가로스크롤로 새지 않게 하고, 포인터 캡처로 커서가 핸들 밖(세로 300px 이탈)으로 나가도 추적 유지. 방막기 모드 ON 상태에서 핸들 드래그 시 **폭만 변경·블록 미생성** 회귀 확인. 모바일 `/m/` 은 카드 리스트(간트표·이름컬럼 없음)라 대상 아님.
+  · 검증: 로컬·라이브 Playwright — 마우스 +140px→`--w3 370px`(이탈 추적 OK), 터치 +120px→`350px`(`scrollTop` 0 유지), 좌측 pair 핸들·더블클릭 초기화 정상, 콘솔에러 0. 라이브 = 로컬 바이트 동일(1,571,471).
+
+- **2026-07-30** **실데이터 페이지 서버측 보호 (Edge Middleware 게이트)** `deploy/middleware.js` 신규:
+  · 문제: 배포본 `index.html` 에 실 MySQL 데이터(학생 실명·기숙사 배정)가 임베드되는데 로그인 오버레이는 **클라이언트측**이라, 미로그인 상태의 공개 URL(`https://smeag-bay.vercel.app/`)에서 **HTML 소스에 실명이 그대로 내려갔다**(1.5MB, 실명 검색 hit).
+  · 조치: Vercel Edge Middleware 로 정적 페이지 자체를 게이트. `/api/auth` 가 발급한 HS256 세션쿠키(`sme_session`)를 **Web Crypto 로 서명·만료 검증**, 실패 시 `302 /login?next=…`. 제외: `/api/*`(각 함수 자체 인증) · `/login` · favicon/robots · `_vercel`. `AUTH_SESSION_SECRET` 미설정이면 로그인 자체가 불가하므로 통과(fail-open, 사이트 잠금 방지).
+  · 검증(라이브): 쿠키 없음 `/` → **302 /login?next=%2F** (응답 15바이트, 실명 **0건**) · 위조 쿠키 → 302 · `/m/`(모바일) → 302 · `/login` → 200 · `/api/data` → 401(기존 유지). 서명 호환성은 `auth.js signSession` ↔ `middleware verifySession` 로컬 교차검증(정상/위조/만료/한글 payload) PASS.
+  · 되돌리기: `deploy/middleware.js` 삭제 후 재배포. 배포 `smeag-m32t2xpj7-…` → 별칭 `smeag-bay.vercel.app`.
