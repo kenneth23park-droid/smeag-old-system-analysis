@@ -88,6 +88,26 @@ function actorOf(session) {
 }
 const WRITE_MIN_LEVEL = 8;   // 방막기 쓰기는 내부 운영 권한(관리자/매니저)만
 
+// ── 삭제 재인증(confirm) 검증 ───────────────────────────────────────────────
+// 정책(2026-08-03): 삭제 작업은 모든 환경에서 로그인 비밀번호를 다시 묻는다.
+// /api/auth {action:'confirm', password} 가 발급한 5분짜리 토큰을 여기서 검증한다.
+// (서버리스 함수끼리 모듈을 공유하지 않으므로 검증 코드는 각 함수에 같은 사본을 둔다.)
+function verifyConfirm(token, mb_id, purpose) {
+  try {
+    const [p, sig] = String(token || "").split(".");
+    if (!p || !sig) return false;
+    const expected = crypto.createHmac("sha256", SECRET).update(p).digest("base64url");
+    const a = Buffer.from(sig), b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+    const body = JSON.parse(Buffer.from(p, "base64url").toString("utf8"));
+    if (body.typ !== "confirm") return false;
+    if (String(body.sub || "") !== String(mb_id || "")) return false;
+    if (String(body.pur || "") !== String(purpose || "delete")) return false;
+    if (!(Number(body.exp) > Math.floor(Date.now() / 1000))) return false;
+    return true;
+  } catch { return false; }
+}
+
 // ── 입력 정규화 ──────────────────────────────────────────────────────────────
 const isYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
 const dateOrNull = (s) => (isYmd(s) ? s : null);
@@ -176,6 +196,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "half_range" });
 
     if (body.op === "release") {
+      // 해제 = 원장에서 지우는 작업 → 로그인 비밀번호 재확인 필수(정책 2026-08-03)
+      if (!verifyConfirm(body.confirm, session.mb_id, "delete")) {
+        return res.status(403).json({ ok: false, error: "need_password",
+          message: "삭제(해제)하려면 로그인 비밀번호를 다시 입력해야 합니다." });
+      }
       const r = await rpc("select app.room_block_release($1::jsonb,$2::date,$3::date,$4) as r",
         [JSON.stringify(items), from, to, actor.name]);
       return res.status(200).json({ ...r, actor: actor.name, verified: actor.verified });

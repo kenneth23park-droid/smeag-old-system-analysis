@@ -58,6 +58,18 @@ const setPassword = (id, oldPw, newPw, ip) =>
   rpc("select app.member_set_password($1,$2,$3,$4) as r", [id, oldPw, newPw, ip]);
 
 // ── JWT (HS256) ─────────────────────────────────────────────────────────────
+// ── 삭제 재인증 토큰(confirm) ───────────────────────────────────────────────
+// 세션 JWT 와 같은 시크릿으로 서명하되 typ 이 다르다(세션으로는 못 쓴다).
+// 형식: <base64url payload>.<sig>  ·  payload = {typ:'confirm',sub:mb_id,pur:'delete',exp}
+// 삭제 API 는 verifyConfirm(token, mb_id, purpose) 로 검증한다(각 함수에 같은 코드 사본).
+const CONFIRM_TTL = 300;    // 5분 — 비밀번호를 물은 직후의 그 삭제에만 쓰이도록 짧게
+function signConfirm(mb_id, purpose) {
+  const body = { typ: "confirm", sub: String(mb_id || ""), pur: String(purpose || "delete"),
+    exp: Math.floor(Date.now() / 1000) + CONFIRM_TTL, jti: crypto.randomBytes(8).toString("hex") };
+  const p = Buffer.from(JSON.stringify(body)).toString("base64url");
+  return `${p}.${crypto.createHmac("sha256", SECRET).update(p).digest("base64url")}`;
+}
+
 function signSession(payload) {
   const header = { alg: "HS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
@@ -262,6 +274,29 @@ export default async function handler(req, res) {
     if (action === "logout") {
       if (json) return sendJson(res, { ok: true }, 200, clearCookieHeader());
       return redirect(res, self, clearCookieHeader());
+    }
+
+    // ── 삭제 재인증(confirm) ────────────────────────────────────────────────
+    // 정책(2026-08-03): **삭제 작업은 모든 환경에서 로그인 비밀번호를 다시 묻는다.**
+    // 여기서 비밀번호를 확인해 짧은 수명(CONFIRM_TTL)의 1회용 토큰을 발급하고,
+    // 실제 삭제 API(/api/blocks release 등)가 그 토큰을 검증한다.
+    // 토큰은 로그인 세션의 mb_id 에 묶여 있어 다른 계정/다른 목적으로 못 쓴다.
+    if (action === "confirm") {
+      if (!session) return sendJson(res, { ok: false, error: "no_session",
+        message: "로그인 세션이 없습니다. 다시 로그인하세요." }, 401);
+      const pw = String(body.password || "");
+      if (!pw) return sendJson(res, { ok: false, error: "no_password",
+        message: "비밀번호를 입력하세요." }, 400);
+      const vres = await authenticate(session.mb_id, pw, ip);
+      if (!vres || !vres.ok) {
+        // 레이트리밋(app.member_authenticate 15분·10회)이 그대로 적용된다.
+        return sendJson(res, { ok: false, error: (vres && vres.error) || "bad_password",
+          message: vres && vres.error === "rate_limited"
+            ? "시도가 너무 많습니다. 잠시 후 다시 시도하세요."
+            : "비밀번호가 올바르지 않습니다." }, 401);
+      }
+      return sendJson(res, { ok: true, confirm: signConfirm(session.mb_id, String(body.purpose || "delete")),
+        expires_in: CONFIRM_TTL }, 200);
     }
 
     try {

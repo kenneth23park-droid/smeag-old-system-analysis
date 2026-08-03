@@ -110,6 +110,27 @@ const MEMBER_COLS = new Set(["mb_level", "mb_name", "mb_nick", "mb_email", "mb_h
   "mb_leave_date", "mb_intercept_date",
   "mb_1", "mb_2", "mb_3", "mb_4", "mb_5", "mb_6", "mb_7", "mb_8", "mb_9", "mb_10", "mb_11"]);
 
+// ── 삭제 재인증(confirm) 검증 ───────────────────────────────────────────────
+// 정책(2026-08-03): 삭제 작업은 모든 환경에서 로그인 비밀번호를 다시 묻는다.
+// /api/auth {action:'confirm', password} 가 발급한 5분짜리 토큰을 검증한다.
+// (서버리스 함수끼리 모듈을 공유하지 않아 blocks.js 와 같은 사본을 둔다.)
+function verifyConfirm(token, mb_id, purpose) {
+  try {
+    const [p, sig] = String(token || "").split(".");
+    if (!p || !sig) return false;
+    const expected = crypto.createHmac("sha256", SECRET).update(p).digest("base64url");
+    const a = Buffer.from(sig), b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+    const body = JSON.parse(Buffer.from(p, "base64url").toString("utf8"));
+    if (body.typ !== "confirm") return false;
+    if (String(body.sub || "") !== String(mb_id || "")) return false;
+    if (String(body.pur || "") !== String(purpose || "delete")) return false;
+    return Number(body.exp) > Math.floor(Date.now() / 1000);
+  } catch { return false; }
+}
+// 삭제성 요청인가 — op 이름이 delete 로 끝나거나 body.del===true 면 재인증을 요구한다.
+const isDeleteOp = (body) => body.del === true || /(^|_)delete$/i.test(String(body.op || ""));
+
 function pickPatch(raw, allow, max = 250) {
   const out = {};
   if (!raw || typeof raw !== "object") return out;
@@ -189,6 +210,12 @@ export default async function handler(req, res) {
     if (!body) {
       res.statusCode = 400;
       return res.end(JSON.stringify({ ok: false, error: "bad_json" }));
+    }
+    // 삭제성 요청은 로그인 비밀번호 재확인 토큰이 있어야 한다(정책 2026-08-03).
+    if (isDeleteOp(body) && !verifyConfirm(body.confirm, session.mb_id, "delete")) {
+      res.statusCode = 403;
+      return res.end(JSON.stringify({ ok: false, error: "need_password",
+        message: "삭제하려면 로그인 비밀번호를 다시 입력해야 합니다." }));
     }
     const idem = S(body.idem, 120);
     if (!idem) {

@@ -2179,12 +2179,21 @@ async function blkApply(op,items,opt){
   opt=opt||{};
   if(!items||!items.length)return {ok:false,error:'no_items'};
   if(BLK.flight)return {ok:false,busy:true};
+  // 해제(release)는 원장에서 지우는 삭제 작업 → 로그인 비밀번호 재확인(정책 2026-08-03).
+  // 서버(/api/blocks)도 같은 토큰을 검증하므로 이 화면을 우회해도 삭제되지 않는다.
+  let confirmTok=null;
+  if(op==='release'){
+    confirmTok=await askDeletePassword(T('방막기 해제','Release block'),
+      T('선택한 <b>'+items.length+'</b>건의 방막기를 해제(삭제)합니다.',
+        'Releasing (deleting) <b>'+items.length+'</b> block record(s).'));
+    if(!confirmTok)return {ok:false,cancelled:true};
+  }
   BLK.flight=true;
   try{
     if(!BLK.server)throw new Error('offline');
     const sig=op+':'+(opt.from||'-')+':'+(opt.to||'-')+':'+(opt.reason||'ETC')+':'
              +items.map(i=>i.room_key+'#'+(i.bed_no||0)).sort().join(',');
-    const j=await blkPost({op,items,from:opt.from||null,to:opt.to||null,
+    const j=await blkPost({op,items,from:opt.from||null,to:opt.to||null,confirm:confirmTok,
       reason:opt.reason||'ETC',memo:opt.memo||null,idem:blkHash(sig)});
     if(!j||!j.ok)throw new Error((j&&j.error)||'server');
     await blkFetch();
@@ -2427,6 +2436,7 @@ function wireDormList(m){
   async function apply(block){const keys=selectedKeys();if(!keys.length){toast(T('선택 없음','No selection'),T('블로킹할 방을 체크하세요','Check rooms first'),false);return;}
     const items=keys.map(k=>{const q=(''+k).split('|');return {room_key:k,bed_no:0,group_name:q[1]||'',room_no:q[2]||''};});
     const r=await blkApply(block?'block':'release',items,{reason:'ETC'});
+    if(r&&r.cancelled)return;                 // 비밀번호 확인 취소 → 조용히 중단
     if(window.adminAuthLog)try{window.adminAuthLog(block?'room_block':'room_unblock',{count:keys.length,ok:!!(r&&r.ok)},'update');}catch(_){}
     if(!r||!r.ok){toast(T('저장 실패','Save failed'),(r&&r.busy)?T('이전 저장이 진행 중입니다','Previous save still running'):T('서버에 저장하지 못했습니다','Could not save to server'),false);return;}
     paint();toast(block?T('블로킹 완료','Blocked'):T('해제 완료','Unblocked'),
@@ -5639,6 +5649,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
       const items=[...dgKeys].map(k=>{const q=(''+k).split('|');return {room_key:k,bed_no:0,group_name:q[1]||'',room_no:q[2]||''};});
       const n=items.length;
       blkApply(dgAdd?'block':'release',items,{reason:'ETC'}).then(r=>{
+        if(r&&r.cancelled){renderMain();return;}   // 비밀번호 확인 취소 → 원상복구만
         if(window.adminAuthLog)try{window.adminAuthLog(dgAdd?'room_block_drag':'room_unblock_drag',{count:n,ok:!!(r&&r.ok)},'update');}catch(_){}
         if(!r||!r.ok){toast(T('저장 실패','Save failed'),(r&&r.busy)?T('이전 저장이 진행 중입니다','Previous save still running'):T('서버에 저장하지 못했습니다','Could not save to server'),false);renderMain();return;}
         toast(dgAdd?T('방 블로킹','Rooms blocked'):T('블로킹 해제','Rooms unblocked'),
@@ -5674,6 +5685,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
       ov.querySelector('[data-go]').onclick=async()=>{
         const r=await blkApply('release',[{id:b.id}],{});
         close();
+        if(r&&r.cancelled)return;                 // 비밀번호 확인 취소
         if(!r||!r.ok){toast(T('해제 실패','Release failed'),T('서버에 반영하지 못했습니다','Could not update server'),false);return;}
         toast(T('차단 해제','Released'),`${esc(b.room_no||b.room_key)} · ${esc(b.from_date)}~${esc(b.to_date)}`,true);
         renderMain();};
@@ -5802,6 +5814,59 @@ function msgBox(title,html,kind){
   const close=()=>ov.remove();
   ov.querySelector('#mbX').onclick=close;ov.querySelector('#mbOk').onclick=close;ov.onclick=e=>{if(e.target===ov)close();};
   return ov;}
+
+// ─── 삭제 재인증 — 삭제 작업은 모든 환경에서 로그인 비밀번호를 다시 묻는다 ───
+// 정책(2026-08-03). 화면에서 물어보는 것만으로는 못 막으므로(요청 위조 가능) 여기서 받은
+// 비밀번호를 /api/auth {action:'confirm'} 로 검증해 5분짜리 토큰을 받고, 삭제 API 가 그
+// 토큰을 다시 검증한다. 취소하거나 틀리면 null 을 돌려주고 호출측은 삭제를 진행하지 않는다.
+// 사용법: const tok = await askDeletePassword(제목, 설명); if(!tok) return;
+function askDeletePassword(title,detail){
+  return new Promise(function(resolve){
+    var ov=el('div','modal-ov');ov.id='delAuth';
+    ov.innerHTML='<div class="modal" style="max-width:420px"><div class="modal-h">'
+      +'<b style="color:var(--female)">🔒 '+esc(title||T('삭제 확인','Confirm deletion'))+'</b>'
+      +'<button class="modal-x" data-x>✕</button></div>'
+      +'<div class="modal-body single">'
+      +(detail?'<div style="font-size:13px;margin-bottom:10px">'+detail+'</div>':'')
+      +'<div style="font-size:12.5px;color:var(--dim);margin-bottom:8px">'
+        +T('삭제는 되돌리기 어렵습니다. 계속하려면 <b>로그인 비밀번호</b>를 입력하세요.',
+           'Deletion is hard to undo. Enter your <b>login password</b> to continue.')+'</div>'
+      +'<input type="password" id="daPw" autocomplete="current-password" style="width:100%;font:inherit;'
+        +'padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text)">'
+      +'<div id="daMsg" style="font-size:12px;font-weight:700;color:var(--return);min-height:16px;margin-top:6px"></div>'
+      +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">'
+        +'<button class="btn" data-x>'+T('취소','Cancel')+'</button>'
+        +'<button class="btn primary" id="daOk" style="background:var(--female);border-color:var(--female)">'
+        +T('확인 후 삭제','Confirm & delete')+'</button></div>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+    var done=false;
+    var finish=function(v){if(done)return;done=true;ov.remove();resolve(v);};
+    ov.querySelectorAll('[data-x]').forEach(function(x){x.onclick=function(){finish(null);};});
+    ov.onclick=function(e){if(e.target===ov)finish(null);};
+    var pw=ov.querySelector('#daPw'), ok=ov.querySelector('#daOk'), msg=ov.querySelector('#daMsg');
+    setTimeout(function(){pw.focus();},30);
+    var submit=function(){
+      if(ok._busy)return;                       // 더블서밋 가드
+      if(!pw.value){msg.textContent=T('비밀번호를 입력하세요.','Enter your password.');return;}
+      ok._busy=1;ok.disabled=true;msg.textContent='';var lb=ok.textContent;ok.textContent=T('확인 중…','Checking…');
+      fetch('/api/auth',{method:'POST',credentials:'same-origin',
+        headers:{'Content-Type':'application/json','Accept':'application/json'},
+        body:JSON.stringify({action:'confirm',password:pw.value,purpose:'delete'})})
+        .then(function(r){return r.json();})
+        .then(function(j){
+          ok._busy=0;ok.disabled=false;ok.textContent=lb;
+          if(j&&j.ok&&j.confirm)return finish(j.confirm);
+          msg.textContent=(j&&j.message)||T('비밀번호가 올바르지 않습니다.','Wrong password.');
+          pw.select();
+        })
+        .catch(function(){ok._busy=0;ok.disabled=false;ok.textContent=lb;
+          msg.textContent=T('확인에 실패했습니다. 다시 시도하세요.','Verification failed — try again.');});
+    };
+    ok.onclick=submit;
+    pw.onkeydown=function(e){if(e.key==='Enter')submit();};
+  });
+}
 
 // ─── 세션 만료 안내(1회성) — /api/data 가 401 을 주면 "표가 실데이터가 아니다"를 분명히 알린다 ───
 let _authBoxShown=false;   // 같은 세션(페이지 로드)에서 반복 표시 방지
@@ -6046,6 +6111,14 @@ async function runWrite(op,opLabel,ctx,onOk,opts){
     if(opts.alwaysConfirm||pf.blocked){
       const ok=await showConfirmBox({op,confidence:pf.confidence,level:pf.level,checks:pf.checks},opLabel,op==='delete',opts.verb);
       if(!ok)return; // 취소
+    }
+    // 2-b) 삭제는 로그인 비밀번호 재확인(정책 2026-08-03) — 모든 환경 공통.
+    //      토큰은 RPC 페이로드에 실려 서버가 다시 검증한다(화면만 통과해서는 지워지지 않는다).
+    if(op==='delete'){
+      const tok=await askDeletePassword(opLabel||T('삭제','Delete'),
+        esc(ctx.room||'')+(ctx.date?' · '+esc(ctx.date):''));
+      if(!tok)return;                       // 취소/실패 → 삭제 중단
+      ctx.rpc=Object.assign({},ctx.rpc||{},{p_confirm_token:tok});
     }
     // 3) 실제 쓰기 (블록이었으면 강제)
     let resp=await dbCall(op,mk(pf.blocked));
