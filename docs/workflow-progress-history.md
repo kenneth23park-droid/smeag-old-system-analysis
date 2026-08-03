@@ -469,3 +469,153 @@
   · 조치: Vercel Edge Middleware 로 정적 페이지 자체를 게이트. `/api/auth` 가 발급한 HS256 세션쿠키(`sme_session`)를 **Web Crypto 로 서명·만료 검증**, 실패 시 `302 /login?next=…`. 제외: `/api/*`(각 함수 자체 인증) · `/login` · favicon/robots · `_vercel`. `AUTH_SESSION_SECRET` 미설정이면 로그인 자체가 불가하므로 통과(fail-open, 사이트 잠금 방지).
   · 검증(라이브): 쿠키 없음 `/` → **302 /login?next=%2F** (응답 15바이트, 실명 **0건**) · 위조 쿠키 → 302 · `/m/`(모바일) → 302 · `/login` → 200 · `/api/data` → 401(기존 유지). 서명 호환성은 `auth.js signSession` ↔ `middleware verifySession` 로컬 교차검증(정상/위조/만료/한글 payload) PASS.
   · 되돌리기: `deploy/middleware.js` 삭제 후 재배포. 배포 `smeag-m32t2xpj7-…` → 별칭 `smeag-bay.vercel.app`.
+
+- **2026-07-30** ROOM REPLACEMENT(방변경) 학생정보 표 — **레거시 reserve_move.php 패턴 그대로**(요청: "room replacement pattern view same like legacy"):
+  · 기존: 라벨·값 1쌍씩 세로로 쌓인 2칸 표(NAME→KOR→AGE→SEX…) + 코멘트칸은 빈 textarea(rows=2).
+  · 변경: 레거시와 같은 **4칸 페어 레이아웃**(한 줄에 라벨·값 두 쌍) — `NAME|KOR` / `AGE|SEX` / `DEPARTURE|FLIGHT` / `COURSE|DORM` / `NATIONALITY|CONDITION`, 그 아래 `STAFF COMMENT` · `AGENTS COMMENT` 는 라벨 + 값 3칸 병합 큰 코멘트칸(rows=5). `table-layout:fixed` 로 값 2칸 폭을 동일하게(레거시 좌우 대칭), 라벨칸 136px(=`AGENTS COMMENT` 한 줄).
+  · 제목도 레거시식으로 `※ STUDENT INFORMATION : <s_idx>` (기존 코드의 `stu.__idx` 는 어디서도 세팅되지 않아 항상 안 나오던 죽은 참조였음).
+  · **/api/data studentsFull 5칸 추가**(18~22): `18 SID(s_idx)` `19 COURSE_TXT(fee_class2)` `20 DORM_TXT(fee_dorm2)` `21 AGENT_CMT(s_info)` `22 STAFF_CMT(comment)`. COURSE/DORM 은 그동안 파생값(`4주 · 코스 17`, 방번호)을 보여줬는데 레거시는 원문구(`6 weeks-IELTS 6.0`, `6 Weeks- 3 Persons/room-CAPITAL ,`)를 쓰므로 원값 우선 + 기존 파생값 폴백. 코멘트 2칸은 text 라 `left(...,400)` 으로 잘라 페이로드 방어. `comment` 는 PG 키워드라 큰따옴표 인용.
+  · 적용 파일: `deploy/api/data.js`, `deploy/index.html`, `docs/design-admin/prototype.html`(동기).
+  · 검증(로컬 Playwright + 실 DB): 12,389행 중 s_idx 12,389 · COURSE_TXT 12,164 · DORM_TXT 9,451 · AGENTS 4,904 · STAFF 2,268 유입 확인. 배치도 점유셀 클릭 → 모달 헤더 `※ STUDENT INFORMATION : 79091`, 페어 5행 + 코멘트 2행 렌더, 콘솔에러 0(잔여 404 는 favicon).
+  · 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app` → 라이브 1,577,855바이트, `rp-info pair`/`th{width:136px}` 확인.
+  ⚠ 이 배포는 **15:26 시점 스냅샷**(같은 시각 다른 세션이 index.html·blocks.js 를 계속 편집 중이라 그 이후 변경분은 미포함) · 그 세션의 미완성 `deploy/middleware.js`(전체 페이지 로그인 게이트)는 의도적으로 제외하고 배포함.
+  · **후속(같은 날)**: 정책이 화면에서 실제로 검증되도록 DETAIL COST·COMMISSION **라이브 재계산** 구현 — `ETC FEE`/`PRE PAY`/`ETC COMMISSION` 입력에 id 부여 + `input` 이벤트 재계산: `TOTAL = REGIST+TUITION+DORM+ETC FEE−PRE PAY`, `COMMISSION = 규칙합(commBase 기준)+ETC COMMISSION`, `NET = TOTAL−COM` → TOTAL·COMMISSION·FINANCIAL 행·INVOICE 행·PRE PAY 근거표기 동시 갱신. **PRE PAY·ETC FEE 는 COMMISSION 에 절대 반영되지 않음**(입력 바꿔도 COM 불변). 인보이스 발행 금액도 고정 상수 대신 재계산값(`curGrand`) 전달 — 중복차단은 target 기준 멱등키라 금액 변경과 무관.
+  · 검증(Playwright + 로컬 하네스 `deploy/api/data.js` 직결, 합성 학생 row 6주/KOR/ESL/CAPITAL): ① PRE PAY 450→1000→0 시 COM 225 불변 ② TOTAL 차이 정확히 1,000 ③ 근거표기 동기화 ④ ETC FEE +500 → TOTAL만 +500·COM 불변 ⑤ ETC COMMISSION 77 → COM 302 ⑥ NET=TOTAL−COM ⑦ INVOICE 행=FINANCIAL 행 — **7/7 PASS, pageerror 0**.
+  · 배포: prod 재배포 + `smeag-bay.vercel.app` 별칭 재지정. 라이브는 Edge middleware 로그인 게이트가 걸려 있어 `POST /login`(fss_gn) 세션쿠키로 받아 비교 → **라이브 = 로컬 바이트 동일(1,656,164)**, `smiPrePay/smiEtcCom/commBase/커미션 미반영` 문구 개수 일치.
+
+- **2026-07-30** **전용화면 5종 완성 — 회원관리 · COMMISSION · COURSE LIST · TUITION FEE · ELEC & WATER** (`{k:'spec'}` 표 폴백 → 전용 렌더러):
+  · 진행 방식(요청: 병렬·오케스트레이션): 공용 규약(`docs/design-admin/screens-2026-07-30/CONVENTIONS.md`) 배포 → **화면 5개 × [구현 → QA] 2단 파이프라인 = 에이전트 10개 병렬**. 산출물은 리포 밖(스크래치패드)에 먼저 쓰게 해 기존 파일을 건드리지 않았고, 통합은 오케스트레이터가 단독 수행.
+  · QA 가 잡은 치명 결함: **`window.REAL`·`window.MENU` 미존재**(`index.html` 은 `let REAL`/`const MENU` = 스크립트 스코프) → commission 화면이 데이터가 와도 영구 '미로딩' 폴백 · **colspan 14 vs 실제 17**(courses 표 어긋남) · **2페이지부터 pill 이 HTML 문자로 노출**(`paintPaged` 가 페이저 클릭마다 재-paint 하는데 1회성 복원이라) · elec 7건.
+  · 오케스트레이터 정정: courses QA 가 "`R.*__init` 은 호출되는 곳이 전무 → `renderMain` 에 2줄 추가 필요"라고 지시했으나 **사실이 아님** — `deploy/index.html` 의 `if(typeof R[curKey+'__init']==='function')…` 훅이 이미 자동 호출한다(prototype.html 도 동일). 그대로 넣었으면 `__init` 이 2회 호출됐다.
+  · **동시 편집 충돌 처리**: 같은 시각 다른 세션이 `deploy/api/data.js`·`index.html` 을 계속 저장 중이었고, 그 세션이 이미 같은 이름(`loadMembers`/`loadCommission`/`loadCourses`/`loadTuition`/`loadElec`)·같은 조각명으로 **명세화면 표 폴백 라이브 로더**를 넣어둔 상태였다. → 사용자 승인 하에 **병합안 A**: 이 5개는 전용 렌더러(응답 `out.<part>`)가 대체하므로 표 로더 5종과 `TABLE_LOADERS`·`PART_TABLES` 등록을 제거하고, 나머지 7종(points·visits·farmgym·boards·agencyvisit·dayoff)은 그대로 보존. 특히 ELEC 은 **167만 행 중 500행** 표라 화면으로 성립하지 않았다.
+  · 통합은 `docs/design-admin/screens-2026-07-30/integrate.py` 로 **원자적 1회 적용** — 파일마다 [읽기 → 메모리 변환 → **sha256 재확인** → 한 번에 쓰기], 읽은 뒤 다른 세션이 저장했으면 아무것도 쓰지 않고 전체 중단(부분 적용 방지) · 마커(`SMEAG-5SCREENS-2026-07-30`)로 멱등.
+  · **API**(`deploy/api/data.js`): `loadMembers`(g4_member ⨝ 학생수·커미션건수, PII 컬럼 미조회) · `loadCommission`(uhak_agency_com ⨝ g4_member, com_amt varchar 잡값 3건 방어 + 원문 동봉, **유학원 계정은 자기 계약만** — 타사 %/금액은 영업기밀) · `loadCourses`(course_info ⨝ course_category, 국가별 가격 9종) · `loadTuition`(tution_fee ⨝ course_info, 코스×주차 매트릭스용) · `loadElecMeter`(**방 단위 서버 집계**). elec 전용 쿼리파라미터 `elecFrom`/`elecTo`/`elecRoom` 신설 + 캐시키(version)에 포함.
+  · **ELEC 성능**: `legacy.room_elec` 인덱스가 `pkey` 뿐이라 기간 필터가 Parallel Seq Scan(≈222MB read). 전기간(2006~2026) 집계는 **18.5s** 로 `statement_timeout(20s)` 위험 → 서버에서 `MAX_ELEC_SPAN_DAYS=400` 클램프. `max(re_date)` 직접조회 1,082ms → pkey 역순 5,000행 서브쿼리 **179ms**(같은 값). 사용량은 `끝-시작` 이 아니라 **일자별 delta 합**(0~2000 클램프, 계량기 교체·오타 제외), 검침 0 인 행(2026년 약 40%)은 시작·종료검침 산정에서 제외. **인덱스 제안(DDL 미실행)**: `room_elec(re_date)`, `room_elec(i_idx,re_date)` → 1.4s → 수십 ms 예상, +약 50MB.
+  · **화면**: members(레벨·구분(ADMIN/AGENCY/STAFF)·상태 필터 + 검색 + 페이지네이션) · commission(유학원별 **현재 계약** 요약표 + 전체 이력표 2단, COMMISSION RULES 화면과 성격 구분 배너) · courses(카테고리 그룹 + 국가별 가격 9열 + 상태 pill) · tuition(**코스×주차 매트릭스** + 원본 목록 토글, 마진 표시) · elec(레거시 3섹션 재현 — 방별 검침표 + 방구분별 정산 롤업 + 검색/기간/캠퍼스 필터, 방 클릭 → 일자별 추이).
+  · `_buildCourseCache()` 를 **라이브 코스 마스터(`REAL.courses`) 우선**으로 전환(기존 스냅샷은 폴백) → 수강등록·멀티수강의 코스 숫자코드 노출·`·off` 배지 누락 동시 해소.
+  · **검증**(`exploration/live-data/e2e5.mjs` 신설 — 로컬 정적서버 + **실 `/api/data` 핸들러 + 실 Supabase**): 5화면 순회 전부 전용 렌더러로 진입(curKey=members/commission/courses/tuition/elec), 조각 요청이 매핑대로 1건씩만 발사, **폴백 0 · `undefined`/`NaN`/`[object Object]` 0건 · pageerror 0**, 재진입 추가호출 **0**(TTL 캐시). 실측 — members **2,053행 206ms** · commission **4,004행 165ms** · courses **71행 161ms** · tuition **100행(25코스×4주) 182ms** · elec **836방 162ms**(2026-07-01~31, 검침 433방/미검침 403방, 사용량 19,792kWh, 요금 8,038.2, latest 2026-07-13). `prototype.html` 은 라이브 계층이 없어 5화면 모두 안내카드 폴백 + 콘솔에러 0(설계대로).
+  · 데이터 관찰: `course_info` 71개가 **전부 g_idx=5(ESL)** — `course_category` 14개 중 1개만 실제 사용 중(화면 칩 `Categories 1/14` 는 버그가 아니라 실측값).
+  · 배포: `vercel deploy --prod` → `vercel alias set smeag-bay.vercel.app` 재지정 완료(dpl smeag-bgiqbob4g). ⚠ **라이브 클릭검증 미완** — 같은 날 다른 세션이 켠 Edge middleware 로그인 게이트(`/` → 302 `/login`)로 인해 이 세션에 계정이 없어 화면 순회를 못 했다(`/login` 200 · 무세션 `/api/data` 401 = 게이트 정상). 로컬은 실 DB·실 핸들러로 전 항목 통과.
+  · 업무 확인 필요: ① TUITION FEE **5주차 이상 요금 규칙**이 원본에 없음(tution_fee 는 week 1~4) ② ELEC 의 `re_state` 가 전량 빈값이라 레거시 `search_condition2`(STUDYING/GRADUATING) 필터를 이 테이블만으로는 재현 불가 ③ 2026년 검침행 약 40%의 `re_gage=0` 이 미검침인지 실제 0인지.
+
+- **2026-07-30** **라이브 조회 후속 3건 완료 + 자체 QA 결함 수정(인가·무인증쓰기·마스킹·스탬프)**:
+  · **① 명세화면 15종 라이브화(11 조각)** — 조사 6갈래 병렬로 테이블·컬럼을 실 DB 로 확정한 뒤 구현. `members`(cms.g4_member 2,053) `points`(g4_point 146,387) `visits`(g4_visit_sum 5,431 — 상세 g4_visit 은 IP·UA 때문에 미사용) `commission`(uhak_agency_com 4,004) `courses`(course_info 71) `tuition`(tution_fee 100) `farmgym`(student_payment⨝student_info 65/47/20) `boards`(g4_write_office_GAC 37·holding 13·share 3) `elec`(room_elec 1,670,841) `agencyvisit`(uhak_day_info 158) `dayoff`(smeag_dayoff+sched_info 115). 조각당 **217~453ms**, 11개 동시 1,214ms/261KB.
+  · 조사에서 잡은 함정: `cms."g4_write_office_GAC"` 대문자 인용 필수 · timestamptz 는 **`at time zone 'UTC'`** 로 포맷해야 하루 밀리지 않음 · `course_list` 의 `#`=`i_idx`·`상태`=대문자 Y/N 이어야 코스명 캐시(`_buildCourseCache`)가 안 깨짐 · commission 의 `percent`/`uhak_idx` 는 전 행 빈값이라 `com_amt`+`com_category` 로 분기.
+  · **② 모바일 로그인 게이트 복원** — 로컬 폴백 로그인(초기 비번=아이디, localStorage 해시) 제거, `/api/auth` 서버 인증만 허용. 세션 유/무 7항목 E2E PASS.
+  · **③ 세션 만료 안내** — 데스크톱 1회성 모달(포커스·Esc·reduced-motion), 모바일 토스트 1회 후 게이트 복귀.
+  · **자체 QA 11건 적발 → 수정**(2차 워크플로가 API 529 로 전멸해 직접 수정):
+    - **S1(Critical) `/api/blocks` 무인증 쓰기** — 세션 없이 POST 가 통과하고 actor 를 `X-SME-User` 헤더로 위조 가능(외부인이 전 객실 차단 가능)했음. → GET·POST 모두 세션 필수(401), **Lv8+ 만 허용(403)**, actor 는 세션 mb_id 만 사용(헤더 폴백 삭제). 기존 `actorOf` 가 세션 클레임을 `s.id/s.username` 으로 잘못 읽어 실제로는 항상 헤더 경로였던 버그도 함께 수정.
+    - **S2(High) 인가 부재** — 레거시 로그인은 회원 전체(2,053, 레벨 무관)를 통과시키는데 `/api/data` 는 레벨을 안 봤음(Lv1 학생·학부모가 회원명부·직원휴무·커미션·전 학생 PII 취득 가능). → `PART_ACCESS` 도입: internal(members·points·visits·boards·dayoff·elec·commission·changelog)=Lv8+, business(students·roomstat·pickup·deposits·farmgym·agencyvisit…)=Lv8+ 또는 **유학원 확정 계정**, master(courses·tuition)=로그인. 거부 조각은 `out.denied` 로 알리고 전부 거부면 403. **유학원 판정 실패 시 deny 기본값**.
+    - **S4 자유입력 마스킹** — `MASKFREE()` 신설(이메일·전화패턴·9자리+ 숫자런). 방문요청사항·휴무사유·FARM 코멘트·게시글 제목에 적용, 비밀글은 제목을 `[secret]` 로만 노출(기존 `[secret] 실제제목`).
+    - **S5 스탬프 고착** — stamp 가 student_info/room_reserve/change_log/payment 만 봐서 게시판 새 글이 올라와도 ETag 불변 → 304 로 옛 데이터 고착. `PART_STAMP` 로 요청 조각의 PK 최대값을 스탬프에 포함(전 조각 계산 **189ms**). `smeag_dayoff` PK 는 `idx` 가 아니라 `id` 임을 실측으로 정정.
+    - **S6 500행 상한 미표시** — `LIVE.truncated` 를 URL 단위로 관리하고 화면 상단 경고칩 + 엑셀 내보내기 토스트에 "최신 500행만" 명시(전용 렌더러 화면에도 renderMain 에서 공통 주입).
+    - **S7 조각 매핑 누락** — FARM 리포트(`student_farm2.php`)·VISIT 캘린더(`uhak_agency_schedule_list.php`) 가 매핑에 없어 콜드 진입 시 빈 표였음 → PART_TABLES 보완(E2E 재확인: 20행/50행 표시).
+    - **S8 모바일 tables 미병합** — `j.tables` 병합 + URL→조각 매핑(MVPARTS_URL) + truncated 보관 추가.
+    - **S9 오류 원문 노출** — 500 응답의 `detail`(스키마 정찰 재료) 제거, 서버 콘솔로만.
+    - **S11 `esc` 섀도잉** — 만료 모달의 지역 `esc` 를 `onEscKey` 로 분리(전역 HTML 이스케이퍼 가림 방지).
+  · **인가 매트릭스 실측**(주체 5 × 조각 9): 비로그인 전부 401 / Lv1 전부 403(courses 만 허용) / Lv3 유학원 확정 = 학생 1,297건(자기 유학원)·내부조각 403 / Lv3 미확정 전부 403 / Lv9 정상. `/api/blocks` 는 비로그인 401, Lv1·Lv3 는 GET·POST 모두 403, Lv9 만 200.
+  · 검증 하네스 추가: `exploration/live-data/authz.mjs`(인가 매트릭스·마스킹·스탬프 확인).
+  · **미결/주의**: ⑴ 회원관리 전용 렌더러(다른 세션 작업)가 이메일·전화·로그인IP·메모를 마스킹 없이 2,053행 반환 — Lv8+ 전용이라 외부 노출은 없으나 노출 범위 재검토 필요. ⑵ `loadStudents` 는 여전히 무상한(SLICE_FROM 고정)이라 해가 갈수록 응답이 커짐. ⑶ `student_farm2.php` 의 PAID 는 `deposit_pay` 추정 매핑(레거시 원본 부재) — 실화면 대조 필요. ⑷ 같은 워킹트리를 다른 세션이 동시 편집 중이라(커밋 fc7c38e 에 본 작업분이 함께 포함됨) 배포 전 최종 diff 확인 필요.
+
+- **2026-07-30** **학생정보 모달 문서출력 실동작화 — 레거시 문서 4종 서식 그대로 이식**:
+  · **문제**: STUDENT MANAGEMENT INFORMATION 모달의 `ETC DOC · View` 의 `[LOA]` `[RECEIPT]`, INVOICE 행의 `AGENCY` `STUDENT` 가 모두 `<a href="#" onclick="return false">` 죽은 링크였고, `NEW INVOICE PUBLISH` 는 발행만 하고 문서를 내보내지 않았다. 즉 인보이스 발행·ETC DOC·PDF 가 화면에 **기능으로 존재하지 않았음**.
+  · **레거시 원본 확보(읽기전용)**: `exploration/tmp_docs_fetch.js` — `/adm/` 경로는 404, **루트 경로**가 실경로였다(`www.smeadmin.com/admission_letter.html?s_no=` · `receipt_fee.html?s_no=` · `invoice_agency2.html?invoice_no=` · `invoice_student2.html?invoice_no=`). 4종 HTML 원문 + `css/style.css`(`.tblue #5569AA` `.t13` `.t15blur #8A91AD`) 확보. 안내문(입금계좌·현지납부비용·환불규정)은 **레거시 원문을 그대로 옮김**(임의 작성 금지).
+  · **자산 임베드**: `exploration/tmp_docs_assets.js` — 레터헤드(`loa-logo.png`)·서명(`admis_sign.gif`)·수납도장(`receipt-stamp.png`)·인보이스 배너(`invoice1_top.jpg`/`_top2.jpg`)·섹션타이틀(`tit01~03`)·박스 상하단·불릿·프린트 아이콘 **13종 → base64 data URI(77KB)**. 외부 요청 0(팝업창은 CSP·오프라인에서도 동일하게 렌더).
+  · **구현**: `openLegacyDoc()`(690px 고정폭 + 우하단 PRINT OUT) · `docHead()` · `docInfoBox()` · `docLoa()` · `docReceipt()` · `docInvoice(d,kind)`. 모달측은 `smiDocData(invNo)` 하나로 값 조립 → 6개 진입점 배선(`#smiLoa` `#smiRcpt` `#smiInvAg` `#smiInvSt` + INVOICE PUBLISH 행의 `📄 INVOICE (AGENCY)/(STUDENT)` 버튼).
+  · **유학원용/학생용 구분(레거시와 동일)**: agency = 배너 `invoice1_top` + `에이전시` 행 + **입금계좌번호 안내** 섹션 + **입학금·커미션 차감 후 합계**. student = 배너 `_top2`, 위 3요소 전부 제외.
+  · **레거시 원값 우선**: 수업료 상세=`row[19]`(fee_class2), 기숙사비 상세=`row[20]`(fee_dorm2), `s_no`=`row[18]`(s_idx). 없을 때만 주차·인실로 합성. `납부기간 = 출국일 − 15일`(레거시 샘플 2건에서 역산 확인: 09-06→08-22, 04-25→04-10).
+  · **발행 연동**: `publishInvoice()` 가 결과(`invoice_no`)를 **반환**하도록 고쳐 SUBMIT 시 발행 확정분만 유학원용 인보이스를 즉시 출력(중복 발행분은 출력하지 않음 — 멱등 가드 유지).
+  · **레거시 대조로 잡은 결함 6건 수정**: ⑴ 번호 연도 하드코딩 `2026` → 등록연도, 미발행은 `(미발행)` ⑵ 수업료 상세 `4 weeks-4 weeks-…` 중복 ⑶ 여권칸 기본값 `0` 이 문서에 `Passport Number: 0` 으로 찍힘 → 공백 ⑷ 유학원 합계가 입학금 미차감(1,833) → 레거시식 차감(1,733) ⑸ 문서폭·정보박스 테두리 gif 우측 흰여백 ⑹ `width:100%` 가 불릿(`acad_dot.gif`)까지 늘려 초록블록화 → 테두리 전용 `.iedge` 로 한정.
+  · **의도적 레거시 이탈 1건**: `PAYMENT RECEIVED` 도장을 레거시는 **무조건** 찍는데(미납·총액 0 영수증에도) → **완납(PAID)일 때만** 찍도록 조건화. 미납 학생 영수증에 수납완료 도장이 찍히는 금전사고 방지. 되돌리려면 `d.paid?…` 조건만 제거.
+  · **작업 중 사고 1건(복구완료)**: 삽입 스크립트에서 `String.replace(a, b)` 의 `b` 안에 `'$'` 가 있어 **`$'`(match 이후 전체) 치환**이 발동 → 양쪽 파일에 tail 이 2회 중복 삽입됨(+113KB). 3중 tail 동일성 검증 후 정확 복원하고 함수형 `replace(a, () => b)` 로 재적용. 이후 script 블록 파싱 결과가 HEAD 와 동일함을 확인.
+  · **검증**: 로컬(스텁서버 8799) + **라이브** 각각 6개 진입점 전부 열림 — 창제목 `ADMISSION LETTER` / `Receipt of Tuition Fee` / `INVOICE (유학원용)` / `INVOICE (학생용)`, 이미지 3·11·15·13 전량 로드, **JS 에러 0**. 도장 조건부 동작 확인(미납 10장 / 완납 11장). 배포: `vercel deploy --prod` → `vercel alias set smeag-bay.vercel.app`.
+  · **미결/주의**: ⑴ **통화 단위 불일치** — 레거시 인보이스는 `원`(같은 학생 1,970,000원)인데 신전산 모달 DETAIL COST 는 `$`(1,970). 문서는 모달 값을 그대로 `$` 로 찍으므로 **정책 확정 필요**(1000배 KRW 인지, 실제 USD 인지). ⑵ **NET 정의 2종** — 모달 FINANCIAL 은 `총액−커미션`, 레거시 유학원 인보이스는 `총액−입학금−커미션`. 문서는 레거시를 따랐으므로 모달 표시와 값이 다름 → 어느 쪽을 정본으로 할지 확정 필요. ⑶ 라이브 `/api/data?parts=students` 가 **Lv7 kenneth 에게 403**(다른 세션의 `PART_ACCESS` = internal/business 조각 Lv8+ 규칙). 실데이터 대조는 Lv8+ 계정 또는 유학원 확정 계정으로 재확인 필요.
+
+- **2026-07-30** 행정팀 5건 중 **A3·A4 구현·배포 + 전제 재검증**:
+  ① **재이관(D) 이미 완료 실증** — Supabase 읽기전용 접속 대조: uhak_agency_com 4,004 / student_change 26,857 / student_info_invoice 128,580 / student_info 90,524 **전부 원본=적재 100% 일치**, 확장컬럼(com_no·pay_status·exchange_*·center_pay_*·finance_*·s_regdate·s_jumin) 전부 존재 → 논의 중이던 (B)안이 이미 반영. "12,150 부분집합"은 DB가 아니라 앱 API 슬라이스(`data.js` SLICE_FROM='2025-01-01' → 12,389명) 때문이었음.
+  ② **anon 키 병목 해소 확인** — 앱이 deploy/api/*.js 에서 pg 직접접속(PG_* env)으로 조회, 쓰기도 app.room_block_set/_release RPC로 실증됨(키 불필요). auth.js 주석에 명시.
+  ③ **A3 센터수납 현장결제**: data.js loadStudents 에 8칸 추가(23~30 PAY_STATUS/PAY_CHANNEL/EX_DATE/EX_RATE/CPAY_AMT/CPAY_UNIT/CPAY_DATE/CPAY_MEMO) + 학생상세폼에 `CNETER PAY INFO` 블록(레거시 라벨 그대로). pay_channel=CENTER 일 때만 활성(계좌수금 잠금), **단위별 환산 실의미 반영**(peso=납부액÷환율=그로스 / dollor=달러 그로스, 페소환산은 참고), 화면 TOTAL 은 추정치라 '참고(ref)'로만 병기(경고 아님), MEMO 자동작성(레거시 문장형식·미지원 단위는 생성 차단), CENTER_RECEIPT 인쇄. 실데이터 검증: 12,505₱÷61=$205 → 레거시 메모($205를 페소12,505로)와 정확히 일치.
+  ④ **A4 변경환불 체크목록**: API 신규 조각 `chgref`(student_change⨝student_info, 2025+ **2,247건**) + 전용화면 R.chgref(기존 spec 더미표 대체) — 기간·CENTER·유형·RESULT·검색 필터, RESULT 상태배지(pay_result 매핑), 기한초과 빨강+경과일, 체크박스 일괄(엑셀 20컬럼·멱등 인보이스), 읽기전용 상세모달. **확정·삭제는 student_change 쓰기 RPC 미존재로 비활성(툴팁 명시) → A2에서 배선**. 라이브 실측 INTAKE 2,247·PENDING 152·REFUND 554.
+  ⑤ 검증·배포: 로컬+라이브 Playwright 콘솔오류 0. ⚠ **smeag-bay.vercel.app 별칭이 구배포를 가리키고 있어 재지정**(프로젝트 프로덕션 URL은 smeag-bay-orpin). 동일 세션에 **다른 작업자가 같은 파일(deploy/index.html) 편집·배포 중**이어서 충돌 회피: LOA/영수증 생성부가 읽는 q('smiPayStat') 문구값을 깨지 않도록 셀렉트 value=레거시 표시문구 유지.
+  ⑥ 신규 미결정: **Q-8 약속기한(info_due_date) 실입력 43/26,857·2025+ 0건** → 기한관리 방식 결정 필요(입력 시작 / 접수일+N일 SLA 자동 / 미사용), **Q-9 dollor 건의 달러+페소 분할납부(1,367건)를 구조화 입력할지 MEMO 유지할지**.
+
+- **2026-07-30** 배치도(room_stat3) **룰러·방셀 클릭 → 이름칸 동일이름 강조**:
+  · **요청**: 방 셀을 클릭/룰러가 지나갈 때, 그 날짜 점유자와 **같은 이름을 왼쪽 이름칸에서 표시**해달라(어느 학생 행인지 눈으로 못 찾는 문제).
+  · **구현(deploy/index.html)**: ⑴ 룰러 `move()` 안에 `hovName(tr,name)` 추가 — `rsOccAt(tr,i)` 로 얻은 그 날짜 점유자와 `data-name` 이 일치하는 `.rs-nameseg` 에만 `.hov` 부여(+행 `.rs-hov-row` 연한 배경). 키(행+이름) 비교로 같은 셀 안에서는 DOM 조작 스킵 → 마우스무브 비용 0에 가깝게 유지. 룰러 OFF·셀 밖으로 나가면 자동 해제. ⑵ 방 셀 클릭 시 `rsHighlight(occ,false)` 호출 — 이름 클릭과 **동일한 강조**(이름칸 `.on` + 그 학생 점유구간 오버레이 `.rs-hl` + 행/방블록 강조)를 방셀 클릭에서도. 스크롤은 이동시키지 않음(`scroll=false`), 빈 날 클릭은 `rsClearHl()`.
+  · **CSS 신규 2종**: `.rs-nameseg.hov`(연한 강조 — 클릭 강조 `.on` 과 구분), `tr.rs-hov-row td.c3`.
+  · **검증**: Playwright E2E(로컬 정적서버+실 /api/data) — CAPITAL/MALE 배치도에서 점유 셀 좌표 계산 후 hover → `.rs-nameseg.hov=["준블락_single use"]`, 툴팁 `📅 2026-06-16 · 🏠 301-1 · 👤 준블락_single use`, 클릭 → `.on` 1건 + `.rs-hl` 1건, **JS 에러 0**. 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app`(별칭 재지정 필수 — 이번에도 필요했음).
+
+- **2026-07-30** 행정팀 **Q-8·Q-9 회신 반영 — 쓰기(저장) 계층 신설 + UI 구현·배포**:
+  ① **Q-8 "약속기한 앞으로 입력한다"** → A4 목록 맨 오른쪽 **DUE 입력칸**(변경 즉시 저장) + **선택 일괄 확정**(처리결과 지정 + 완료일=오늘, 이미 종결된 건은 한 번 더 확인받고 force). 기한 경과 시 빨강+경과일 자동 표시(라이브 검증: DUE 2026-07-25 저장 → `+5d`·OVERDUE=1).
+  ② **Q-9 "2칸 구조화 + 추가 버튼"** → 센터수납에 **분할납부 입력행**(기본 달러·페소 2칸, `➕ 입력칸 추가`로 동적 생성·상한 20, 행 삭제, 비고). **합계검증**(Σ달러 + Σ페소÷환율 = 납부금액 달러환산, 불일치 시 차액 표시) + **MEMO 자동조합**(레거시 문장형식 "그로스가 $1,880을 달러$1,800과 페소4,880(=$80) 납부($1=61p)") + 저장.
+  ③ **DB**: `migration/schema/admin_edits.sql` 신설·적용 — `app.student_change_set`(화이트리스트 4컬럼·날짜형식·RESULT코드 검증·**종결→종결 전이 need_confirm 가드**·멱등·감사·log_change), `app.center_pay_set`(화이트리스트 8컬럼·단위검증·분할내역 전량교체), `app.center_pay_split`(분할 원장, 레거시 스키마 불변), `app.center_pay_split_list`. 저장 시 `app.log_change` 기록 → 기존 역방향 일일동기화가 그대로 집어감.
+  ④ **API**: `deploy/api/edit.js` 신설 — 세션 필수·**Lv8+ 쓰기**·멱등키 필수·화이트리스트 1차 검증·need_confirm 중계. pg 직접접속(키 불필요).
+  ⑤ **부수 버그 3건 수정**: (a) `change_log.sql` 의 `((changed_at::date))` 인덱스가 IMMUTABLE 아니어서 **여태 적용 자체가 실패**하던 것 → `((changed_at at time zone 'UTC')::date)` 로 수정 후 적용(app.change_log 이제 실존). (b) `/api/data` 캐시 스탬프가 max(PK)만 보므로 **기존 행의 칸만 바뀌는 행정팀 수정을 감지 못해** 저장 후 새로고침 시 옛 값 표시 → 스탬프에 `max(app.write_audit.audit_id)` 추가. (c) 센터수납 저장이 **전 8필드를 통째로 전송**해 손대지 않은 값까지 덮어쓰던 문제 → **변경분만 전송(diff)** 으로 수정. 추가로 게이트가 채널 미지정까지 잠가 신규입력이 불가했던 점 → **ACCOUNT 일 때만 잠금**, 그리고 **저장·행추가 버튼을 게이트에 포함**(빠져 있어 잠긴 화면에서 저장이 나갔음).
+  ⑥ ⚠ **검증 중 라이브 데이터 3건 변경 → 원본 덤프(sql/student_info.sql)에서 전 컬럼 대조 복원 완료**(#100108 메모·#100711·#101304, 3건 모두 `원본일치: True` 확인). test 흔적(app.change_log·center_pay_split·write_audit) 정리. **교훈: 라이브 화면 검증은 실행 전 대상 행의 원본값을 확보하고 종료 시 반드시 복원할 것**(전용 테스트 학생 도입 검토).
+
+- **2026-07-30** **메뉴 100% 레거시 정합**(요청: "make new system with same legacy menu"):
+  · **근거**: `exploration/discovered_links.json`(레거시 드롭다운 DOM 실측 라벨·순서) + `docs/LEGACY_ALLMENU_2026-07-23.html`(9카테고리·66항목 목차) + 레거시 상단바 캡처.
+  · **카테고리 7→9·순서 레거시화**: Setting · Member's · **Board(신설)** · Agency · **Record** · Student's · Dormitory · Financial · Cash Cards (레거시 상단바 순서 그대로). `SIDE_TITLE`·RBAC(DEPTS)·`.cats{flex-wrap}` 동반 수정.
+  · **라벨·번호 레거시 원문 채택**: `1.수강등록관리`·`1.1.멀티수강관리`·`1.2 MC Report 1`·`2.변경환불홀딩`·`4.1.Deposit(test)`·`5.1.GYM 리포트`·`1.기숙사현황`·`3.일별 입실&퇴실` 등. **기본 영어 정책은 유지** — `MENU_EN` 에 번호를 포함한 영문 매핑을 추가해 EN 에서도 `1.Course Registration` 처럼 번호가 그대로 보인다(모바일은 항목별 `en` 필드 + `titleFor`).
+  · **누락 9개 추가**: 회원메일발송·투표관리·게시판관리·게시판그룹관리(Member's) / AGENCY ADDR·AGENCY OUT(Agency) / DORM SEARCH·Update Rooms(new)(Dormitory) / 세션 삭제·phpMyAdmin(Setting). 전용 렌더러 없는 항목은 기존 `R.spec`(명세·표 폴백)으로 표시.
+  · **분리 복원**: 하나로 합쳐 두었던 `STDNT Fullsize/Encanto/Classic/Capital` → 레거시대로 **4개 항목**(각 `student_present2-rey/-sparta/-classic/-capital.php`). 레거시가 드롭다운에 중복 노출하는 게시판(GAC BOARD·Campus Holding Info→Student's, SME_BOARD→Dormitory)도 **중복 그대로** 재현.
+  · **신전산 추가분은 남기되 표시**: `ext:1` → 드롭다운에 `＋` 배지(대시보드·권한설정·AGENCY PAGE·COMMISSION RULES·TUITION FEE·DAYOFF/Scheduler·주간 픽업 리스트). 결과: 9카테고리 / 76항목 = 레거시 66 + 드롭다운 중복 3 + 신전산 추가 7.
+  · **검증**: 로컬 정적서버 Playwright — 데스크톱 9카테고리 전 항목 **76개 클릭 순회, JS 에러 0**(h1 없는 6건은 에이전시 포털 재현 화면으로 기존과 동일), 한/영 토글 라벨 확인. 모바일(`deploy/m/index.html`) 전체메뉴 시트도 **9그룹·76항목 동일**, 에러 0. 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app`. ⚠ 라이브 클릭검증은 이 세션에 로그인 계정이 없어 미실시(Edge 게이트 `/`→302 `/login` 정상 동작 확인).
+
+- **2026-07-31** **수강등록관리 화면 원복(da4217e 이전) + ACTION 열 잘림 수정**:
+  · **요청**: "학생수강등록 화면은 이 작업 이전으로 돌려놔"(선택: 어제 커밋 `da4217e` 이전) + "수정·신청 등 학생리스트 오른쪽 아이콘이 안 보인다".
+  · **원복 4곳**(deploy/index.html, 같은 커밋의 배치도 열드래그·COMMISSION RULES 문구는 **건드리지 않음**): ⑴ `td.std-name` 링크 스타일(밑줄·포인터·hover) 복구, ⑵ 이름 클릭 → 상세정보(openStudentEdit) 핸들러 복구, ⑶ 표 **PERI = 원래 정수 표기**(`2w` 되돌림)·**COURSE = 원래 코드값**(코스명 매핑 되돌림), ⑷ 엑셀 내보내기도 동일하게 원값(r[10]·r[12]). `periW()`·`courseNameOf()` 함수 자체는 COURSE 필터 등 다른 화면이 쓰므로 존치.
+  · **아이콘 안 보이던 원인**: ACTION(수정/변경/연장/상담/약식) 열이 표 오른쪽 끝(표 폭 1,505px)이라 **뷰포트 1,366px 미만에서 잘려** 가로 스크롤을 해야만 보였음(실측: 1100·1280 = 잘림, 1366↑ = 정상). 커밋과 무관한 레이아웃 문제.
+  · **수정**: `td.std-act`/`th.th-act` **오른쪽 sticky 고정**(그림자 경계·hover 배경 동기화) → 가로 스크롤 없이 항상 우측에 보이고, 끝까지 스크롤하면 원래 자리에 놓임. 실측 재검증: 1100·1280·1366·1440·1680 **전부 잘림 없음**. (CONSULT LOG/MEDICAL/CONSENT/REPORT 4열은 종전대로 1,680px 미만에서 가로 스크롤 필요 — 별건.)
+  · **검증**: 로컬 정적서버+실 `/api/data`(Playwright, 1280×900) — ACTION 5버튼 노출·이름 클릭 시 상세 모달(`modal smi`) 열림·PERI `16`·COURSE `46`(원값) 확인, **JS 에러 0**. 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app`.
+
+- **2026-07-31** **"수정·변경·연장·상담·약식 아이콘이 안 보이고 데이터도 다 안 나온다" 원인규명 + 폴백 제거**:
+  · **원인**: 화면에 보인 12행은 **실데이터가 아니라 샘플(가상) 폴백**이었다. `paintStd()` 는 `stdFiltered()` 가 null(=`REAL.studentsFull` 없음)이면 `rowsStudents(12)` 로 **가짜 12행**을 그렸고, 이 폴백 행은 컬럼이 10칸뿐이라 ACTION·CONSULT LOG·MEDICAL·CONSENT·REPORT 칸이 **비어 버린다**(스크린샷의 칩 `0 persons`·`Real data(MySQL)` 배지 없음·CLASSIC/ENCANTO 배지가 DEPA/BEGIN 열에 어긋나 찍힌 것이 증거). 즉 아이콘이 사라진 게 아니라 **실데이터가 안 실린 화면**이었다.
+  · **실데이터가 안 실리는 경우**: ⑴ 세션 만료(8시간, `/api/data` 401) ⑵ 조각 권한 없음(403 — Lv8 미만·유학원 미확정 계정) ⑶ 조회 실패·타임아웃 ⑷ 아직 로딩 중.
+  · **수정**: 학생 목록 화면에서 **샘플 폴백을 완전히 제거**. 대신 상태 패널을 표시 — 🔒 세션없음(다시 로그인 버튼·`/login?next=`) / ⏳ 불러오는 중 / ⚠ 조회 실패(사유 + 다시 시도 → `liveSync({parts:['students'],force:true})`) / 📭 미로드(불러오기). "이 화면은 실데이터 전용이라 샘플 행을 표시하지 않습니다" 문구 병기.
+  · **검증**: 스텁 500 응답 — 가짜행 **0개**, `⚠ DB read failed (HTTP 500) · Retry` 패널 노출, JS 에러 0. 실 `/api/data` 정상 경로도 재확인(ACTION 5버튼·이름클릭 상세모달·PERI/COURSE 원값). 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app`.
+  · ⚠ **남은 확인**: 사용자 계정이 위 ⑴~⑷ 중 무엇이었는지는 화면의 우상단 라이브 배지(`● Live` / `○ 샘플(로그인 필요)` / `▲ DB 오류`)로 즉시 구분 가능 — 이번 배포부터는 표 대신 사유가 뜬다.
+
+- **2026-07-31** **kenneth 403(데이터 안 보임) 원인규명 + 권한 오버라이드 도입(Lv10)**:
+  · **원인**: `/api/data?parts=students` → **403 forbidden**. `data.js` 인가규칙은 `STAFF_LEVEL=8` 이상만 업무조각(students·roomstat·pickup·deposits·chgref…) 허용인데, DB 실측 **kenneth = Lv7**(cms.g4_member) 이고 유학원 계정도 아님(`student_info.uhak_id='kenneth'` 0건) → 전면 차단. 레거시 실무자 대부분이 Lv7(24명)이라 kenneth 만의 문제가 아니었다(Lv10 5 · Lv9 1 · Lv8 1 · **Lv7 24** · Lv6 1).
+  · **조치(요청: kenneth Lv10)** — 레거시 미러 `cms.g4_member` 는 **손대지 않았다**(원본 불가침 + 다음 동기화 시 원복 + 역방향 동기화 위험). 대신 신전산 소유 테이블 신설: `migration/schema/member_level_override.sql` → `app.member_level_override(mb_id, mb_level, active, memo, updated_by, updated_at)` + `app.member_level_of(mb_id)`. **유효권한 = max(세션레벨, 오버라이드)** 규칙을 `/api/data`·`/api/edit`·`/api/auth`(세션 발급) 세 곳에 배선. 테이블 부재 환경에서도 죽지 않게 try/catch 폴백.
+  · **적용**: kenneth → **Lv10**(memo에 사유·일자 기록). g4_member.mb_level 은 7 그대로 확인.
+  · **검증**: 실 DB로 핸들러 직접 호출 — `kenneth(Lv7 세션 쿠키 그대로)` → **HTTP 200 · studentsFull 12,389행**(재로그인 불필요, 기존 세션도 즉시 적용), `doris(Lv7·오버라이드 없음)` → **403 denied=students**(무분별 승격 아님 확인). 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app`(무세션 `/api/data` 401 정상).
+  · **되돌리기**: `delete from app.member_level_override where mb_id='kenneth'` (또는 `active=false`) → 즉시 Lv7 로 복귀.
+  · **남은 결정**: 나머지 Lv7 실무자 23명 처리 — ⑴ `STAFF_LEVEL=7` 로 하향 ⑵ 업무조각만 Lv7 허용·내부(members·changelog·commission)는 Lv8 유지 ⑶ 필요한 계정만 오버라이드 추가. 현재는 ⑶ 로 kenneth 만 열려 있음.
+
+- **2026-07-31** **학생 목록 표를 레거시 화면(student.php) 표기로 정합 + BIRTH 유지**:
+  · **요청**: "신시스템은 레거시 화면에 맞춰서 보여줘, birth는 포함"(레거시 STUDENT LIST 캡처 제공).
+  · **헤더**: `NAME(EN)→NAME` · `STATUS→COND` · `ROOM→DORM` (레거시 라벨), **PICKUP 항상 표시**(레거시와 동일), BIRTH 는 요청대로 AGE 앞에 유지. 최종 = AGENCY·NAT·NAME·KOR·**BIRTH**·AGE·SEX·APPLY·DEPA·BEGIN·PICKUP·END·PERI·COND·COURSE·DORM(+ACTION·문서4).
+  · **값 표기 레거시화**: ⑴ 날짜 **연도 4자리 전체**(`2026-07-31`) — 기존 2자리 축약(d8) 대신 `dL()` 신설. ⑵ **PERI = `16w`**(주 단위 표기). ⑶ **COURSE = 코스명**(`ESL 2(CAPITAL)`, 코드값은 title 툴팁). ⑷ **COND = 레거시 축약코드**(`normal→NORM` … `condLegacy()`, 미확인 코드는 앞 4자 규칙). ⑸ **DORM = `ENCANTO3 / E318`** 슬래시 표기(`dormLegacy()`). ⑹ **KOR 은 EN 과 같아도 그대로 표기**(레거시가 중복 표기함 — 기존 `—` 처리 폐지). ⑺ SEX 는 레거시대로 `M/F`. ⑻ BIRTH 전용 컬럼이 생겼으므로 **AGE 칸의 생년월일 겹침 표기 제거**(`manAgeCell(row,hideDob)`).
+  · ⚠ **이전 원복과 상충 → 재적용**: 오전에 되돌렸던 `PERI 주단위(2w)`·`COURSE 코스명` 두 가지는 **레거시 화면이 실제로 그렇게 표시**하므로(제공 캡처: `4w`/`6 weeks-Pre-TOEIC`) 이번 요청 기준으로 다시 적용했다. 이름 클릭 → 상세정보는 원복 상태 그대로 유지.
+  · **엑셀도 화면과 동일 표기**(BIRTH 컬럼 추가·PERI/COURSE/DORM/COND 레거시식).
+  · **검증**: 실 `/api/data`(Playwright 1600×950, kenneth Lv7 세션+오버라이드) — 헤더 21열 순서 일치, 값 `2024-12-26 / 16w / NORM / ESL 2(CAPITAL)`, 12,389건·248페이지, ACTION 5버튼+문서4 노출, **JS 에러 0**. 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app`.
+
+- **2026-08-01** **ROOM REPLACEMENT 후보표 → 매칭(MATCHING) 결과표**:
+  · **요청**: "CHANGE PERIOD 옆에 MATCHING 버튼 · 방타입/기간/코스 필터로 검색된 것은 카테고리 앞에 매칭색으로, 나머지는 아래로" + "기존 것도 반영하기에 **상단에 매칭버튼**".
+  · **문제**: 기존 오른쪽 후보표는 `roomstat` 전 객실을 순서 없이 나열(수백 행)하고 **그 기간에 그 방이 비었는지 판정이 없는데도 모든 행에 MOVE 가 활성** → 겹침 배정 위험.
+  · **구현**(`deploy/index.html`): 버튼 **OFF = 레거시 전체 목록 그대로**(기존 동작 보존), **ON = 3등급 매칭**. ⑴ 등급 = 🟢전기간 가능 / 🟡부분 가능(가능 구간 표기) / ⬜불가(접힘 + **MOVE 비활성**) — 2색 대신 3등급으로 둔 이유는 "이 방은 5/2까지만 가능"이 부분이동 판단의 핵심이기 때문. ⑵ 하드필터 = FROM/TO(기본 CHANGE PERIOD, 수정 가능)·SEX(기본 학생 성별, FAMILY 는 양쪽 허용)·CATEGORY·CAPA. ⑶ **코스·국적은 방의 속성이 아니라 재실자의 속성**이라 필터가 아닌 **정렬 가산점**(같은 코스 룸메 우선 / 같은 국적 선호·회피)으로 배선. ⑷ 정렬 = 등급 → 가능일수 → 가산점 → **빈자리 적은 방 먼저**(방 파편화 최소화) → 같은 카테고리 → 방번호. ⑸ 집계바(전기간/부분/불가 건수)·매칭 사유(`빈자리 2/3 · 같은 코스 룸메`) 표기. ⑹ 판정 입력 = `beds[].segs[]` + `blockedRooms()`(무기한) + `BLK.list` 기간블록, **본인 예약 구간은 비우는 자리로 처리**. 서버 왕복·새 테이블 없음.
+  · **검증 중 잡은 실제 버그 2건**: ⑴ **날짜 off-by-one** — `new Date(d+'T00:00:00')`(로컬 KST)를 `toISOString()` 하면 하루가 밀려 가능구간이 `05-02`→`05-01` 로 표기됐다 → **UTC 파싱(`T00:00:00Z`·`setUTCDate`)로 수정**. ⑵ **방막기 원장 도착 전 렌더** — `blkLoad()` 완료 전에 그려서 **막아둔 방이 초록(전기간 가능)으로 표시**됐다 → 로드 완료 후 렌더(로딩 중 안내) 로 수정.
+  · **검증**: 합성 roomstat 주입 + Playwright 결정론 테스트 8케이스 — 본인자리/전빈방/부분(점유 05-03 → 가능 04-19~05-02)/전침대점유/기간블록(04-25~ → 가능 04-19~04-24)/무기한블록/성별 하드필터/CAPA 필터/코스 가산점 정렬/기간축소/TO<FROM 방어/초기화/OFF 복귀 **전부 기대값 일치, JS 에러 0**. 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app`.
+  · **실데이터 E2E 완료(2026-08-03)**: 앞서 "로컬 `/api/data?parts=roomstat` 응답이 비었다"고 적은 것은 **오판 — 콜드 커넥션 지연**이었다(웜 상태 roomstat 4.4s·students 1.1s, 콜드 120s+). 실 응답을 캐시해 서빙하고 재검증: **30그룹·418실·학생 12,389** 로드 → 배치도(센터·성별·그룹 3선택 필수) → 재실 방 클릭 → ROOM REPLACEMENT. 대상 `UWANISHI RYO`(CAPITAL1 302, 2026-05-10~07-04, 56일): **전기간 141 · 부분 118 · 불가 27**, 매칭 렌더 **85ms**(418행), 등급 정렬 단조 증가, 불가 27건 전부 **접힘 + MOVE 비활성**, 전기간/부분은 전부 활성, 버튼 OFF 시 **레거시 418행 그대로 복귀**, JS 에러 0.
+  · **교차검증**: 화면 결과 286행을 원본 `beds[].segs[]` 로 독립 재계산 → **불일치 0**(단 1건 `CAPITAL1 302` 는 검증 스크립트가 본인 구간을 모달 헤더 문자열(`UWANISHI RYO / NAKASHIO YUTA`, 2인 합성 라벨)로 비교한 탓이며, 원본 확인 결과 침대1 = `si 97169 UWANISHI RYO 05-10~07-04` 로 **앱의 s_idx 기준 본인구간 제외가 정확**했다).
+  · ⚠ **라이브(smeag-bay) 클릭검증만 미실시** — Edge 세션 게이트(`/`→302 `/login`)가 정상 동작 중이고 이 세션에 로그인 계정이 없다.
+  · **결정(2026-08-01, 확정)**: 국적 정책 = **무관**. 매칭 정렬에 국적을 반영하지 않는다(기본값 `무관` 그대로 유지). 선호/회피 선택지는 담당자가 필요할 때만 쓰는 수동 옵션으로 남겨두고, 어떤 경우에도 자동 적용하지 않는다.
+
+- **2026-08-01** **DORM SEARCH(room_search2.php) 실화면 구현 — 레거시 그대로 + CLASSIC 필터 제외**:
+  · **요청**: "legacy 대로 만들어 줘, 근데 **classic 은 필터에서 빼줘**" (기존에는 명세 골격(k:'spec')만 뜨던 화면).
+  · **레거시 근거**: 크롤 실측(`exploration/crawl_results.json`, title `USABLE DORMITORY SEARCH!`) — form `lesson_form`(GET): `s_date`·`e_date`(사용기간), `s_period`(주), `r_limit`(1~5 per/room), `s_gender`(M/F), `search_condition`(1=ENCANTO·4=CLASSIC·5=CAPITAL). 결과표 6열 `GROUP · ROOM NUMBER · BED NUMBER · PER/ROOM(인실) · SEX · CENTER`.
+  · **구현**(`deploy/index.html`): 메뉴키 `spec`→**`dsearch`** 신설(`LIVE_PARTS.dsearch=['roomstat']`). 폼·결과 컬럼을 레거시 그대로 재현하되 **CENTER 선택지는 ENCANTO/CAPITAL 만**(CLASSIC=레거시 4번 센터 제외, 결과에서도 제외). PERIOD(주) 입력 시 TO 자동계산(`FROM+7w-1`), TO 직접수정 시 주수 역산. 판정은 배치도와 **같은 실데이터**(`REAL.roomstat` 예약 세그먼트) + 방막기 원장(`blockedRooms()` 무기한 + `BLK.list` 기간블록)으로 **선택 기간 전체가 빈 침대만** 출력(레거시 "USABLE"), 서버 왕복·새 API 없음. FAMILY(공용) 그룹은 성별과 무관하게 노출. EXCEL 내보내기·정렬·조회로그(`dorm_search`) 배선. 검색기간이 배치도 데이터창(선택월 ±6개월) 밖이면 그 달로 옮겨 자동 재조회.
+  · **검증**(`exploration/live-data/e2e_dsearch.mjs`, 로컬 정적서버+실 `/api/data`, Playwright 1600×950): 폼 6필드·CENTER 옵션 `['','ENCANTO','CAPITAL']`(**CLASSIC 없음**)·헤더 6열 레거시 일치, `2026-08-06 +4주` → 빈 침대 **232 / 방 111**, `ENCANTO+4인실+FEMALE` → 8행(센터·인실 필터 정확), **교차검증 결과행 중 해당 기간 점유 침대 0건**, 기간 역전(TO<FROM) 방어 문구, **JS 에러 0**. 배포: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app`(라이브는 Edge 세션 게이트로 무세션 클릭검증 불가 — `/`→302 `/login` 정상).
+
+- **2026-08-03** **회원관리(member_list.php) 레거시 화면 그대로 + ✎ → 회원정보 수정(member_form.php) 프레임**:
+  · **요청**: "회원관리 레거시 화면대로 만들어줘" (레거시/신전산 캡처 2장 제공) → 이어서 "**수정 아이콘 필요, 누르면 레거시 프레임처럼 보여야 함**"(레거시 `adm/member_form.php` 캡처 제공).
+  · **문제**: 기존 신전산 회원관리는 21열 확장표(KIND·AGENCY·COMM·STUDENTS…)라 레거시와 칸·순서·조작부가 전혀 달랐다.
+  · **목록 구현**(`deploy/index.html` `R.members`/`memLegacyInit`): 레거시 칸 순서 그대로 — `☐ · 회원아이디 · 이름 · 별명 · 권한(select) · 포인트 · 최종접속 · 수신 · 공개 · 인증 · 차단(checkbox) · 그룹 · ⊞(✎✉⧉)`. 상단 `처음 (총회원수 : 2,053, 차단 : 125, 탈퇴 : 16)` + 우측 검색(회원아이디/이름/별명/이메일 + SEARCH), 하단 `선택수정·선택삭제` + 레거시식 숫자 페이지(10개 단위 · 다음 · 맨끝) + 삭제 안내 각주. **한 페이지 15행**(레거시와 동일). 최종접속은 레거시 표기 `26-07-13`, 미접속은 `00-00-00`.
+  · **읽기 전용 원칙**: 권한 select·차단 checkbox·선택수정/삭제·폼의 확인/삭제는 **전부 disabled**(원본 `cms.g4_member` 불가침 [[feedback_migration_readonly]]). 기존 확장표는 없애지 않고 헤더의 `LEGACY ↔ DETAIL` 토글로 유지.
+  · **수정 폼**(`openMemberForm`/`memFormHtml` + `/api/data?member=<id>`): 레거시 `member_form.php` 칸 배치 그대로 2열 — 아이디/패스워드(비노출)·이름/별명·권한/포인트·E-mail/홈페이지·전화/핸드폰·주소/아이콘·생년월일/남녀·메일수신/SMS·정보공개·서명/자기소개·메모·가입일/최근접속·IP·탈퇴일자/접근차단일자·**여분필드 1~10**(각 칸에 실측 의미 라벨: 사업자번호·담당자·계약일·은행·계좌·유선·유학원명·커미션방식·커미션값·유학원코드). 단건 API 는 **Lv8+ 또는 본인**만 허용(그 외 403), `mb_password·mb_jumin·mb_password_q/a·mb_lost_certify` 는 여전히 미노출. 목록 응답은 그대로 두고 상세는 **한 명씩만** 나가도록 분리했다.
+  · **API 확장**(`deploy/api/data.js loadMembers`): 레거시 칸에 필요한 `point·mailling·open·certify·intercept·groups(g4_group_member)·leave_date` 추가. 실행검증 **2,053행 · 3.4s**(웜), 차단 125·탈퇴 16 = 레거시 헤더 수치와 일치.
+  · ⚠ **부수적으로 발견·수정한 실제 버그**: 메인 스타일시트 723행 `color-mix(in srgb,var(--accent） 6%,…)` 의 **전각 괄호 `）`** 때문에 CSS 파서가 그 지점에서 중단 → **그 뒤 92개 규칙(financial·live-tag·agency-list 등)이 통째로 미적용** 상태였다(CSSOM 534 → 수정 후 626 규칙). 전각괄호를 `)` 로 교정.
+  · **검증**(`exploration/live-data/e2e_members_legacy.mjs`, 로컬 정적서버+실 `/api/data`+실 Supabase, Playwright 1600×1000): 헤더 13열 순서 일치, 15행/페이지, 페이저 `1..10 Next Last`(137페이지·2,053건), 2페이지 이동, 검색 `kenneth` 1건, 권한 select·차단 checkbox **disabled 확인**, ✎ → 폼 로드(라벨 36개·입력 전부 readonly·확인/삭제 disabled·이상문자열 0), **JS 에러 0**. 스크린샷 `shots/members_legacy_list.png`·`members_legacy_form.png`.
+  · **배포**: `vercel deploy --prod` + `vercel alias set smeag-bay.vercel.app`(dpl_5goTT1uzMrm3oaGWzQAM4QHzSpar). 라이브 클릭검증은 Edge 세션 게이트(`/`→302 `/login`)로 이 세션에서 불가 — 무세션 접근 차단은 정상 동작 확인.

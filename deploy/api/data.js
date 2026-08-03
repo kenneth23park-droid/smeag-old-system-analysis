@@ -11,6 +11,8 @@
 //   GET /api/data?stamp=1                        → 버전 스탬프만(가벼움, 변경감지용)
 //   GET /api/data?parts=students,roomstat,...    → 요청한 조각만 조회
 //     parts: students | roomstat | groups | pickup | deposits | changelog
+//            | members | commission | courses | tuition | elec (전용화면)
+//     elecFrom,elecTo=YYYY-MM-DD  elecRoom=i_idx   ELEC & WATER 기간·방
 //            members | points | visits | commission | courses | tuition
 //            farmgym | boards | elec | agencyvisit | dayoff
 //            (뒤 11개는 out.tables["<레거시 URL>"] = {cols,rows} 형태로 응답 → 화면이 그대로 라이브)
@@ -137,6 +139,16 @@ const STUDENT_COLS = ["AGENCY", "NAT", "NAME_EN", "KOR", "AGE", "SEX", "APPLY", 
 
 // 레거시 날짜칸은 varchar(''·'0000-00-00' 혼재) → 형식 맞는 값만 통과
 const D = (col) => `case when ${col} ~ '^\\d{4}-\\d{2}-\\d{2}' then left(${col},10) else '' end`;
+
+// 자유입력 필드(요청사항·사유·코멘트·게시글 제목) 마스킹.
+// 담당자가 본문에 연락처를 적어두는 관행이 있어 길이 절단만으로는 PII 가 그대로 나간다.
+// 이메일 전체와 전화번호 형태(3-3/4-4 구분자 허용, 또는 9자리 이상 연속 숫자)만 가린다.
+// 날짜(2026-07-13)는 패턴이 달라 보존된다.
+const MASKFREE = (expr) => `regexp_replace(regexp_replace(regexp_replace(
+    ${expr},
+    '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}', '***@***', 'g'),
+    '\\d{3}[- ]?\\d{3,4}[- ]?\\d{4}', '***-****', 'g'),
+    '\\d{9,}', '*********', 'g')`;
 
 async function loadStudents(q, scope) {
   const where = ["(s_departure >= $1 or s_sdate >= $1 or s_edate >= $1 or s_regdate >= $1)"];
@@ -408,29 +420,6 @@ const MAX_TABLE_ROWS = 500;
 const DT = (col) => `coalesce(to_char(${col} at time zone 'UTC','YYYY-MM-DD'),'')`;
 const table = (cols, rows) => ({ cols, rows, truncated: rows.length >= MAX_TABLE_ROWS });
 
-// members — member_list.php (cms.g4_member, 실측 2053행 → 상한 걸림)
-// 이메일은 로컬파트 앞 2자만 노출. mb_password/mb_jumin/mb_tel/mb_hp/mb_addr* 는 조회하지 않음.
-// 유학원 계정에는 전체 회원명부를 노출하지 않고 자기 계정만 보여준다.
-async function loadMembers(q, scope) {
-  const cols = ["ID", "이름", "레벨", "이메일", "가입일", "최근접속"];
-  const params = [];
-  let where = "";
-  if (scope.agency) { params.push(scope.agency); where = `where lower(mb_id) = lower($${params.length})`; }
-  const { rows } = await q(
-    `select mb_id a0,
-            coalesce(mb_name,'') a1,
-            coalesce(mb_level,0)::text a2,
-            case when position('@' in coalesce(mb_email,'')) > 1
-                 then left(split_part(mb_email,'@',1),2) || '***@' || split_part(mb_email,'@',2)
-                 else '' end a3,
-            ${DT("mb_datetime")} a4,
-            ${DT("mb_today_login")} a5
-       from cms.g4_member
-       ${where}
-      order by mb_datetime desc nulls last, mb_no desc
-      limit ${MAX_TABLE_ROWS}`, params);
-  return { "member_list.php": table(cols, rows.map((r) => [S(r.a0), S(r.a1), S(r.a2), S(r.a3), S(r.a4), S(r.a5)])) };
-}
 
 // points — point_list.php (cms.g4_point, 실측 146,387행 → 상한 걸림)
 // po_id 가 auto_increment 이므로 po_id desc 만으로 사실상 최신순이고 po_datetime 정렬보다 훨씬 빠르다.
@@ -465,79 +454,8 @@ async function loadVisits(q) {
   return { "visit_list.php": table(cols, rows.map((r) => [S(r.a0), S(r.a1)])) };
 }
 
-// commission — uhak_agency_commission.php (legacy.uhak_agency_com, 실측 4004행 → 상한 걸림)
-// · percent 컬럼은 전 행 빈문자 → 사용 금지. 실제 값은 com_amt 에만 있고 com_category('percent'/'amount')로 분기.
-// · uhak_idx 도 전 행 빈문자 → 유학원 식별은 mb_id 로만 가능. student/end_date 는 전 행 NULL(추측 채움 금지).
-// · confirm_date 는 약 절반이 NULL 이라 '확인일'이 빈칸인 행이 많다(레거시 헤더에 충실).
-async function loadCommission(q, scope) {
-  const cols = ["NO", "UHAK", "구분", "%", "금액", "담당", "확인일", "상태", "학생"];
-  const { rows } = await q(
-    `select u.no a0,
-            coalesce(nullif(m.mb_name,''), u.mb_id, '') a1,
-            coalesce(u.com_category,'') a2,
-            case when u.com_category = 'percent' then coalesce(u.com_amt,'') else '' end a3,
-            case when u.com_category = 'amount'  then coalesce(u.com_amt,'') else '' end a4,
-            coalesce(u.manager,'') a5,
-            ${D("u.confirm_date")} a6,
-            coalesce(u.state,'') a7,
-            coalesce(u.student::text,'') a8
-       from legacy.uhak_agency_com u
-       left join cms.g4_member m on m.mb_id = u.mb_id
-      where ($1::text is null or lower(coalesce(u.mb_id,'')) = lower($1))
-      order by u.no desc
-      limit ${MAX_TABLE_ROWS}`, [scope.agency]);
-  return {
-    "uhak_agency_commission.php": table(cols, rows.map((r) =>
-      [r.a0, S(r.a1), S(r.a2), S(r.a3), S(r.a4), S(r.a5), S(r.a6), S(r.a7), S(r.a8)])),
-  };
-}
 
-// courses — course_list.php (legacy.course_info, 71행)
-// ⚠ '#' 은 반드시 i_idx(코스코드) · '상태' 는 대문자 Y/N — index.html _buildCourseCache() 가
-//   이 두 칸으로 courseNameOf/courseActiveOf 를 만든다. 순번을 넣으면 코스명 매핑이 전부 깨진다.
-// 캠퍼스는 표시용(이름과 s_campus 가 어긋난 행이 있어 필터 기준으로 쓰지 말 것). i_limit 은 전 행 0.
-// 마스터 테이블이므로 유학원 스코프를 적용하지 않는다(적용하면 코스명 매핑이 깨짐).
-async function loadCourses(q) {
-  const cols = ["#", "코스명", "COURSE(EN)", "정원", "학비", "캠퍼스", "상태"];
-  const { rows } = await q(
-    `select i_idx::text a0,
-            coalesce(i_name,'') a1,
-            coalesce(nullif(i_name_en,''), coalesce(i_name,'')) a2,
-            case when coalesce(i_limit,0)=0 then '' else i_limit::text end a3,
-            coalesce(i_pay,0)::text a4,
-            case upper(coalesce(s_campus,''))
-              when 'S' then 'ENCANTO' when 'C' then 'CAPITAL'
-              when 'E' then 'CLASSIC' when 'A' then 'ALL'
-              else upper(coalesce(s_campus,'')) end a5,
-            upper(coalesce(i_state,'')) a6
-       from legacy.course_info
-      order by i_idx desc
-      limit ${MAX_TABLE_ROWS}`);
-  return {
-    "course_list.php": table(cols, rows.map((r) =>
-      [S(r.a0), S(r.a1), S(r.a2), S(r.a3), S(r.a4), S(r.a5), S(r.a6)])),
-  };
-}
 
-// tuition — tution_fee.php (legacy.tution_fee 100행 = 25코스 × week 1~4)
-// '#' 은 행 PK(idx)이고 코스코드가 아니다. COURSE 는 course_info 영문명으로 표시(고아행 0건).
-// agency_jp/student_jp 는 일본 엔(YEN) 정수. 마스터/단가라 유학원 스코프 미적용.
-async function loadTuition(q) {
-  const cols = ["#", "COURSE", "WEEK", "AGENCY(JP)", "STUDENT(JP)"];
-  const { rows } = await q(
-    `select tf.idx::text a0,
-            coalesce(nullif(ci.i_name_en,''), nullif(ci.i_name,''), tf.course::text) a1,
-            coalesce(tf.week,0)::text a2,
-            coalesce(tf.agency_jp,0)::text a3,
-            coalesce(tf.student_jp,0)::text a4
-       from legacy.tution_fee tf
-       left join legacy.course_info ci on ci.i_idx = tf.course
-      order by tf.idx desc
-      limit ${MAX_TABLE_ROWS}`);
-  return {
-    "tution_fee.php": table(cols, rows.map((r) => [S(r.a0), S(r.a1), S(r.a2), S(r.a3), S(r.a4)])),
-  };
-}
 
 // farmgym — student_farm.php / student_gym.php / student_farm2.php
 // (legacy.student_payment 89,477행 ⨝ legacy.student_info)
@@ -563,7 +481,7 @@ async function loadFarmgym(q, scope) {
             coalesce(si.e_name,'') name,
             ${D("sp.gym_start")} gym_start, coalesce(sp.gym_period,'') gym_period,
             ${D("sp.farm_arrival")} farm_arrival, coalesce(sp.farm_flight,'') farm_flight,
-            coalesce(sp.comment,'') comments,
+            ${MASKFREE(`coalesce(sp.comment,'')`)} comments,
             ${D("sp.commission_day")} commission, ${D("sp.apply_date")} apply,
             coalesce(nullif(sp.pay_gym,''),'0') gym_fee,
             coalesce(nullif(sp.pay_farm,''),'0') farm_fee,
@@ -629,8 +547,8 @@ async function loadBoards(q, scope) {
           where coalesce(wr_is_comment,0) = 0
        ), n as (select count(*)::int total from p)
        select (select total from n) - (row_number() over (order by wr_num, wr_reply, wr_id desc))::int + 1 a0,
-              case when position('secret' in coalesce(wr_option,'')) > 0 then '[secret] ' else '' end
-                || coalesce(nullif(btrim(wr_subject),''),'(제목없음)') a1,
+              case when position('secret' in coalesce(wr_option,'')) > 0 then '[secret]'
+                   else ${MASKFREE(`coalesce(nullif(btrim(wr_subject),''),'(제목없음)')`)} end a1,
               coalesce(nullif(btrim(wr_name),''), coalesce(mb_id,'')) a2,
               ${DT("wr_datetime")} a3,
               coalesce(wr_hit,0) a4
@@ -646,29 +564,6 @@ async function loadBoards(q, scope) {
 // ⚠ MENU 에 cols 정의가 없어(note 만 존재) loader 가 cols 를 함께 내려준다 → 그대로 헤더가 된다.
 // re_state 는 전체 행이 '' 이라 STATE 는 항상 공백. re_date 는 varchar → D() 로 정제.
 // order by 는 인덱스 없는 re_date 대신 auto_increment PK 역순(re_idx desc, 시간순과 일치).
-const ELEC_COLS = ["DATE", "ROOM", "CATEGORY", "BLDG", "GAGE", "P-COUNT", "CHARGE", "STATE", "UPDATER", "UPDATED"];
-async function loadElec(q) {
-  const { rows } = await q(
-    `select ${D("re.re_date")} a0,
-            coalesce(ri.i_name,'') a1,
-            coalesce(rc.g_name,'') a2,
-            coalesce(ri.bldg_type,'') a3,
-            coalesce(re.re_gage,0) a4,
-            coalesce(re.p_count,0) a5,
-            coalesce(re.charge_gage,0) a6,
-            case re.re_state when 'Y' then 'CONFIRMED' when 'C' then 'CANCEL' else coalesce(re.re_state,'') end a7,
-            coalesce(re.id_updater,'') a8,
-            coalesce(to_char(re.update_timestamp,'YYYY-MM-DD HH24:MI'),'') a9
-       from legacy.room_elec re
-       left join legacy.room_info     ri on ri.i_idx = re.i_idx
-       left join legacy.room_category rc on rc.g_idx = ri.g_idx
-      order by re.re_idx desc
-      limit ${MAX_TABLE_ROWS}`);
-  return {
-    "room_elec.php": table(ELEC_COLS, rows.map((r) =>
-      [S(r.a0), S(r.a1), S(r.a2), S(r.a3), Number(r.a4) || 0, Number(r.a5) || 0, Number(r.a6) || 0, S(r.a7), S(r.a8), S(r.a9)])),
-  };
-}
 
 // agencyvisit — uhak_agency_visit.php (legacy.uhak_day_info 158행)
 // ⚠ 담당표의 legacy.visitors 는 무관한 웹방문로그이므로 조인하지 않는다(원천은 uhak_day_info 단독).
@@ -692,7 +587,7 @@ async function loadAgencyvisit(q, scope) {
             coalesce(d.writer,'') a4,
             case when coalesce(d.d_phone,'')='' then ''
                  else regexp_replace(d.d_phone, '(\\d{1,2})\\d+', '\\1**', 'g') end a5,
-            left(regexp_replace(coalesce(d.d_text,''), '[\\r\\n\\t]+', ' ', 'g'), 200) a6,
+            left(${MASKFREE(`regexp_replace(coalesce(d.d_text,''), '[\\r\\n\\t]+', ' ', 'g')`)}, 200) a6,
             case upper(coalesce(d.d_state,''))
               when 'W' then 'WAIT' when 'Y' then 'COMPLETE' when 'C' then 'CANCEL'
               else coalesce(d.d_state,'') end a7
@@ -734,7 +629,7 @@ async function loadDayoff(q) {
             coalesce(to_char(start_date,'YYYY-MM-DD HH24:MI'),'') a6,
             coalesce(to_char(end_date,'YYYY-MM-DD HH24:MI'),'') a7,
             coalesce(days,'') a8,
-            left(regexp_replace(coalesce(purpose,''), '[\\r\\n\\t]+', ' ', 'g'), 120) a9,
+            left(${MASKFREE(`regexp_replace(coalesce(purpose,''), '[\\r\\n\\t]+', ' ', 'g')`)}, 120) a9,
             coalesce(applydate,'') a10,
             coalesce(approval,'') a11
        from u
@@ -750,10 +645,428 @@ async function loadDayoff(q) {
 }
 
 // part → loader (out.tables 에 병합)
+// ════════════════════════════════════════════════════════════════════════════
+// 전용화면 조각 — 회원관리 · COMMISSION · COURSE LIST · TUITION FEE · ELEC & WATER
+// 응답은 out.<part> (표 폴백 out.tables 와 다른 경로). SMEAG-5SCREENS-2026-07-30
+// ════════════════════════════════════════════════════════════════════════════
+// ═══ deploy/api/data.js 에 붙일 loader — members (회원관리 / member_list.php) ═══
+//  · 소스: cms.g4_member (실측 2,053행) ⨝ legacy.student_info(유학원별 학생수) ⨝ legacy.uhak_agency_com(커미션건수)
+//  · 읽기 전용(select 만). 원본 무변경.
+//  · 개인정보 비노출(절대): mb_password, mb_jumin, mb_password_q, mb_password_a, mb_lost_certify,
+//    mb_birth, mb_zip1/2, mb_addr1/2(상세주소), mb_4/mb_5(은행·계좌번호) → 쿼리에 넣지 않는다.
+//  · kind(구분) 계산 근거:
+//      ADMIN  = mb_level >= 8  (app.member_authenticate 의 force_th=8 = 관리자 강제 비번변경 기준)
+//      AGENCY = mb_10(유학원코드) 있음 ∨ student_info.uhak_id 존재 ∨ uhak_agency_com.mb_id 존재
+//      STAFF  = 그 외
+//  · 스코프: 유학원 계정(scope.agency)은 자기 계정 1행만 본다(다른 유학원·직원 계정 PII 차단).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MAX_MEMBERS = 3000;      // 실측 2,053행 → 전량 반환 가능(상한만 방어적으로 둠)
+
+async function loadMembers(q, scope) {
+  const params = [MAX_MEMBERS];
+  let own = "";
+  const ag = scope && scope.agency;
+  if (ag) { params.push(S(ag)); own = ` where lower(m.mb_id) = lower($${params.length})`; }
+  const { rows } = await q(
+    `with stu as (   -- 유학원 계정별 학생수(연결 근거: student_info.uhak_id = g4_member.mb_id)
+        select lower(coalesce(uhak_id,'')) a, count(*) n
+          from legacy.student_info where coalesce(uhak_id,'') <> '' group by 1),
+      com as (      -- 커미션 규칙/이력 건수(uhak_agency_com.mb_id = g4_member.mb_id)
+        select lower(mb_id) a, count(*) n from legacy.uhak_agency_com group by 1),
+      grp as (      -- 레거시 회원목록 '그룹' 칸 = 그룹접근권한 건수(g4_group_member)
+        select lower(mb_id) a, count(*) n from cms.g4_group_member group by 1)
+     select m.mb_id id, coalesce(m.mb_name,'') name, coalesce(m.mb_nick,'') nick,
+            coalesce(m.mb_level,0) level,
+            case when coalesce(m.mb_level,0) >= 8 then 'ADMIN'
+                 when coalesce(m.mb_10,'') <> '' or stu.a is not null or com.a is not null then 'AGENCY'
+                 else 'STAFF' end kind,
+            coalesce(m.mb_email,'') email,
+            coalesce(nullif(btrim(m.mb_hp),''), nullif(btrim(m.mb_tel),''), nullif(btrim(m.mb_6),''), '') phone,
+            coalesce(m.mb_sns,'') sns,
+            coalesce(nullif(btrim(m.mb_7),''), '') agency,      -- mb_7 = 유학원 표기명
+            lower(coalesce(m.mb_8,'')) comm,                    -- percent | amount
+            coalesce(m.mb_9,'') commval,
+            case when m.mb_3 ~ '^\\d{4}-\\d{2}-\\d{2}' then left(m.mb_3,10) else '' end contract,
+            coalesce(stu.n,0) students, coalesce(com.n,0) comms,
+            coalesce(m.mb_recommend,0) recommend,               -- 유학원 등록실적 계산용
+            coalesce(m.mb_11,0) weight,                         -- 유학원 비중 수치화
+            case when coalesce(m.mb_leave_date,'') <> '' then 'leave'
+                 when coalesce(m.mb_intercept_date,'') <> ''
+                   or lower(coalesce(m.mb_memo_call,'')) = 'block' then 'block'
+                 else 'normal' end status,
+            coalesce(to_char(m.mb_datetime,'YYYY-MM-DD'),'') joined,
+            coalesce(to_char(m.mb_today_login,'YYYY-MM-DD HH24:MI'),'') login,
+            coalesce(m.mb_login_ip,'') ip,
+            left(regexp_replace(coalesce(m.mb_memo,''), '\\s+', ' ', 'g'), 160) memo,
+            -- ↓ 레거시 member_list.php 표 칸(그누보드4 원본 컬럼 그대로)
+            coalesce(m.mb_point,0) point,                       -- 포인트
+            case when coalesce(m.mb_mailling,0) <> 0 then 1 else 0 end mailling,  -- 수신
+            case when coalesce(m.mb_open,0) <> 0 then 1 else 0 end "open",        -- 공개
+            case when m.mb_email_certify is not null then 1 else 0 end certify,    -- 인증
+            case when coalesce(m.mb_intercept_date,'') <> '' then 1 else 0 end intercept, -- 차단
+            coalesce(grp.n,0) "groups",                         -- 그룹접근권한 건수
+            coalesce(m.mb_leave_date,'') leave_date
+       from cms.g4_member m
+       left join stu on stu.a = lower(m.mb_id)
+       left join com on com.a = lower(m.mb_id)
+       left join grp on grp.a = lower(m.mb_id)${own}
+      order by coalesce(m.mb_today_login, m.mb_datetime) desc nulls last, m.mb_no desc
+      limit $1`, params);
+  return rows.map((r) => ({ ...r, level: Number(r.level), students: Number(r.students),
+    comms: Number(r.comms), recommend: Number(r.recommend), weight: Number(r.weight),
+    point: Number(r.point), groups: Number(r.groups),
+    mailling: Number(r.mailling), open: Number(r.open),
+    certify: Number(r.certify), intercept: Number(r.intercept) }));
+}
+
+// ═══ 회원정보 수정 폼 1건 (레거시 adm/member_form.php) ═══════════════════════
+//  · 목록(loadMembers)과 달리 **단건**만 조회한다. 레거시 수정폼에 실제로 그려지는 칸을 그대로 돌려준다.
+//  · 인가: Lv8+(관리자·스태프) 또는 본인 계정. 그 외에는 handler 에서 403.
+//    → 목록에는 절대 싣지 않는 칸(주소·생년월일·여분필드 4/5 = 은행·계좌)이 여기에만 들어가므로
+//      "한 명씩, 권한 있는 사람만" 이라는 접근 형태를 유지한다(레거시 화면과 동일한 노출 범위).
+//  · 절대 제외(레거시 폼에도 값이 안 보이는 것들): mb_password, mb_jumin,
+//    mb_password_q, mb_password_a, mb_lost_certify.
+//  · 읽기 전용(select 만). 원본 무변경.
+async function loadMemberForm(q, id) {
+  const { rows } = await q(
+    `select m.mb_id id, coalesce(m.mb_name,'') name, coalesce(m.mb_nick,'') nick,
+            coalesce(m.mb_level,0) level, coalesce(m.mb_point,0) point,
+            coalesce(m.mb_email,'') email, coalesce(m.mb_homepage,'') homepage,
+            coalesce(m.mb_tel,'') tel, coalesce(m.mb_hp,'') hp,
+            coalesce(m.mb_zip1,'') zip1, coalesce(m.mb_zip2,'') zip2,
+            coalesce(m.mb_addr1,'') addr1, coalesce(m.mb_addr2,'') addr2,
+            coalesce(m.mb_logo,'') logo, coalesce(m.mb_birth,'') birth, coalesce(m.mb_sex,'') sex,
+            case when coalesce(m.mb_mailling,0) <> 0 then 1 else 0 end mailling,
+            case when coalesce(m.mb_sms,0) <> 0 then 1 else 0 end sms,
+            case when coalesce(m.mb_open,0) <> 0 then 1 else 0 end "open",
+            coalesce(m.mb_signature,'') signature, coalesce(m.mb_profile,'') profile,
+            coalesce(m.mb_memo,'') memo,
+            coalesce(to_char(m.mb_datetime,'YYYY-MM-DD HH24:MI:SS'),'') joined,
+            coalesce(to_char(m.mb_today_login,'YYYY-MM-DD HH24:MI:SS'),'') login,
+            coalesce(m.mb_ip,'') ip, coalesce(m.mb_login_ip,'') login_ip,
+            coalesce(m.mb_leave_date,'') leave_date, coalesce(m.mb_intercept_date,'') intercept_date,
+            coalesce(to_char(m.mb_email_certify,'YYYY-MM-DD HH24:MI:SS'),'') certify,
+            coalesce(m.mb_recommend,0) recommend, coalesce(m.mb_memo_call,'') memo_call,
+            coalesce(m.mb_1,'') f1, coalesce(m.mb_2,'') f2, coalesce(m.mb_3,'') f3,
+            coalesce(m.mb_4,'') f4, coalesce(m.mb_5,'') f5, coalesce(m.mb_6,'') f6,
+            coalesce(m.mb_7,'') f7, coalesce(m.mb_8,'') f8, coalesce(m.mb_9,'') f9,
+            coalesce(m.mb_10,'') f10, coalesce(m.mb_11::text,'') f11,
+            (select count(*) from cms.g4_group_member gm
+              where lower(gm.mb_id) = lower(m.mb_id)) groups
+       from cms.g4_member m
+      where lower(m.mb_id) = lower($1)
+      limit 1`, [S(id)]);
+  if (!rows.length) return null;
+  const r = rows[0];
+  return { ...r, level: Number(r.level), point: Number(r.point), groups: Number(r.groups),
+    mailling: Number(r.mailling), sms: Number(r.sms), open: Number(r.open),
+    recommend: Number(r.recommend) };
+}
+
+// ═══ data.js 에 추가할 loader — COMMISSION (uhak_agency_commission.php) ═══════
+// 소스: legacy.uhak_agency_com (4,004행) ⨝ cms.g4_member (mb_id → 유학원명)
+// 반환: { cols, rows } — loadStudents 와 같은 "칸 배열" 형태(화면 CM_I 인덱스와 1:1)
+// 상한: MAX_COMMISSION(5,000) — 실측 4,004행 전량 통과. 응답 ≈ 0.6MB, 조회 ≈ 0.4초.
+//
+// 실측 근거(전량 미사용 컬럼이라 select 하지 않음):
+//   uhak_idx = '' (distinct 1) · percent = '' (4,004/4,004) · before_percent = '0' (4,004/4,004)
+//   end_date = null (4,004) · student = null (4,004) · payYN = 'N' (4,004)
+// → 계약값은 com_amt 한 칸뿐. com_category('percent'|'amount') 로 %/금액을 구분한다.
+// com_amt 는 varchar 이며 잡값 3건('26%' 1건 · '300,000' 2건, 전부 amount)이 있어 숫자용 칸(a4/a5)은
+// 정규식으로 숫자만 남긴 값을, 원문은 a14(AMOUNT_RAW)로 함께 싣는다.
+// 화면(cmValue)은 숫자칸이 빈 경우 a14 원문을 그대로 노출한다(CM_I.raw).
+//
+// 실행 검증(QA, 읽기 전용): 전체 4,004행 / 0.65초 / JSON 0.62MB · scope='bonbon' 6행 / 0.15초.
+// g4_member.mb_id 중복 0건 → left join 이 행수를 늘리지 않음(4,004 유지).
+// D() 는 data.js:125 의 기존 헬퍼(varchar 날짜 형식검증)이며 check_date/confirm_date 는 둘 다 varchar.
+
+const MAX_COMMISSION = 5000;
+
+const COMMISSION_COLS = ["NO", "AGENCY_ID", "AGENCY", "CATEGORY", "PERCENT", "AMOUNT", "MANAGER",
+  "CONFIRM", "STATE", "STUDENT", "REG", "NOW", "AGREE", "MEMO", "AMOUNT_RAW"];
+
+async function loadCommission(q, scope) {
+  const params = [MAX_COMMISSION];
+  let agencyWhere = "";
+  // 유학원 계정: 자기 유학원 계약만(다른 유학원의 커미션 조건은 영업기밀 → 절대 노출 금지)
+  if (scope.agency) { params.push(scope.agency); agencyWhere = ` where lower(coalesce(a.mb_id,'')) = lower($${params.length})`; }
+  const { rows } = await q(
+    `select a.no::text a0, coalesce(btrim(a.mb_id),'') a1,
+            coalesce(nullif(btrim(m.mb_name),''), nullif(btrim(m.mb_nick),''), btrim(a.mb_id), '') a2,
+            lower(btrim(coalesce(a.com_category,''))) a3,
+            coalesce(nullif(regexp_replace(coalesce(a.com_amt,''),'[^0-9.]','','g'),''),'') a45,
+            coalesce(btrim(a.manager),'') a6,
+            ${D("a.confirm_date")} a7, upper(btrim(coalesce(a.state,''))) a8,
+            coalesce(a.student::text,'') a9,
+            ${D("a.check_date")} a10, upper(btrim(coalesce(a."nowYN",''))) a11,
+            upper(btrim(coalesce(a.agree,''))) a12,
+            coalesce(btrim(a.content),'') a13, coalesce(btrim(a.com_amt),'') a14
+       from legacy.uhak_agency_com a
+       left join cms.g4_member m on m.mb_id = a.mb_id${agencyWhere}
+      order by a.no desc
+      limit $1`, params);
+  return {
+    cols: COMMISSION_COLS,
+    rows: rows.map((r) => [r.a0, r.a1, r.a2, r.a3,
+      r.a3 === "percent" ? r.a45 : "",      // PERCENT (정율 계약일 때만)
+      r.a3 === "amount" ? r.a45 : "",       // AMOUNT  (정액 계약일 때만)
+      r.a6, r.a7, r.a8, r.a9, r.a10, r.a11, r.a12, r.a13, r.a14]),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// deploy/api/data.js 에 붙일 loader — COURSE LIST (course_list.php)
+//   소스: legacy.course_info(실측 71행) + legacy.course_category(실측 14행)
+//   반환: { cats:[{gid,name,display,order,type}], rows:[{idx,gid,ko,en,limit,order,
+//                pay,cn,jp,tw,vt,ru,sa,mgl,etc,info,state,campus}] }
+//   · 전량 71행이라 상한 걱정이 없지만 방어적으로 MAX_COURSES 상한을 둔다.
+//   · 정렬은 화면 규약 그대로 서버에서 확정: 카테고리 g_order → 코스 c_order → i_idx.
+//   · 유학원 계정(scope.agency)도 그대로 전량 허용 — 코스 마스터는 PII 가 아니고
+//     유학원 포털(agency_page.php)에서도 코스 선택에 필요한 공개 카탈로그다.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const MAX_COURSES = 500;          // 상단 상수 블록(MAX_DEPOSITS 옆)에 함께 두면 좋음
+
+// courses: 코스 마스터(카테고리 + 코스). scope 무관(공개 카탈로그).
+async function loadCourses(q, scope) {
+  const { rows: catRows } = await q(
+    `select g_idx gid, coalesce(g_name,'') name, upper(coalesce(g_display,'')) display,
+            coalesce(g_order,9999) "order", upper(coalesce(g_type,'')) type
+       from legacy.course_category
+      order by coalesce(g_order,9999), g_idx`);
+  const { rows: courseRows } = await q(
+    `select ci.i_idx idx, ci.g_idx gid,
+            btrim(coalesce(ci.i_name,''))    ko,
+            btrim(coalesce(ci.i_name_en,'')) en,
+            coalesce(ci.i_limit,0)  "limit",
+            coalesce(ci.c_order,9999) "order",
+            coalesce(ci.i_pay,0)     pay,
+            coalesce(ci.i_pay_cn,0)  cn,  coalesce(ci.i_pay_jp,0)  jp,
+            coalesce(ci.i_pay_tw,0)  tw,  coalesce(ci.i_pay_vt,0)  vt,
+            coalesce(ci.i_pay_ru,0)  ru,  coalesce(ci.i_pay_sa,0)  sa,
+            coalesce(ci.i_pay_mgl,0) mgl, coalesce(ci.i_pay_etc,0) etc,
+            btrim(coalesce(ci.i_info,''))   info,
+            upper(coalesce(ci.i_state,''))  state,
+            upper(coalesce(ci.s_campus,'')) campus
+       from legacy.course_info ci
+       left join legacy.course_category cc on cc.g_idx = ci.g_idx
+      order by coalesce(cc.g_order,9999), coalesce(ci.c_order,9999), ci.i_idx
+      limit $1`, [MAX_COURSES]);
+  const N = (v) => Number(v || 0);
+  return {
+    cats: catRows.map((c) => ({
+      gid: N(c.gid), name: c.name, display: c.display, order: N(c.order), type: c.type,
+    })),
+    rows: courseRows.map((r) => ({
+      idx: N(r.idx), gid: N(r.gid), ko: r.ko, en: r.en,
+      limit: N(r.limit), order: N(r.order),
+      pay: N(r.pay), cn: N(r.cn), jp: N(r.jp), tw: N(r.tw), vt: N(r.vt),
+      ru: N(r.ru), sa: N(r.sa), mgl: N(r.mgl), etc: N(r.etc),
+      info: r.info, state: r.state, campus: r.campus,
+    })),
+  };
+}
+
+// ═══ deploy/api/data.js 에 붙일 loader — parts=tuition ═════════════════════════
+//  · 소스: legacy.tution_fee(100행, 일본시장 주차별 요금) ⨝ legacy.course_info(코스명)
+//  · 실측: 100행 / 코스 25종 / week ∈ {1,2,3,4} / (course,week) 중복 0 / 고아행 0
+//  · 전량(100행) 반환해도 무해 — 그래도 방어적으로 MAX_TUITION 상한을 둔다.
+//  · 요금표는 PII 아님 → scope.agency(유학원 계정) 제한 없음(전사 공통 마스터).
+
+// ── (1) 상수: data.js 상단 상수 블록(MAX_DEPOSITS 옆)에 추가 ──────────────────
+const MAX_TUITION = 500;
+
+// ── (2) loader 본체: loadDeposits/loadChangelog 옆에 추가 ─────────────────────
+// tuition: 일본시장 주차별 요금표(tution_fee ⨝ course_info)
+async function loadTuition(q, scope) {                // scope 미사용(요금표는 PII 아님)
+  const { rows } = await q(
+    `select tf.idx,
+            tf.course::text                        as course,
+            coalesce(ci.i_name,'')                 as name,
+            coalesce(ci.i_name_en,'')              as name_en,
+            upper(coalesce(ci.i_state,''))         as state,
+            upper(coalesce(ci.s_campus,''))        as campus,
+            coalesce(ci.c_order, 999999)           as "order",
+            tf.week, tf.agency_jp, tf.student_jp
+       from legacy.tution_fee tf
+       left join legacy.course_info ci on ci.i_idx = tf.course
+      order by coalesce(ci.c_order,999999), tf.course, tf.week
+      limit $1`, [MAX_TUITION]);
+  const out = rows.map((r) => ({
+    idx: Number(r.idx), course: S(r.course), name: r.name, name_en: r.name_en,
+    state: r.state, campus: r.campus, order: Number(r.order),
+    week: Number(r.week), agency: Number(r.agency_jp), student: Number(r.student_jp),
+  }));
+  const weeks = [...new Set(out.map((r) => r.week))].sort((a, b) => a - b);
+  const courses = [...new Set(out.map((r) => r.course))];
+  // 고아행(course_info 에 없는 course) — 실측 0건. 생기면 name 이 빈값이므로 클라이언트가 '#코드'로 표시.
+  const orphans = out.filter((r) => !r.name && !r.name_en).map((r) => r.course);
+  return { rows: out, weeks, courseCount: courses.length, total: out.length,
+    orphans: [...new Set(orphans)], currency: "JPY",
+    truncated: out.length >= MAX_TUITION };   // 상한 절단이면 화면에 경고 배너를 띄운다
+}
+
+// ============================================================================
+// elec — ELEC & WATER (레거시 room_elec.php) 용 loader
+// deploy/api/data.js 에 그대로 붙여넣는다(ESM, 외부 의존 없음).
+// ----------------------------------------------------------------------------
+// legacy.room_elec 은 1,670,841행(268MB) → 절대 전량 반환 금지.
+// 서버에서 기간(from~to) 내 검침행을 방(i_idx) 단위로 집계해 최대 1,127행(방 수)만 반환한다.
+// 일자별 추이는 방 하나를 클릭했을 때만 elecRoom=i_idx 로 따로 요청(≤ 기간일수 행).
+// 읽기 전용(select only).
+// ----------------------------------------------------------------------------
+// ⚠️⚠️ 이름 충돌 경고 (QA 리뷰 중 발견 — 다른 작업분이 data.js 에 먼저 들어옴)
+// 현재 deploy/api/data.js 에는 **이미 `async function loadElec(q)` 가 있다**(ELEC_COLS 기반
+// room_elec 원본 최근 500행을 out.tables["room_elec.php"] 로 내리는 spec 폴백용 블록,
+// `TABLE_LOADERS = { ..., elec: loadElec, ... }` · `ALL_PARTS` 에 "elec" 등록됨).
+//   · 같은 이름의 top-level function 을 또 선언하면 ESM 모듈 전체가 SyntaxError
+//     ("Identifier 'loadElec' has already been declared") → /api/data 전부 사망.
+//   · 그래서 이 파일의 loader 이름을 **loadElecMeter** 로 바꿔 두었다.
+// 통합 방법 (택1):
+//   A. 권장 — 전용 렌더러가 spec 폴백을 대체하므로 기존 블록을 제거한다:
+//      `ELEC_COLS` + 기존 `loadElec` 삭제, `TABLE_LOADERS` 에서 `elec: loadElec` 삭제.
+//      `ALL_PARTS` 의 "elec" 은 그대로 두고 아래 4)번 분기(out.elec)로 처리 → 화면·notes 배선 그대로.
+//   B. 둘 다 유지하려면 이 조각의 part 이름을 "elecmeter" 로 바꾸고
+//      R.elec__init 의 liveSync({parts:['elec']}) · LIVE_PARTS · liveHave · qs 분기까지 모두 elecmeter 로 통일.
+//      (응답 키는 어느 쪽이든 out.elec = REAL.elec 이며 out.tables 와 충돌하지 않는다.)
+// ============================================================================
+
+const MAX_ELEC_SPAN_DAYS = 400;   // 기간 상한 — 전기간(20년) 집계는 18.5s 로 statement_timeout(20s) 위험
+const ELEC_DAILY_MAX = 800;       // 일자별 추이 상한
+const ELEC_SPIKE = 2000;          // 하루 검침 증가분 상한(정상 최대 관측치 227) — 초과분은 오타/계량기 교체로 보고 사용량에서 제외
+
+// 레거시 fsearch.search_condition 값이 그대로 bldg_type: ''=ALL DORM · S=ENCANTO · C=CLASSIC · E=CAPITAL
+// 단 room_category.bldg_type 실측값은 5종(C/E/F/P/S)이다 — 레거시 셀렉트에 없는 F(SPARTA)·P(PREMIUM)도
+// ALL DORM 에는 포함되므로 표시명만 채워준다(i_state='Y' 836방 중 F 205 / P 는 비활성).
+const ELEC_CAMPUS = { E: "CAPITAL", S: "ENCANTO", C: "CLASSIC", F: "SPARTA", P: "PREMIUM" };
+const elecCampus = (b) => ELEC_CAMPUS[String(b || "").toUpperCase()] || "ETC";
+
+// 기간 정규화: YYYY-MM-DD 두 개 → [from,to] (형식검증 + 뒤바뀜 교정 + 상한 클램프)
+// isYmd/ymd 는 data.js 기존 유틸(중복 정의 금지).
+function elecRange(from, to) {
+  let f = isYmd(from) ? from : "", t = isYmd(to) ? to : "";
+  if (!f && !t) { t = ymd(new Date()); f = t; }
+  if (!f) f = t;
+  if (!t) t = f;
+  if (f > t) { const x = f; f = t; t = x; }
+  const days = Math.round((Date.parse(t + "T00:00:00Z") - Date.parse(f + "T00:00:00Z")) / 86400000) + 1;
+  if (days > MAX_ELEC_SPAN_DAYS) {
+    const d = new Date(Date.parse(t + "T00:00:00Z") - (MAX_ELEC_SPAN_DAYS - 1) * 86400000);
+    f = ymd(d);
+  }
+  return [f, t];
+}
+
+// 데이터 최신 검침일 — max(re_date) 는 인덱스가 없어 seq scan(1.1s) 이라
+// pkey 역순 5,000행에서만 max 를 취한다(0.18s, 같은 값 '2026-07-13' 확인).
+async function elecLatestDate(q) {
+  const { rows } = await q(
+    `select coalesce(max(re_date),'') d
+       from (select re_date from legacy.room_elec order by re_idx desc limit 5000) t`);
+  return (rows[0] && rows[0].d) || "";
+}
+
+// 방 단위 집계(화면 메인 표). 반환 행수 = room_info 중 (기간 내 검침 있음 ∪ i_state='Y') → 실측 836~1,099행.
+//   used  : 일자별 증가분(delta) 중 0~ELEC_SPIKE 인 것만 합산 = 기간 사용량(kWh)
+//   spikes: 상한 초과 delta 건수(계량기 교체·오타 의심) → 화면에서 CHECK 배지
+//   charge: charge_gage 합계(레거시가 저장한 요금/1인당 사용량 값)
+async function loadElecMeter(q, from, to, roomIdx) {
+  const [f, t] = elecRange(from, to);
+  const main = await q(
+    `with src as (
+       select i_idx, re_date, re_idx, re_gage, p_count, charge_gage, id_updater, update_timestamp
+         from legacy.room_elec
+        where re_date >= $1 and re_date <= $2),
+     d as (
+       select s.i_idx, s.re_date, s.re_gage,
+              s.re_gage - lag(s.re_gage) over (partition by s.i_idx order by s.re_date, s.re_idx) dlt
+         from src s where s.re_gage > 0),
+     dd as (
+       select i_idx,
+              sum(case when dlt between 0 and $3 then dlt else 0 end) used,
+              count(*) filter (where dlt > $3 or dlt < 0) spikes,
+              count(*) days_g, min(re_date) d0, max(re_date) d1,
+              (array_agg(re_gage order by re_date))[1] g0,
+              (array_agg(re_gage order by re_date desc))[1] g1
+         from d group by i_idx),
+     a as (
+       select i_idx, count(*) days,
+              round(avg(nullif(p_count,0))::numeric, 2) avg_p, max(p_count) max_p,
+              round(sum(charge_gage)::numeric, 2) charge,
+              (array_agg(id_updater order by update_timestamp desc nulls last, re_idx desc))[1] last_by,
+              coalesce(to_char(max(update_timestamp),'YYYY-MM-DD'),'') last_at
+         from src group by i_idx)
+     select ri.i_idx idx, coalesce(ri.i_name,'') room, coalesce(rc.g_name,'') grp,
+            coalesce(nullif(ri.bldg_type,''), rc.bldg_type, '') bldg,
+            coalesce(rc.g_type,'') gtype, coalesce(ri.i_limit,0) lim,
+            coalesce(ri.i_state,'') state, coalesce(rc.g_display,'') disp,
+            coalesce(a.days,0) days, coalesce(dd.days_g,0) days_g,
+            coalesce(dd.d0,'') d0, coalesce(dd.d1,'') d1,
+            coalesce(dd.g0,0) g0, coalesce(dd.g1,0) g1,
+            coalesce(dd.used,0) used, coalesce(dd.spikes,0) spikes,
+            a.avg_p, coalesce(a.max_p,0) max_p, coalesce(a.charge,0) charge,
+            coalesce(a.last_by,'') last_by, coalesce(a.last_at,'') last_at
+       from legacy.room_info ri
+       left join legacy.room_category rc on rc.g_idx = ri.g_idx
+       left join a  on a.i_idx  = ri.i_idx
+       left join dd on dd.i_idx = ri.i_idx
+      where a.i_idx is not null or ri.i_state = 'Y'
+      order by coalesce(dd.used,0) desc, ri.i_name`,
+    [f, t, ELEC_SPIKE]);
+
+  const rows = main.rows.map((r) => ({
+    idx: r.idx, room: r.room, grp: r.grp, bldg: r.bldg,
+    campus: elecCampus(r.bldg), gtype: r.gtype, lim: Number(r.lim),
+    state: r.state, disp: r.disp,
+    days: Number(r.days), daysG: Number(r.days_g), d0: r.d0, d1: r.d1,
+    g0: Number(r.g0), g1: Number(r.g1), used: Number(r.used), spikes: Number(r.spikes),
+    avgP: r.avg_p == null ? null : Number(r.avg_p), maxP: Number(r.max_p),
+    charge: Number(r.charge), lastBy: r.last_by, lastAt: r.last_at,
+  }));
+
+  // 요약칩(서버 계산 — 클라이언트 필터와 별개인 "기간 전체" 기준)
+  const summary = {
+    rooms: rows.length,
+    metered: rows.filter((r) => r.days > 0).length,
+    missing: rows.filter((r) => r.days === 0).length,
+    used: rows.reduce((s, r) => s + r.used, 0),
+    charge: Math.round(rows.reduce((s, r) => s + r.charge, 0) * 100) / 100,
+    readings: rows.reduce((s, r) => s + r.days, 0),
+    spikes: rows.reduce((s, r) => s + (r.spikes ? 1 : 0), 0),
+  };
+
+  const out = { window: { from: f, to: t }, spikeCap: ELEC_SPIKE, rows, summary };
+
+  // 방 클릭 → 그 방의 일자별 검침 추이(별도 조각). i_idx 단독 조회도 seq scan 이라 같은 요청에 묶는다.
+  if (roomIdx) {
+    const one = await q(
+      `select re_date "date", coalesce(re_gage,0) gage, coalesce(p_count,0) p,
+              coalesce(charge_gage,0) charge, coalesce(id_updater,'') "by"
+         from legacy.room_elec
+        where i_idx = $1 and re_date >= $2 and re_date <= $3
+        order by re_date limit $4`, [roomIdx, f, t, ELEC_DAILY_MAX]);
+    let prev = null;
+    out.daily = {
+      idx: roomIdx,
+      rows: one.rows.map((r) => {
+        const g = Number(r.gage);
+        const dlt = (prev != null && g > 0 && prev > 0) ? g - prev : null;
+        if (g > 0) prev = g;
+        return { date: r.date, gage: g, p: Number(r.p), charge: Number(r.charge), by: r.by,
+          use: (dlt != null && dlt >= 0 && dlt <= ELEC_SPIKE) ? dlt : null };
+      }),
+    };
+  }
+  return out;
+}
+
+// ※ members·commission·courses·tuition·elec 는 전용 렌더러(응답 out.<part>)로 이관되어
+//   표(out.tables) 로더에서 제외했다 — SMEAG-5SCREENS-2026-07-30
+//   근거·배선: docs/design-admin/screens-2026-07-30/MERGE_PLAN.md
 const TABLE_LOADERS = {
-  members: loadMembers, points: loadPoints, visits: loadVisits,
-  commission: loadCommission, courses: loadCourses, tuition: loadTuition,
-  farmgym: loadFarmgym, boards: loadBoards, elec: loadElec,
+  points: loadPoints, visits: loadVisits,
+  farmgym: loadFarmgym, boards: loadBoards,
   agencyvisit: loadAgencyvisit, dayoff: loadDayoff,
 };
 
@@ -774,8 +1087,8 @@ const PART_STAMP = {
            || '/' || coalesce((select max(wr_id) from cms.g4_write_office_share)::text,'')`,
   elec: `coalesce((select max(re_idx) from legacy.room_elec)::text,'')`,
   agencyvisit: `coalesce((select max(d_idx) from legacy.uhak_day_info)::text,'')`,
-  dayoff: `coalesce((select max(idx) from legacy.smeag_dayoff)::text,'')
-           || '/' || coalesce((select max(idx) from legacy.smeag_sched_info)::text,'')`,
+  dayoff: `coalesce((select max(id) from legacy.smeag_dayoff)::text,'')
+           || '/' || coalesce((select max(id) from legacy.smeag_sched_info)::text,'')`,
   // farmgym 은 student_payment 기반 → 기존 sp_max 로 이미 감지됨
 };
 async function loadStamp(q, parts) {
@@ -787,10 +1100,15 @@ async function loadStamp(q, parts) {
             coalesce((select max(rr_idx) from legacy.room_reserve)::text,'')     rr_max,
             coalesce((select max(change_idx) from legacy.room_change_log)::text,'') cl_max,
             coalesce((select max(change_idx) from legacy.student_change)::text,'') sc_max,
-            coalesce((select max(student_payment_ctr) from legacy.student_payment)::text,'') sp_max
+            coalesce((select max(student_payment_ctr) from legacy.student_payment)::text,'') sp_max,
+            -- 행정팀 수정(약속기한·확정·센터수납)은 새 행을 만들지 않고 기존 행의 칸만 바꾼다.
+            -- 위 max(PK) 들로는 그 변경을 감지할 수 없어 저장 후에도 캐시가 옛 값을 돌려줬다.
+            -- 저장 1건마다 증가하는 감사 시퀀스를 스탬프에 넣어 캐시를 정확히 무효화한다.
+            coalesce((select max(audit_id) from app.write_audit)::text,'') wa_max
             ${extraSel ? "," + extraSel : ""}`);
   const r = rows[0] || {};
-  const out = { si_ts: r.si_ts, si_max: r.si_max, rr_max: r.rr_max, cl_max: r.cl_max, sc_max: r.sc_max, sp_max: r.sp_max };
+  const out = { si_ts: r.si_ts, si_max: r.si_max, rr_max: r.rr_max, cl_max: r.cl_max, sc_max: r.sc_max,
+                sp_max: r.sp_max, wa_max: r.wa_max };
   extra.forEach((p, i) => { out[p] = r["x" + i]; });
   return out;
 }
@@ -809,6 +1127,15 @@ const PART_ACCESS = {
   deposits: "business", chgref: "business", farmgym: "business", agencyvisit: "business",
   courses: "master", tuition: "master",
 };
+// 유효권한: 세션(JWT)의 mb_level 과 신전산 오버라이드(app.member_level_override) 중 큰 값.
+// 오버라이드 테이블이 아직 없는 환경(구 배포·로컬)에서도 죽지 않도록 실패 시 세션 값을 쓴다.
+async function effectiveLevel(q, session) {
+  const base = Number(session.mb_level || 0);
+  try {
+    const { rows } = await q(`select app.member_level_of($1) lv`, [S(session.mb_id)]);
+    return Math.max(base, Number((rows[0] && rows[0].lv) || 0));
+  } catch (_) { return base; }
+}
 function partAllowed(part, level, scope) {
   const kind = PART_ACCESS[part] || "internal";
   if (kind === "master") return true;
@@ -849,20 +1176,43 @@ export default async function handler(req, res) {
   const [wkFrom, wkTo] = pickupWeek(new Date());
   const from = isYmd(url.searchParams.get("from")) ? url.searchParams.get("from") : wkFrom;
   const to = isYmd(url.searchParams.get("to")) ? url.searchParams.get("to") : wkTo;
+  // elec(ELEC & WATER) 전용 — pickup 의 from/to 와 의미가 달라 별도 파라미터를 쓴다.
+  const elecFrom = isYmd(url.searchParams.get("elecFrom")) ? url.searchParams.get("elecFrom") : "";
+  const elecTo = isYmd(url.searchParams.get("elecTo")) ? url.searchParams.get("elecTo") : "";
+  const elecRoom = /^\d{1,9}$/.test(url.searchParams.get("elecRoom") || "") ? Number(url.searchParams.get("elecRoom")) : 0;
 
   const t0 = Date.now();
   try {
     const client = await getClient();     // warm 인스턴스에서 커넥션 재사용
     const q = (sql, params) => client.query(sql, params);
 
-    // 유학원 계정 스코프: Lv8 미만이고 아이디가 실제 uhak_id 로 존재하면 본인 유학원만
-    const level = Number(session.mb_level || 0);
+    // 유효권한 = max(세션 레벨, app.member_level_override) — 레거시 g4_member 는 건드리지 않는다.
+    // (레거시 실무자 다수가 Lv7 이라 STAFF_LEVEL(8) 에 막히는 문제를 신전산 소유 테이블로 해소)
+    const level = await effectiveLevel(q, session);
     const scope = { agency: null };
     if (level < STAFF_LEVEL) {
       const { rows } = await q(
         `select 1 from legacy.student_info where lower(coalesce(uhak_id,'')) = lower($1) limit 1`,
         [S(session.mb_id)]);
       if (rows.length) scope.agency = S(session.mb_id);
+    }
+
+    // ── 회원정보 수정 폼(레거시 member_form.php) 단건 조회 ──────────────────
+    // /api/data?member=<mb_id> → { ok, member:{...} }. 캐시/스탬프 경로를 타지 않는다(단건·개인정보).
+    const wantMember = (url.searchParams.get("member") || "").trim();
+    if (wantMember) {
+      const self = String(session.mb_id || "").toLowerCase() === wantMember.toLowerCase();
+      if (level < STAFF_LEVEL && !self) {
+        res.statusCode = 403;
+        return res.end(JSON.stringify({ ok: false, error: "forbidden",
+          message: "다른 회원의 상세정보를 볼 권한이 없습니다." }));
+      }
+      const member = await loadMemberForm(q, wantMember);
+      if (!member) {
+        res.statusCode = 404;
+        return res.end(JSON.stringify({ ok: false, error: "not_found", message: "회원을 찾을 수 없습니다." }));
+      }
+      return res.end(JSON.stringify({ ok: true, source: "supabase", member, ms: Date.now() - t0 }));
     }
 
     // 인가: 조각별 최소권한. 직원(Lv8+)도 아니고 유학원으로도 확정되지 않은 계정(일반회원 등)은
@@ -880,6 +1230,7 @@ export default async function handler(req, res) {
     const stamp = await loadStamp(q, allowed);
     const version = stampVersion(stamp) + ":" + allowed.join(".") + (allowed.includes("roomstat") ? ":" + month : "")
       + (allowed.includes("pickup") ? ":" + from + "_" + to : "")
+      + (allowed.includes("elec") ? ":" + elecFrom + "_" + elecTo + "_" + elecRoom : "")
       + ":L" + (level >= STAFF_LEVEL ? "staff" : "ext") + (scope.agency ? ":" + scope.agency : "");
     const etag = `W/"${version}"`;
 
@@ -901,20 +1252,35 @@ export default async function handler(req, res) {
 
     const out = {
       ok: true, source: "supabase", ts: new Date().toISOString(),
-      version: stampVersion(stamp), parts, month, window: { from, to },
+      version: stampVersion(stamp), parts: allowed, month, window: { from, to },
       scope: scope.agency ? { agency: scope.agency } : { agency: null },
-      user: { id: session.mb_id, name: session.mb_name, level: Number(session.mb_level || 0) },
+      user: { id: session.mb_id, name: session.mb_name, level },
     };
-    if (parts.includes("students")) out.studentsFull = await loadStudents(q, scope);
-    if (parts.includes("roomstat")) out.roomstat = await loadRoomstat(q, month);
-    if (parts.includes("groups")) out.groups = await loadGroups(q);
-    if (parts.includes("pickup")) out.pickup = await loadPickup(q, from, to, scope);
-    if (parts.includes("deposits")) out.deposits = await loadDeposits(q, scope);
-    if (parts.includes("changelog")) out.changelog = await loadChangelog(q, scope);
-    if (parts.includes("chgref")) out.chgref = await loadChgref(q, scope);
+    if (denied.length) out.denied = denied;   // 조용히 빼지 않고 사유를 알린다
+    if (allowed.includes("students")) out.studentsFull = await loadStudents(q, scope);
+    if (allowed.includes("roomstat")) out.roomstat = await loadRoomstat(q, month);
+    if (allowed.includes("groups")) out.groups = await loadGroups(q);
+    if (allowed.includes("pickup")) out.pickup = await loadPickup(q, from, to, scope);
+    if (allowed.includes("deposits")) out.deposits = await loadDeposits(q, scope);
+    if (allowed.includes("changelog")) out.changelog = await loadChangelog(q, scope);
+    if (allowed.includes("chgref")) out.chgref = await loadChgref(q, scope);
+    if (allowed.includes("members")) out.members = await loadMembers(q, scope);
+    if (allowed.includes("commission")) out.commission = await loadCommission(q, scope);
+    if (allowed.includes("courses")) out.courses = await loadCourses(q, scope);
+    if (allowed.includes("tuition")) out.tuition = await loadTuition(q, scope);
+    if (allowed.includes("elec")) {                    // 기간 미지정이면 데이터 최신월로 자동
+      const last = await elecLatestDate(q);            // 요청당 1회만 호출(0.2s seq scan)
+      let ef = elecFrom, et = elecTo;
+      if (!ef || !et) {
+        const mm = (last || new Date().toISOString().slice(0, 10)).slice(0, 7);
+        ef = monthStart(mm); et = monthEnd(mm);
+      }
+      out.elec = await loadElecMeter(q, ef, et, elecRoom);
+      out.elec.latest = last;
+    }
     // 명세화면 조각: out.tables["<레거시 URL>"] = {cols, rows} · 500행 상한 초과 URL 은 out.truncated 에 기록
     // (같은 커넥션이라 pg 는 동시 쿼리 미지원 → 순차 실행)
-    for (const p of parts) {
+    for (const p of allowed) {
       const loader = TABLE_LOADERS[p];
       if (!loader) continue;
       const got = await loader(q, scope);
@@ -933,11 +1299,12 @@ export default async function handler(req, res) {
     return res.end(body);
   } catch (e) {
     shared = null;                         // 커넥션 문제면 다음 요청에서 새로 연결
+    console.error("[/api/data]", (e && e.message) || e);   // 원문은 서버 로그에만
     res.statusCode = 500;
     return res.end(JSON.stringify({
       ok: false, error: "db_error",
       message: "DB 조회에 실패했습니다. 잠시 후 다시 시도하세요.",
-      detail: String((e && e.message) || e).slice(0, 200),
+      // 오류 원문(컬럼·함수·스키마명)은 스키마 정찰 재료가 되므로 클라이언트에 보내지 않는다.
     }));
   }
 }

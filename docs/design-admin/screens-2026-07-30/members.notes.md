@@ -231,3 +231,43 @@ SQL 에 `mb_password`, `mb_jumin`, `mb_password_q/a`, `mb_lost_certify`, `mb_bir
 - `paintPaged` 는 셀 단위 class 를 지원하지 않아 숫자 열에 `class="mono"` 를 줄 수 없다
   (규약의 `<td class="mono">` 는 직접 마크업하는 표에만 적용 가능). `paintPaged` 공통 개선 사안.
 - 정렬은 현재 페이지 내에서만 동작(기존 `makeSortable` 동작 그대로).
+
+---
+
+## 8. 2026-08-03 — 레거시 화면 그대로 재현(LEGACY 뷰) + 회원정보 수정 폼
+
+요청: "회원관리 레거시 화면대로 만들어줘" → "수정 아이콘 필요, 누르면 레거시 프레임처럼".
+위 4장의 확장표(21열)는 **DETAIL 뷰로 유지**하고, 기본 화면을 레거시 `adm/member_list.php` 로 교체했다.
+
+### 8-1. 목록(member_list.php) 칸 매핑
+| 레거시 칸 | 소스 | 비고 |
+|---|---|---|
+| ☐ | — | 선택(선택수정/삭제는 disabled) |
+| 회원아이디 | `mb_id` | 클릭 → 수정 폼 |
+| 이름 / 별명 | `mb_name` / `mb_nick` | 별명은 레거시처럼 밑줄 링크 |
+| 권한 | `mb_level` | `<select>` 1~10, **disabled**(원본 불가침) |
+| 포인트 | `mb_point` | 실측 1,712명이 0 초과 |
+| 최종접속 | `mb_today_login` | 레거시 표기 `26-07-13`, 미접속 `00-00-00` |
+| 수신 / 공개 / 인증 | `mb_mailling`(174) / `mb_open`(2,034) / `mb_email_certify`(2,036) | √ 표기 |
+| 차단 | `mb_intercept_date`(125) | checkbox, **disabled** |
+| 그룹 | `count(cms.g4_group_member)` | 실측 1명만 보유 |
+| ⊞ | — | ✎ 수정폼 · ✉ mailto · ⧉ 아이디 복사 |
+
+상단 카운트 = `총회원수 2,053 · 차단 125 · 탈퇴 16`(레거시 헤더와 같은 근거: intercept/leave 컬럼).
+한 페이지 **15행**, 페이저는 10개 단위 숫자 + 다음/맨끝(레거시식).
+
+### 8-2. 수정 폼(member_form.php) — `/api/data?member=<mb_id>`
+목록에 싣지 않는 칸(주소·생년월일·여분필드 4/5 = 은행·계좌)이 들어가므로 **단건 전용 엔드포인트**로 분리했다.
+- 인가: **Lv8+ 또는 본인**만(그 외 403). 대량 조회 경로에는 이 칸들이 절대 나가지 않는다.
+- 여전히 미노출: `mb_password`·`mb_jumin`·`mb_password_q/a`·`mb_lost_certify`.
+- 전 칸 readonly, 확인/삭제 버튼 disabled — 신전산은 `cms.g4_member` 에 쓰지 않는다.
+- 여분필드 1~10 에는 3장에서 실측한 의미(사업자번호·담당자·계약일·은행·계좌·유선·유학원명·커미션방식·커미션값·유학원코드)를 라벨로 병기.
+
+### 8-3. 곁다리로 고친 버그
+메인 스타일시트 723행 `var(--accent） 6%` 의 전각 괄호 때문에 CSS 파서가 그 지점에서 멈춰
+**뒤따르는 92개 규칙이 전부 미적용**이었다(CSSOM 534 → 626). `)` 로 교정.
+
+### 8-4. 검증
+`exploration/live-data/e2e_members_legacy.mjs` — 실 Supabase + 실 `/api/data` + Playwright.
+13열 순서·15행·페이저(137p/2,053건)·검색·disabled 상태·폼 로드(라벨 36·전부 readonly)·JS 에러 0.
+스크린샷: `shots/members_legacy_list.png`, `shots/members_legacy_form.png`.
