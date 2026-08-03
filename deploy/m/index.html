@@ -229,9 +229,19 @@ setTimeout(function(){try{window.REAL=REAL;window.DICT=DICT;}catch(e){}},0);
    · 데스크톱(index.html)과 같은 엔드포인트(읽기전용·세션쿠키 필수).
    · 조각별 TTL 캐시 + ETag → 같은 화면 재진입 시 재조회하지 않음.
    · 미로그인(쿠키 없음)·실패 시에는 기존 데이터로 계속 표시.                                */
-const MVLIVE={at:{},etags:{},inflight:{},ttls:{students:60000,roomstat:300000,pickup:120000,changelog:60000,deposits:120000},ttl:60000,month:'',ts:0,off:false,err:''};
+const MVLIVE={at:{},etags:{},inflight:{},truncated:{},ttls:{students:60000,roomstat:300000,pickup:120000,changelog:60000,deposits:120000},ttl:60000,month:'',ts:0,off:false,err:''};
 const MVPARTS={dash:['students','roomstat'],enroll:['students'],stdlist:['students'],
   roomstat:['roomstat','students'],pickup:['pickup','students'],changelog:['changelog'],cash:['students']};
+// 공용 표 화면(M_table)은 레거시 URL 로 갈리므로 URL → 조각 매핑을 함께 둔다(데스크톱 PART_TABLES 와 동일 대응).
+const MVPARTS_URL={
+  'member_list.php':['members'], 'point_list.php':['points'], 'visit_list.php':['visits'],
+  'uhak_agency_commission.php':['commission'], 'course_list.php':['courses'], 'tution_fee.php':['tuition'],
+  'student_farm.php':['farmgym'], 'student_gym.php':['farmgym'], 'student_farm2.php':['farmgym'],
+  'room_elec.php':['elec'], 'uhak_agency_visit.php':['agencyvisit'], 'uhak_agency_schedule_list.php':['agencyvisit'],
+  'scheduler_index(-all).php':['dayoff'], 'scheduler_index.php':['dayoff'], 'scheduler_index-all.php':['dayoff'],
+  'bbs/board.php?bo_table=office_GAC':['boards'], 'bbs/board.php?bo_table=office_holding':['boards'],
+  'bbs/board.php?bo_table=office_share':['boards'],
+};
 function mvLiveMonth(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 function mvLiveTag(state){
   const b=document.getElementById('mvLiveBtn');if(!b)return;
@@ -250,7 +260,7 @@ function mvSessionExpired(){
 }
 async function mvLiveSync(it,force){
   if(MVLIVE.off||!window.fetch)return 'skip';
-  const parts=MVPARTS[(it&&it.k)||'']||['students'];
+  const parts=MVPARTS_URL[(it&&it.u)||'']||MVPARTS[(it&&it.k)||'']||['students'];
   const month=mvLiveMonth(),now=Date.now();
   const need=parts.filter(p=>force||!MVLIVE.at[p]||(now-MVLIVE.at[p])>(MVLIVE.ttls[p]||MVLIVE.ttl)||(p==='roomstat'&&MVLIVE.month!==month));
   if(!need.length){mvLiveTag('ok');return 'fresh';}
@@ -273,6 +283,11 @@ async function mvLiveSync(it,force){
       if(j.groups)REAL.groups=j.groups;
       if(j.deposits)REAL.deposits=j.deposits;
       if(j.changelog)REAL.changelog=j.changelog;
+      // out.tables = {"<레거시 URL>":{cols,rows}} → 데스크톱과 동일하게 병합(공용 M_table 화면이 이걸 읽는다)
+      if(j.tables&&typeof j.tables==='object'){REAL.tables=Object.assign(REAL.tables||{},j.tables);
+        const tr=j.truncated||[];Object.keys(j.tables).forEach(u=>{
+          if(tr.indexOf(u)>=0)MVLIVE.truncated[u]=1;else delete MVLIVE.truncated[u];});}
+      if(j.denied&&j.denied.length)toast('일부 자료 권한 없음',j.denied.join(', '),false);
       try{window.REAL=REAL;}catch(e){}
       const et=r.headers&&r.headers.get&&r.headers.get('ETag');if(et)MVLIVE.etags[key]=et;
       need.forEach(p=>{MVLIVE.at[p]=Date.now();});MVLIVE.ts=Date.now();MVLIVE.err='';mvLiveTag('ok');
@@ -286,6 +301,7 @@ async function mvLiveSync(it,force){
 /* 이미 데이터가 있으면(빌드 주입 스냅샷 포함) 먼저 그리고 최신값은 도착 시 교체 */
 function mvHave(p){
   if(!REAL)return false;
+  if(MVPARTS_TBL[p])return MVPARTS_TBL[p].some(u=>!!(REAL.tables&&REAL.tables[u]&&REAL.tables[u].rows&&REAL.tables[u].rows.length));
   if(p==='students')return !!(REAL.studentsFull&&REAL.studentsFull.rows&&REAL.studentsFull.rows.length);
   if(p==='roomstat')return !!(REAL.roomstat&&REAL.roomstat.groups&&REAL.roomstat.groups.length);
   if(p==='pickup')return !!(REAL.pickup&&REAL.pickup.rows);
@@ -293,8 +309,9 @@ function mvHave(p){
   if(p==='changelog')return !!(REAL.changelog&&REAL.changelog.length);
   return false;
 }
+const MVPARTS_TBL=(function(){const m={};Object.keys(MVPARTS_URL).forEach(u=>MVPARTS_URL[u].forEach(p=>{(m[p]=m[p]||[]).push(u);}));return m;})();
 async function navRender(it){
-  const parts=MVPARTS[(it&&it.k)||'']||['students'];
+  const parts=MVPARTS_URL[(it&&it.u)||'']||MVPARTS[(it&&it.k)||'']||['students'];
   const cold=!MVLIVE.off&&parts.some(p=>!MVLIVE.at[p]&&!mvHave(p));
   if(cold){
     const m=document.getElementById('mvMain');
@@ -403,74 +420,98 @@ function mvDL(pairs){return '<dl class="mv-dl">'+pairs.filter(p=>p&&p[1]!=null&&
 
 /* ================= 메뉴/라우팅 ================= */
 /* 데스크톱 CATS/MENU 를 모바일 그룹으로 축약. handler 미지정 spec 계열은 M_table 로 폴백. */
-/* 데스크톱 전체 메뉴(7 카테고리) 반영. 전용 렌더러 없는 항목은 M_table 폴백. 라벨 영어 기본. */
+/* 레거시(smeadmin.com) 메뉴 100% 정합 — 카테고리 9개·순서·라벨·번호(1. / 1.1. …) 그대로.
+   t=레거시 라벨(원문), en=영어 표기(기본 언어 영어 정책 유지) · ext:1=레거시에 없는 신전산 추가.
+   전용 렌더러 없는 항목은 M_table 폴백. */
 const MENU=[
-  {id:'record',label:'Record',icon:'⌂',items:[
-    {k:'dash',t:'Dashboard',u:'',tab:'home'},
-    {k:'table',t:'Permissions (by Dept)',u:'admin_perms'},
+  {id:'setting',label:'Setting',icon:'⚙',items:[
+    {k:'table',t:'세션 삭제',en:'Session Delete',u:'session_delete.php'},
+    {k:'table',t:'phpMyAdmin',u:'(외부 phpMyAdmin)'},
   ]},
   {id:'member',label:"Member's",icon:'🧑‍💼',items:[
-    {k:'table',t:'Member List',u:'member_list.php'},
-    {k:'table',t:'Point Mgmt',u:'point_list.php'},
-    {k:'table',t:'Visitors',u:'visit_list.php'},
+    {k:'table',t:'회원관리',en:'Members',u:'member_list.php'},
+    {k:'table',t:'포인트관리',en:'Points',u:'point_list.php'},
+    {k:'table',t:'회원메일발송',en:'Member Mail',u:'mail_list.php'},
+    {k:'table',t:'접속자현황',en:'Visitors',u:'visit_list.php'},
+    {k:'table',t:'투표관리',en:'Polls',u:'poll_list.php'},
+    {k:'table',t:'게시판관리',en:'Boards',u:'board_list.php'},
+    {k:'table',t:'게시판그룹관리',en:'Board Groups',u:'boardgroup_list.php'},
+  ]},
+  {id:'board',label:'Board',icon:'📋',items:[
+    {k:'table',t:'GAC BOARD',u:'bbs/board.php?bo_table=office_GAC'},
+    {k:'table',t:'Campus Holding Info',u:'bbs/board.php?bo_table=office_holding'},
+    {k:'table',t:'SME_BOARD',u:'bbs/board.php?bo_table=office_share'},
   ]},
   {id:'agency',label:'Agency',icon:'🌐',items:[
     {k:'table',t:'AGENCY LIST',u:'uhak_agency_list.php'},
+    {k:'table',t:'AGENCY ADDR',u:'uhak_agency_list2.php'},
     {k:'table',t:'COMMISSION',u:'uhak_agency_commission.php'},
-    {k:'table',t:'Agency Visit',u:'uhak_day_info.php'},
+    {k:'table',t:'AGENCY OUT',u:'uhak_agency_exit_list.php'},
     {k:'table',t:'BRANCH RECORD',u:'uhak_agency_stat22.php'},
     {k:'table',t:'GROUP RECORD',u:'uhak_agency_stat33.php'},
     {k:'table',t:'EACH NATIONALITY',u:'uhak_agency_stat34.php'},
+    {k:'table',t:'유학원 방문(VISIT)',en:'Agency Visit',u:'uhak_day_info.php',ext:1},
   ]},
-  {id:'financial',label:'Financial',icon:'📑',items:[
-    {k:'table',t:'Tuition · Invoice',u:'student_tution_fee_list3.php'},
-    {k:'table',t:'Korean Students',u:'student_tution_fee_list2.php'},
-    {k:'table',t:'Foreign Students',u:'student_tution_fee_list_for2.php'},
-    {k:'table',t:'Extension Students',u:'student_tution_fee_list4.php'},
-    {k:'table',t:'Change/Refund/Hold',u:'student_tution_fee_list_change.php'},
-    {k:'table',t:'COURSE LIST',u:'course_list.php'},
-    {k:'table',t:'TUITION FEE',u:'tution_fee.php'},
+  {id:'record',label:'Record',icon:'⌂',items:[
+    {k:'dash',t:'대시보드',en:'Dashboard',u:'',tab:'home',ext:1},
+    {k:'table',t:'권한설정 (부서별)',en:'Permissions (by Dept)',u:'admin_perms',ext:1},
   ]},
   {id:'student',label:"Student's",icon:'👤',items:[
     {k:'stdlist',t:'STUDENT LIST',u:'student.php',tab:'std'},
-    {k:'enroll',t:'Course Registration',u:'student_list.php',tab:'std'},
-    {k:'table',t:'Agency Page',u:'agency_page.php'},
-    {k:'table',t:'Multi-course Mgmt',u:'student_list3.php'},
-    {k:'table',t:'MC Report 1',u:'student_list3_en1.php'},
-    {k:'table',t:'MC Report 2',u:'student_list3_en2.php'},
-    {k:'table',t:'Graduate',u:'student_list3_en3.php'},
-    {k:'table',t:'APPLY LIST',u:'student_list2.php'},
-    {k:'table',t:'HISTORY',u:'student_history.php'},
-    {k:'table',t:'Change/Refund/Hold',u:'student_list_change.php'},
-    {k:'table',t:'CHG-REF-HOLD',u:'student_list_change-back.php'},
-    {k:'table',t:'Collection Mgmt',u:'student_list_pay.php'},
-    {k:'cash',t:'DEPOSIT',u:'student_payment.php'},
-    {k:'table',t:'FARM & GYM',u:'student_farm.php'},
-    {k:'table',t:'GYM Report',u:'student_gym.php'},
-    {k:'table',t:'FARM Report',u:'student_farm2.php'},
+    {k:'enroll',t:'1.수강등록관리',en:'1.Course Registration',u:'student_list.php',tab:'std'},
+    {k:'table',t:'1.1.멀티수강관리',en:'1.1.Multi-Course Mgmt',u:'student_list3.php'},
+    {k:'table',t:'1.2 MC Report 1',u:'student_list3_en1.php'},
+    {k:'table',t:'1.3 MC Report 2',u:'student_list3_en2.php'},
+    {k:'table',t:'1.4 Graduate',u:'student_list3_en3.php'},
+    {k:'table',t:'1.APPLY LIST',u:'student_list2.php'},
+    {k:'table',t:'1.5 HISTORY',u:'student_history.php'},
+    {k:'table',t:'2.변경환불홀딩',en:'2.Change/Refund/Hold',u:'student_list_change.php'},
+    {k:'table',t:'2.CHG-REF-HOLD',u:'student_list_change-back.php'},
+    {k:'table',t:'3.수금관리',en:'3.Collection Mgmt',u:'student_list_pay.php'},
+    {k:'cash',t:'4.DEPOSIT',u:'student_payment.php'},
+    {k:'table',t:'4.1.Deposit(test)',u:'student_payment-2.php'},
+    {k:'table',t:'5.FARM & GYM',u:'student_farm.php'},
+    {k:'table',t:'5.1.GYM 리포트',en:'5.1.GYM Report',u:'student_gym.php'},
+    {k:'table',t:'5.2.FARM 리포트',en:'5.2.FARM Report',u:'student_farm2.php'},
     {k:'table',t:'POPULATION',u:'student_population.php'},
-    {k:'table',t:'POPULATION 2',u:'student_population2.php'},
-    {k:'table',t:'STUDENT STATUS',u:'student_present2.php'},
+    {k:'table',t:'POPULATION2',u:'student_population2.php'},
+    {k:'table',t:'STDNT STATUS',u:'student_present2.php'},
+    {k:'table',t:'STDNT Fullsize',u:'student_present2-rey.php'},
+    {k:'table',t:'STDNT Encanto',u:'student_present2-sparta.php'},
+    {k:'table',t:'STDNT Classic',u:'student_present2-classic.php'},
+    {k:'table',t:'STDNT Capital',u:'student_present2-capital.php'},
     {k:'table',t:'REGISTER STATS',u:'student_register.php'},
     {k:'table',t:'GAC BOARD',u:'bbs/board.php?bo_table=office_GAC'},
-    {k:'table',t:'Campus Holding',u:'bbs/board.php?bo_table=office_holding'},
+    {k:'table',t:'Campus Holding Info',u:'bbs/board.php?bo_table=office_holding'},
+    {k:'table',t:'AGENCY PAGE (유학원 포털)',en:'AGENCY PAGE (Portal)',u:'agency_page.php',ext:1},
   ]},
   {id:'dorm',label:'Dormitory',icon:'🏠',items:[
-    {k:'roomstat',t:'Dormitory Status (Batch)',u:'room_stat3.php',tab:'dorm'},
-    {k:'pickup',t:'Weekly Pickup List',u:'room_search2.php/pickup',tab:'pickup'},
-    {k:'table',t:'DORM STATUS',u:'room_stat2.php'},
-    {k:'table',t:'Dormitory Move Mgmt',u:'room_move_list.php',tab:'dorm'},
-    {k:'table',t:'ROOM M-LIST',u:'room_move_list2.php',tab:'dorm'},
-    {k:'table',t:'Daily Check-in & out',u:'room_use_count_list.php',tab:'dorm'},
-    {k:'table',t:'DAY IN & OUT',u:'room_use_count_list2.php'},
-    {k:'table',t:'ELEC & WATER',u:'room_elec.php'},
-    {k:'table',t:'VISIT (detail)',u:'uhak_agency_visit.php'},
-    {k:'table',t:'VISIT (calendar)',u:'uhak_agency_schedule_list.php'},
+    {k:'table',t:'DORM SEARCH',u:'room_search2.php'},
+    {k:'roomstat',t:'1.기숙사현황',en:'1.Dormitory Status (Batch)',u:'room_stat3.php',tab:'dorm'},
+    {k:'table',t:'1.DORM STATUS',u:'room_stat2.php'},
+    {k:'table',t:'2.기숙사이동관리',en:'2.Room Move Mgmt',u:'room_move_list.php',tab:'dorm'},
+    {k:'table',t:'2.ROOM M-LIST',u:'room_move_list2.php',tab:'dorm'},
+    {k:'table',t:'3.일별 입실&퇴실',en:'3.Daily Check-in/out',u:'room_use_count_list.php',tab:'dorm'},
+    {k:'table',t:'3.DAY IN&OUT',u:'room_use_count_list2.php'},
+    {k:'table',t:'ELEC&WATER',u:'room_elec.php'},
+    {k:'table',t:'VISIT(detail)',u:'uhak_agency_visit.php'},
+    {k:'table',t:'VISIT(calenda)',u:'uhak_agency_schedule_list.php'},
     {k:'table',t:'DORM LIST',u:'room_list.php'},
     {k:'changelog',t:'BACK-UP LOG',u:'room_change_log.php',tab:'dorm'},
-    {k:'table',t:'DAYOFF / Scheduler',u:'scheduler_index.php'},
-    {k:'admission',t:'Admission Date',u:'smeag_admissiondate.php'},
     {k:'table',t:'SME_BOARD',u:'bbs/board.php?bo_table=office_share'},
+    {k:'admission',t:'Admission Date',u:'smeag_admissiondate.php'},
+    {k:'table',t:'Update Rooms(new)',u:'room_list-rey.php'},
+    {k:'table',t:'DAYOFF / Scheduler',u:'scheduler_index.php',ext:1},
+    {k:'pickup',t:'주간 픽업 리스트',en:'Weekly Pickup List',u:'room_search2.php/pickup',tab:'pickup',ext:1},
+  ]},
+  {id:'financial',label:'Financial',icon:'📑',items:[
+    {k:'table',t:'한국학생등록현황',en:'Korean Students',u:'student_tution_fee_list2.php'},
+    {k:'table',t:'외국학생등록현황',en:'Foreign Students',u:'student_tution_fee_list_for2.php'},
+    {k:'table',t:'학생등록통합관리',en:'Tuition · Invoice',u:'student_tution_fee_list3.php'},
+    {k:'table',t:'연장학생통합관리',en:'Extension Students',u:'student_tution_fee_list4.php'},
+    {k:'table',t:'변경환불홀딩관리',en:'Change/Refund/Hold',u:'student_tution_fee_list_change.php'},
+    {k:'table',t:'COURSE LIST',u:'course_list.php'},
+    {k:'table',t:'TUITION FEE',u:'tution_fee.php',ext:1},
   ]},
   {id:'cash',label:'Cash Cards',icon:'💳',items:[
     {k:'cash',t:'Manage Cash',u:'student_cash_payment.php',tab:'more'},
@@ -490,7 +531,8 @@ function itemsForTab(tab){const out=[];MENU.forEach(g=>g.items.forEach(it=>{if((
 
 let CUR={k:'dash',u:'',t:'Dashboard',tab:'home'};
 const SCOPE_FN={M_dash:'d',M_students:'s',M_roomstat:'r',M_pickup:'p',M_cash:'c',M_table:'t',M_changelog:'g',M_admission:'g'};
-function titleFor(it){return it.t||({dash:'Dashboard',enroll:'Course Registration',stdlist:'STUDENT LIST',roomstat:'Dormitory Status',pickup:'Weekly Pickup',cash:'CASH',changelog:'BACK-UP LOG',admission:'Admission'}[it.k])||it.k;}
+/* 레거시 라벨(t) 기준 · 기본 언어 영어면 en 우선 */
+function titleFor(it){return (LANG==='en'&&it.en)||it.t||({dash:'Dashboard',enroll:'Course Registration',stdlist:'STUDENT LIST',roomstat:'Dormitory Status',pickup:'Weekly Pickup',cash:'CASH',changelog:'BACK-UP LOG',admission:'Admission'}[it.k])||it.k;}
 
 function render(it){
   CUR=Object.assign({},it);
@@ -515,7 +557,7 @@ function render(it){
     else if(it.k==='cash') body=win('M_cash')({});
     else if(it.k==='changelog') body=win('M_changelog')({});
     else if(it.k==='admission') body=win('M_admission')({});
-    else body=win('M_table')({url:it.u,title:it.t});
+    else body=win('M_table')({url:it.u,title:titleFor(it)});
   }catch(e){body='<div class="mv-empty"><span class="ico">⚠️</span>렌더 오류: '+esc(e.message)+'</div>';console.error(e);}
   const fnName={dash:'M_dash',enroll:'M_students',stdlist:'M_students',roomstat:'M_roomstat',pickup:'M_pickup',cash:'M_cash',changelog:'M_changelog',admission:'M_admission'}[it.k]||'M_table';
   window.CUR_SCOPE=SCOPE_FN[fnName]||'t';
@@ -546,6 +588,7 @@ function openMenuSheet(){
   const pcLink='<a class="mv-menu-item" href="../?pc=1" style="justify-content:center;background:var(--accent-weak);border-color:var(--accent);color:var(--accent-ink)">🖥 PC(데스크톱) 버전으로 보기</a>';
   const html=pcLink+MENU.map(g=>'<div class="mv-menu-grp"><div class="gt">'+g.icon+' '+esc(g.label)+'</div>'+
     g.items.map(it=>'<button class="mv-menu-item" data-nav=\''+esc(JSON.stringify(it))+'\'>'+esc(titleFor(it))+
+      (it.ext?'<span class="u" style="color:var(--accent-ink)" title="레거시에 없는 신전산 추가">＋</span>':'')+
       (it.u?'<span class="u">'+esc(it.u)+'</span>':'')+'</button>').join('')+'</div>').join('');
   const b=openSheet('전체 메뉴',html);
   b.addEventListener('click',e=>{const el=e.target.closest('[data-nav]');if(!el)return;

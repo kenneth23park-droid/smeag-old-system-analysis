@@ -46,6 +46,14 @@ async function rpc(sql, params) {
 }
 const authenticate = (id, pw, ip) =>
   rpc("select app.member_authenticate($1,$2,$3) as r", [id, pw, ip]);
+// 신전산 권한 오버라이드(app.member_level_override) — 레거시 g4_member.mb_level 은 그대로 두고
+// 세션에 실릴 레벨만 max() 로 올린다. 테이블이 없으면 원래 레벨을 그대로 쓴다.
+async function effLevel(id, base) {
+  try {
+    const lv = await rpc("select app.member_level_of($1) as r", [id]);
+    return Math.max(Number(base || 0), Number(lv || 0));
+  } catch (_) { return Number(base || 0); }
+}
 const setPassword = (id, oldPw, newPw, ip) =>
   rpc("select app.member_set_password($1,$2,$3,$4) as r", [id, oldPw, newPw, ip]);
 
@@ -268,8 +276,9 @@ export default async function handler(req, res) {
         }
         const cres = await setPassword(cid, oldPw, np1, ip);
         if (cres && cres.ok) {
-          const jwt = signSession({ mb_id: cres.mb_id, mb_name: cres.mb_name, mb_level: cres.mb_level, source: "member_set" });
-          if (json) return sendJson(res, { ok: true, mb_id: cres.mb_id, mb_name: cres.mb_name, mb_level: cres.mb_level }, 200, cookieHeader(jwt));
+          const cLv = await effLevel(cres.mb_id, cres.mb_level);
+          const jwt = signSession({ mb_id: cres.mb_id, mb_name: cres.mb_name, mb_level: cLv, source: "member_set" });
+          if (json) return sendJson(res, { ok: true, mb_id: cres.mb_id, mb_name: cres.mb_name, mb_level: cLv }, 200, cookieHeader(jwt));
           return redirect(res, self, cookieHeader(jwt));
         }
         const cmsg = cres && cres.error === "weak_password"
@@ -290,8 +299,9 @@ export default async function handler(req, res) {
           if (json) return sendJson(res, { ok: true, must_change: true, mb_id: rres.mb_id, mb_name: rres.mb_name, mb_level: rres.mb_level }, 200);
           return sendHtml(res, changePage(rres.mb_id), 200);
         }
-        const jwt = signSession({ mb_id: rres.mb_id, mb_name: rres.mb_name, mb_level: rres.mb_level, source: rres.source });
-        if (json) return sendJson(res, { ok: true, mb_id: rres.mb_id, mb_name: rres.mb_name, mb_level: rres.mb_level, source: rres.source }, 200, cookieHeader(jwt));
+        const rLv = await effLevel(rres.mb_id, rres.mb_level);
+        const jwt = signSession({ mb_id: rres.mb_id, mb_name: rres.mb_name, mb_level: rLv, source: rres.source });
+        if (json) return sendJson(res, { ok: true, mb_id: rres.mb_id, mb_name: rres.mb_name, mb_level: rLv, source: rres.source }, 200, cookieHeader(jwt));
         return redirect(res, self, cookieHeader(jwt));
       }
       const msg = rres && rres.error === "too_many_attempts"

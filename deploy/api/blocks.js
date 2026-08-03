@@ -136,9 +136,12 @@ export default async function handler(req, res) {
     return res.status(401).json({ ok: false, error: "no_session",
       message: "로그인 세션이 없습니다. 다시 로그인하세요." });
   }
-  if (req.method === "POST" && Number(session.mb_level || 0) < WRITE_MIN_LEVEL) {
+  // 방막기 원장은 내부 운영정보(전 캠퍼스 방·침대 구성)라 조회도 직원 권한이 필요하다.
+  if (Number(session.mb_level || 0) < WRITE_MIN_LEVEL) {
     return res.status(403).json({ ok: false, error: "forbidden",
-      message: "방막기 변경 권한이 없습니다. 담당 매니저에게 요청하세요." });
+      message: req.method === "POST"
+        ? "방막기 변경 권한이 없습니다. 담당 매니저에게 요청하세요."
+        : "방막기 정보를 조회할 권한이 없습니다." });
   }
   const actor = actorOf(session);
 

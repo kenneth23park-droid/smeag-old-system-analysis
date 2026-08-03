@@ -675,49 +675,60 @@ async function loadMembers(q, scope) {
       com as (      -- 커미션 규칙/이력 건수(uhak_agency_com.mb_id = g4_member.mb_id)
         select lower(mb_id) a, count(*) n from legacy.uhak_agency_com group by 1),
       grp as (      -- 레거시 회원목록 '그룹' 칸 = 그룹접근권한 건수(g4_group_member)
-        select lower(mb_id) a, count(*) n from cms.g4_group_member group by 1)
-     select m.mb_id id, coalesce(m.mb_name,'') name, coalesce(m.mb_nick,'') nick,
-            coalesce(m.mb_level,0) level,
+        select lower(mb_id) a, count(*) n from cms.g4_group_member group by 1),
+      med as (      -- 신전산 수정 오버레이(app.member_edits) — 원본 대신 이 값을 덮어 보여준다
+        select lower(mb_id) a, patch from app.member_edits),
+      ovr as (      -- 권한 오버라이드(유효권한 = max(레거시, 오버라이드))
+        select lower(mb_id) a, mb_level from app.member_level_override where active)
+     select m.mb_id id,
+            coalesce(nullif(med.patch->>'mb_name',''), m.mb_name, '') name,
+            coalesce(nullif(med.patch->>'mb_nick',''), m.mb_nick, '') nick,
+            greatest(coalesce(m.mb_level,0), coalesce(ovr.mb_level,0)) level,
             case when coalesce(m.mb_level,0) >= 8 then 'ADMIN'
                  when coalesce(m.mb_10,'') <> '' or stu.a is not null or com.a is not null then 'AGENCY'
                  else 'STAFF' end kind,
-            coalesce(m.mb_email,'') email,
-            coalesce(nullif(btrim(m.mb_hp),''), nullif(btrim(m.mb_tel),''), nullif(btrim(m.mb_6),''), '') phone,
+            coalesce(nullif(med.patch->>'mb_email',''), m.mb_email, '') email,
+            coalesce(nullif(btrim(coalesce(med.patch->>'mb_hp', m.mb_hp)),''),
+                     nullif(btrim(coalesce(med.patch->>'mb_tel', m.mb_tel)),''),
+                     nullif(btrim(coalesce(med.patch->>'mb_6', m.mb_6)),''), '') phone,
             coalesce(m.mb_sns,'') sns,
-            coalesce(nullif(btrim(m.mb_7),''), '') agency,      -- mb_7 = 유학원 표기명
-            lower(coalesce(m.mb_8,'')) comm,                    -- percent | amount
-            coalesce(m.mb_9,'') commval,
+            coalesce(nullif(btrim(coalesce(med.patch->>'mb_7', m.mb_7)),''), '') agency,  -- mb_7 = 유학원 표기명
+            lower(coalesce(nullif(med.patch->>'mb_8',''), m.mb_8, '')) comm,   -- percent | amount
+            coalesce(nullif(med.patch->>'mb_9',''), m.mb_9, '') commval,
             case when m.mb_3 ~ '^\\d{4}-\\d{2}-\\d{2}' then left(m.mb_3,10) else '' end contract,
             coalesce(stu.n,0) students, coalesce(com.n,0) comms,
             coalesce(m.mb_recommend,0) recommend,               -- 유학원 등록실적 계산용
             coalesce(m.mb_11,0) weight,                         -- 유학원 비중 수치화
-            case when coalesce(m.mb_leave_date,'') <> '' then 'leave'
-                 when coalesce(m.mb_intercept_date,'') <> ''
+            case when coalesce(med.patch->>'mb_leave_date', m.mb_leave_date, '') <> '' then 'leave'
+                 when coalesce(med.patch->>'mb_intercept_date', m.mb_intercept_date, '') <> ''
                    or lower(coalesce(m.mb_memo_call,'')) = 'block' then 'block'
                  else 'normal' end status,
             coalesce(to_char(m.mb_datetime,'YYYY-MM-DD'),'') joined,
             coalesce(to_char(m.mb_today_login,'YYYY-MM-DD HH24:MI'),'') login,
             coalesce(m.mb_login_ip,'') ip,
-            left(regexp_replace(coalesce(m.mb_memo,''), '\\s+', ' ', 'g'), 160) memo,
+            left(regexp_replace(coalesce(med.patch->>'mb_memo', m.mb_memo, ''), '\\s+', ' ', 'g'), 160) memo,
             -- ↓ 레거시 member_list.php 표 칸(그누보드4 원본 컬럼 그대로)
             coalesce(m.mb_point,0) point,                       -- 포인트
-            case when coalesce(m.mb_mailling,0) <> 0 then 1 else 0 end mailling,  -- 수신
-            case when coalesce(m.mb_open,0) <> 0 then 1 else 0 end "open",        -- 공개
+            case when coalesce(med.patch->>'mb_mailling', m.mb_mailling::text, '0') <> '0' then 1 else 0 end mailling,
+            case when coalesce(med.patch->>'mb_open', m.mb_open::text, '0') <> '0' then 1 else 0 end "open",
             case when m.mb_email_certify is not null then 1 else 0 end certify,    -- 인증
-            case when coalesce(m.mb_intercept_date,'') <> '' then 1 else 0 end intercept, -- 차단
+            case when coalesce(med.patch->>'mb_intercept_date', m.mb_intercept_date, '') <> '' then 1 else 0 end intercept,
             coalesce(grp.n,0) "groups",                         -- 그룹접근권한 건수
-            coalesce(m.mb_leave_date,'') leave_date
+            coalesce(med.patch->>'mb_leave_date', m.mb_leave_date, '') leave_date,
+            case when med.a is not null or ovr.a is not null then 1 else 0 end edited  -- 신전산 수정분 존재
        from cms.g4_member m
        left join stu on stu.a = lower(m.mb_id)
        left join com on com.a = lower(m.mb_id)
-       left join grp on grp.a = lower(m.mb_id)${own}
+       left join grp on grp.a = lower(m.mb_id)
+       left join med on med.a = lower(m.mb_id)
+       left join ovr on ovr.a = lower(m.mb_id)${own}
       order by coalesce(m.mb_today_login, m.mb_datetime) desc nulls last, m.mb_no desc
       limit $1`, params);
   return rows.map((r) => ({ ...r, level: Number(r.level), students: Number(r.students),
     comms: Number(r.comms), recommend: Number(r.recommend), weight: Number(r.weight),
     point: Number(r.point), groups: Number(r.groups),
     mailling: Number(r.mailling), open: Number(r.open),
-    certify: Number(r.certify), intercept: Number(r.intercept) }));
+    certify: Number(r.certify), intercept: Number(r.intercept), edited: Number(r.edited) }));
 }
 
 // ═══ 회원정보 수정 폼 1건 (레거시 adm/member_form.php) ═══════════════════════
@@ -759,10 +770,45 @@ async function loadMemberForm(q, id) {
       limit 1`, [S(id)]);
   if (!rows.length) return null;
   const r = rows[0];
-  return { ...r, level: Number(r.level), point: Number(r.point), groups: Number(r.groups),
+  const out = { ...r, level: Number(r.level), point: Number(r.point), groups: Number(r.groups),
     mailling: Number(r.mailling), sms: Number(r.sms), open: Number(r.open),
     recommend: Number(r.recommend) };
+  // 신전산 수정분(app.member_edits) 을 레거시 값 위에 덮어서 보여준다. 원본은 그대로.
+  // edited: 어느 칸이 신전산에서 바뀌었는지(화면에서 '변경됨' 표시용)
+  out.edited = [];
+  try {
+    const e = await q(
+      `select coalesce(e.patch,'{}'::jsonb) patch,
+              coalesce(to_char(e.updated_at,'YYYY-MM-DD HH24:MI'),'') updated_at,
+              coalesce(e.updated_by,'') updated_by,
+              coalesce((select o.mb_level from app.member_level_override o
+                         where o.active and lower(o.mb_id) = lower($1)),0) lv_override
+         from app.member_edits e where lower(e.mb_id) = lower($1)`, [S(id)]);
+    const row = e.rows[0] || {};
+    const patch = row.patch || {};
+    for (const [k, v] of Object.entries(patch)) {
+      const f = MEMBER_FORM_FIELD[k];
+      if (!f) continue;
+      out[f] = MEMBER_NUM_FIELD.has(f) ? Number(v) : v;
+      out.edited.push(f);
+    }
+    if (Number(row.lv_override) > 0) { out.level = Number(row.lv_override); out.edited.push("level"); }
+    if (row.updated_at) { out.edited_at = row.updated_at; out.edited_by = row.updated_by; }
+  } catch (_) { /* app.member_edits 미설치 환경 → 레거시 값 그대로 */ }
+  return out;
 }
+
+// cms.g4_member 컬럼 → 폼 응답 필드명 (app.member_edits.patch 키가 앞쪽)
+const MEMBER_FORM_FIELD = {
+  mb_name: "name", mb_nick: "nick", mb_email: "email", mb_homepage: "homepage",
+  mb_tel: "tel", mb_hp: "hp", mb_zip1: "zip1", mb_zip2: "zip2", mb_addr1: "addr1",
+  mb_addr2: "addr2", mb_birth: "birth", mb_sex: "sex", mb_mailling: "mailling",
+  mb_sms: "sms", mb_open: "open", mb_signature: "signature", mb_profile: "profile",
+  mb_memo: "memo", mb_leave_date: "leave_date", mb_intercept_date: "intercept_date",
+  mb_1: "f1", mb_2: "f2", mb_3: "f3", mb_4: "f4", mb_5: "f5", mb_6: "f6",
+  mb_7: "f7", mb_8: "f8", mb_9: "f9", mb_10: "f10", mb_11: "f11",
+};
+const MEMBER_NUM_FIELD = new Set(["mailling", "sms", "open"]);
 
 // ═══ data.js 에 추가할 loader — COMMISSION (uhak_agency_commission.php) ═══════
 // 소스: legacy.uhak_agency_com (4,004행) ⨝ cms.g4_member (mb_id → 유학원명)

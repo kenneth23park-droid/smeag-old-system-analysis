@@ -271,3 +271,21 @@ SQL 에 `mb_password`, `mb_jumin`, `mb_password_q/a`, `mb_lost_certify`, `mb_bir
 `exploration/live-data/e2e_members_legacy.mjs` — 실 Supabase + 실 `/api/data` + Playwright.
 13열 순서·15행·페이저(137p/2,053건)·검색·disabled 상태·폼 로드(라벨 36·전부 readonly)·JS 에러 0.
 스크린샷: `shots/members_legacy_list.png`, `shots/members_legacy_form.png`.
+
+### 8-5. (같은 날 추가) 수정 가능하게 — 저장 경로
+
+"수정이 안 된다 / 안에 내용을 적을 수 없다" 요청으로 폼과 목록을 **입력·저장 가능**으로 바꿨다.
+쓰기는 여전히 레거시 원본에 닿지 않는다.
+
+- **저장 대상**: `app.member_edits(mb_id, patch jsonb)` 오버레이(신규, `migration/schema/member_edits.sql`).
+  권한(`mb_level`)만은 기존 `app.member_level_override` 로 흘려보낸다(유효권한 = max(레거시, 오버라이드)).
+  `cms.g4_member` 는 **select 만** — 재이관 시 덮이는 미러이므로 손대지 않는다(member_level_override 와 같은 판단).
+- **읽기**: `loadMembers`·`loadMemberForm` 이 레거시 값 위에 `patch` 를 덮어 내려준다. 수정된 칸은 `edited` 로 표시(목록 ID 옆 ●, 폼 라벨 ●).
+- **역방향 동기화**: `app.log_change('g4_member',{mb_id},cols)` → `app.change_log`. 화이트리스트에 `g4_member` 추가.
+- **API**: `POST /api/edit {op:'member', id, patch, idem}` — Lv8+ 필수, 화이트리스트(31칸) + 형식검증(0/1 플래그·YYYY-MM-DD·4000자),
+  RPC `app.member_edit_set` 내부에서 재검증. **멱등키**로 더블서밋/재시도 시 최초 결과 재생.
+- **화면**: 폼은 전 칸 입력 가능(ID·포인트·가입일·IP 등 시스템값 제외) + [확 인] 저장. 목록은 권한 select·차단 체크박스를 바꾸면
+  그 행이 자동 선택되고 **[선택수정]** 으로 일괄 저장(행마다 멱등키, 순차 전송). **[선택삭제]·[삭 제]는 비활성** — 신전산은 회원을 지우지 않는다.
+- **검증**(`exploration/live-data/e2e_member_edit.mjs`, 실 DB 쓰기 후 원상복구): 폼 입력 가능 · 저장 성공 ·
+  `app.member_edits.patch` 기록 · **원본 g4_member 불변** · `change_log` 1건 · 재조회 시 덮인 값(`edited:['memo','nick']`) ·
+  **같은 멱등키 재요청은 첫 결과 재생(두 번째 patch 미적용)** · 목록 [선택수정] → `member_level_override 6` + 차단일자 기록, 원본 레벨 불변 · JS 에러 0.

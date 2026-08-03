@@ -824,7 +824,14 @@ table.grid.mlg-tbl th.mlg-c,table.grid.mlg-tbl td.mlg-c{text-align:center}
 .mfm textarea{height:62px;resize:vertical}
 .mfm .mfm-ro{color:var(--text);font-variant-numeric:tabular-nums}
 .mfm .mfm-pt{color:var(--return);font-weight:800}
-.mfm .mfm-foot{display:flex;justify-content:center;gap:8px;margin-top:14px}
+.mfm table input[type=text]:focus,.mfm table textarea:focus{outline:2px solid var(--accent);background:var(--surface)}
+.mfm .mfm-cb{font-size:12px;color:var(--dim);cursor:pointer;user-select:none}
+.mfm .mfm-addr{display:flex;gap:4px;flex-wrap:wrap}
+.mfm .mfm-addr input.zip{max-width:64px}
+.mfm .mfm-ed{color:var(--accent);font-size:9px;vertical-align:super}
+.mfm .mfm-msg{font-size:12px;font-weight:700;margin-left:6px}
+.mfm .mfm-msg.ok{color:var(--good)} .mfm .mfm-msg.bad{color:var(--return)}
+.mfm .mfm-foot{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:14px}
 .mfm .mfm-tag{font-size:11px;font-weight:750;color:var(--dim);margin-left:8px}
 </style>
 
@@ -3729,8 +3736,8 @@ R.members=function(m){
     +'<div id="memBody"></div>'
     +'<div class="mlg-note">* '+T('회원자료 삭제시 다른 회원이 기존 회원아이디를 사용하지 못하도록 회원아이디, 이름, 별명은 삭제하지 않고 영구 보관합니다.',
         'When a member is deleted the ID, name and nickname are kept permanently so that no other member can reuse them.')+'</div>'
-    +'<div class="banner">'+T('레거시 <span class="mono">adm/member_list.php</span> 화면 그대로 재현(칸·순서·페이지 15행·√ 표기). 데이터는 <span class="mono">cms.g4_member</span> 실데이터이며 <b>읽기 전용</b>입니다 — 권한 선택·차단 체크·선택수정/삭제는 레거시 원본을 건드리지 않도록 잠가 두었습니다. 행 오른쪽 <b>✎</b> 를 누르면 레거시 <span class="mono">member_form.php</span>(회원정보 수정) 화면이 그대로 열립니다.',
-      'Faithful reproduction of legacy <span class="mono">adm/member_list.php</span> (same columns, order, 15 rows/page, √ marks). Data comes live from <span class="mono">cms.g4_member</span> and is <b>read-only</b> — the level select, block checkbox and bulk edit/delete are locked so the legacy source is never modified. The <b>✎</b> button opens the legacy <span class="mono">member_form.php</span> screen.')
+    +'<div class="banner">'+T('레거시 <span class="mono">adm/member_list.php</span> 화면 그대로 재현(칸·순서·페이지 15행·√ 표기). 데이터는 <span class="mono">cms.g4_member</span> 실데이터입니다. <b>권한·차단은 여기서 바꾼 뒤 [선택수정]</b>, 나머지 칸은 행 오른쪽 <b>✎</b>(레거시 <span class="mono">member_form.php</span>)에서 수정합니다. 저장은 레거시 원본이 아니라 신전산 <span class="mono">app.member_edits</span>·<span class="mono">app.member_level_override</span> 에 기록되고 화면이 그 값을 덮어 보여줍니다(원본 불변 · <span class="mono">app.change_log</span> 로 역방향 동기화). 삭제는 신전산에서 하지 않습니다.',
+      'Faithful reproduction of legacy <span class="mono">adm/member_list.php</span> (same columns, order, 15 rows/page, √ marks) over live <span class="mono">cms.g4_member</span> data. <b>Level and block are edited here, then [Edit selected]</b>; every other field is edited in <b>✎</b> (legacy <span class="mono">member_form.php</span>). Saves go to <span class="mono">app.member_edits</span> / <span class="mono">app.member_level_override</span>, never to the legacy source, and the screen shows the overlaid value (reverse-synced via <span class="mono">app.change_log</span>). Deletion is not performed by the new system.')
     +'</div>';
   }
 
@@ -3780,9 +3787,10 @@ function memLegacyInit(root,box){
     if(memState.page<0)memState.page=0;
     return {all:rows,pages:pages,page:rows.slice(memState.page*MEM_PER,memState.page*MEM_PER+MEM_PER)};
   }
-  function lvSel(v){
+  function lvSel(id,v){
     var s='',i;for(i=1;i<=10;i++)s+='<option'+(Number(v)===i?' selected':'')+'>'+i+'</option>';
-    return '<select class="mlg-sel" disabled title="'+T('레거시 원본 읽기 전용','Legacy source is read-only')+'">'+s+'</select>';
+    return '<select class="mlg-sel mbLv" data-id="'+id+'" data-orig="'+(Number(v)||0)+'" title="'
+      +T('바꾼 뒤 아래 [선택수정] — 체크한 행만 저장됩니다','Change, tick the row, then [Edit selected]')+'">'+s+'</select>';
   }
   function ck(on){return Number(on)?'<span class="mlg-ck">√</span>':'';}
   function pagerHtml(cur,pages){
@@ -3806,16 +3814,18 @@ function memLegacyInit(root,box){
       var id=esc(r.id||'');
       h+='<tr>'
         +'<td class="mlg-c"><input type="checkbox" class="mbChk" value="'+id+'"></td>'
-        +'<td class="mono"><span class="mlg-a" data-open="'+id+'">'+id+'</span></td>'
+        +'<td class="mono"><span class="mlg-a" data-open="'+id+'">'+id+'</span>'
+          +(Number(r.edited)?'<span class="mfm-ed" title="'+T('신전산에서 수정된 회원','Edited in the new system')+'">●</span>':'')+'</td>'
         +'<td>'+esc(r.name||'')+'</td>'
         +'<td><span class="mlg-a u" data-open="'+id+'">'+esc(r.nick||'')+'</span></td>'
-        +'<td class="mlg-c">'+lvSel(r.level)+'</td>'
+        +'<td class="mlg-c">'+lvSel(id,r.level)+'</td>'
         +'<td class="num mlg-pt">'+(Number(r.point||0)?Number(r.point).toLocaleString():'0')+'</td>'
         +'<td class="mlg-c mono">'+(r.login?esc(String(r.login).slice(2,10)):'00-00-00')+'</td>'
         +'<td class="mlg-c">'+ck(r.mailling)+'</td><td class="mlg-c">'+ck(r.open)+'</td>'
         +'<td class="mlg-c">'+ck(r.certify)+'</td>'
-        +'<td class="mlg-c"><input type="checkbox" disabled'+(Number(r.intercept)?' checked':'')
-          +' title="'+T('레거시 원본 읽기 전용','Legacy source is read-only')+'"></td>'
+        +'<td class="mlg-c"><input type="checkbox" class="mbBlk" data-id="'+id+'" data-orig="'+(Number(r.intercept)?1:0)+'"'
+          +(Number(r.intercept)?' checked':'')
+          +' title="'+T('차단 체크 후 [선택수정]','Tick, then [Edit selected]')+'"></td>'
         +'<td class="mlg-c">'+(Number(r.groups)?esc(String(r.groups)):'')+'</td>'
         +'<td class="mlg-c"><button class="mlg-ico" data-edit="'+id+'" title="'+T('회원정보 수정','Edit member')+'">✎</button>'
           +'<button class="mlg-ico" data-mail="'+esc(r.email||'')+'" title="'+T('메일발송','Send mail')+'">✉</button>'
@@ -3826,8 +3836,8 @@ function memLegacyInit(root,box){
       +T('검색 결과가 없습니다.','No matching members.')+'</td></tr>';
     h+='</tbody></table></div>'
       +'<div class="mlg-foot">'
-      +'<button class="btn xs" disabled title="'+T('레거시 원본 불가침 — 읽기 전용','Legacy source is read-only')+'">'+T('선택수정','Edit selected')+'</button>'
-      +'<button class="btn xs" disabled title="'+T('레거시 원본 불가침 — 읽기 전용','Legacy source is read-only')+'">'+T('선택삭제','Delete selected')+'</button>'
+      +'<button class="btn xs primary" id="mbEditSel">'+T('선택수정','Edit selected')+'</button>'
+      +'<button class="btn xs" id="mbDelSel" disabled title="'+T('회원 삭제는 레거시에서만 — 신전산은 원본을 지우지 않습니다','Deletion stays in the legacy system')+'">'+T('선택삭제','Delete selected')+'</button>'
       +'<span style="font-size:11.5px;color:var(--dim)" id="mbSelCnt"></span>'
       +pagerHtml(memState.page,d.pages)
       +'<span style="font-size:11.5px;color:var(--dim)">'+T('페이지','Page')+' '+(memState.page+1)+' / '+d.pages
@@ -3850,6 +3860,59 @@ function memLegacyInit(root,box){
       cnt.textContent=k?T('선택','Selected')+' '+k:'';} };
     if(all)all.onclick=function(){box.querySelectorAll('.mbChk').forEach(function(c){c.checked=all.checked;});recount();};
     box.querySelectorAll('.mbChk').forEach(function(c){c.onclick=recount;});
+    // 권한/차단을 바꾼 행은 자동으로 선택 표시(레거시처럼 [선택수정] 한 번으로 저장)
+    box.querySelectorAll('.mbLv,.mbBlk').forEach(function(e){
+      e.onchange=function(){
+        var tr=e.closest('tr'), chk=tr&&tr.querySelector('.mbChk');
+        if(chk&&!chk.checked){chk.checked=true;recount();}
+      };
+    });
+    var editBtn=box.querySelector('#mbEditSel');
+    if(editBtn)editBtn.onclick=function(){saveSelected(editBtn,cnt);};
+  }
+  // [선택수정] — 체크된 행 중 권한·차단이 바뀐 것만 저장한다(행마다 멱등키, 순차 전송).
+  // 레거시와 달리 원본 g4_member 는 건드리지 않고 app.member_edits/level_override 로 들어간다.
+  function saveSelected(btn,cnt){
+    if(btn._busy)return;                                   // 더블서밋 가드
+    var jobs=[];
+    box.querySelectorAll('.mbChk:checked').forEach(function(c){
+      var tr=c.closest('tr'), id=c.value;
+      var lv=tr.querySelector('.mbLv'), bk=tr.querySelector('.mbBlk');
+      var patch={};
+      if(lv&&String(lv.value)!==String(lv.dataset.orig))patch.mb_level=String(lv.value);
+      if(bk&&(bk.checked?1:0)!==Number(bk.dataset.orig))
+        patch.mb_intercept_date=bk.checked?new Date().toISOString().slice(0,10):'';
+      if(Object.keys(patch).length)jobs.push({id:id,patch:patch});
+    });
+    if(!jobs.length){
+      if(cnt)cnt.textContent=T('변경된 값이 없습니다(권한·차단을 바꾼 뒤 눌러주세요).',
+        'Nothing changed — change level/block first.');
+      return;
+    }
+    btn._busy=1;btn.disabled=true;var label=btn.textContent;btn.textContent=T('저장 중…','Saving…');
+    var ok=0,fail=0,i=0;
+    var next=function(){
+      if(i>=jobs.length){
+        btn._busy=0;btn.disabled=false;btn.textContent=label;
+        paint();                                    // 저장분 반영해 표를 다시 그린 뒤
+        var c2=box.querySelector('#mbSelCnt');       // 새로 만들어진 카운터에 결과를 쓴다
+        if(c2)c2.textContent=T('저장','Saved')+' '+ok+(fail?' · '+T('실패','failed')+' '+fail:'');
+        return;
+      }
+      var job=jobs[i++];
+      fetch('/api/edit',{method:'POST',credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({op:'member',id:job.id,patch:job.patch,
+          idem:'memlist_'+job.id+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)})})
+        .then(function(r){return r.json();})
+        .then(function(j){
+          if(j&&j.ok){ok++;memApplyToList(job.id,job.patch);}
+          else{fail++;if(j&&j.message)msgBox(T('저장 실패','Save failed'),'<div>'+esc(j.message)+'</div>','bad');}
+          next();
+        })
+        .catch(function(){fail++;next();});
+    };
+    next();
   }
   // 상단 검색줄 배선 — 레거시처럼 SEARCH 버튼/엔터로 조회(입력 즉시 필터도 함께 지원)
   var by=root.querySelector('#mbBy'), qi=root.querySelector('#mbQ');
@@ -3869,12 +3932,15 @@ function memLegacyInit(root,box){
 
 // ── 레거시 회원정보 수정 폼(adm/member_form.php) 모달 ────────────────────────
 // 목록의 ✎(또는 아이디/별명 클릭) → /api/data?member=<id> 단건 조회 → 레거시 폼 배치 그대로.
-// 모든 칸은 readonly/disabled — 저장 버튼(확인·삭제)도 잠겨 있다(원본 g4_member 불가침).
+// 입력·저장 가능(Lv8+). 저장은 레거시 원본 cms.g4_member 가 아니라 신전산 오버레이
+//   app.member_edits(+권한은 app.member_level_override) 로 들어가고, app.change_log 에
+//   구전산 정체성(g4_member/mb_id)으로 남아 역방향 동기화가 집어간다. 원본은 불변.
+// 저장 안전장치: 더블서밋 가드(버튼 잠금) + 멱등키(idem) — 같은 키 재요청은 최초 결과 재생.
 function openMemberForm(id){
   if(!id)return;
   var ov=el('div','modal-ov');ov.id='memForm';
   ov.innerHTML='<div class="modal mfm"><div class="modal-h"><b>◈ '+T('회원정보 수정','Member information')+'</b>'
-    +'<span class="mfm-tag">'+esc(id)+' · '+T('읽기 전용','read-only')+'</span>'
+    +'<span class="mfm-tag">'+esc(id)+'</span>'
     +'<button class="modal-x" id="mfX">✕</button></div>'
     +'<div class="modal-body" id="mfBody" style="color:var(--dim)">'+T('불러오는 중…','Loading…')+'</div></div>';
   document.body.appendChild(ov);
@@ -3892,6 +3958,7 @@ function openMemberForm(id){
       body.style.color='';
       body.innerHTML=memFormHtml(j.member);
       var lst=body.querySelector('#mfList');if(lst)lst.onclick=close;
+      memFormInit(ov,body,j.member,close);
     })
     .catch(function(){
       var body=ov.querySelector('#mfBody');
@@ -3899,62 +3966,148 @@ function openMemberForm(id){
         +T('회원정보를 불러오지 못했습니다.','Could not load this member.')+'</div>';
     });
 }
-// 레거시 member_form.php 의 칸 배치를 그대로 옮긴 표(2열 라벨/입력)
+// 레거시 member_form.php 의 칸 배치를 그대로 옮긴 표(2열 라벨/입력) — 입력 가능
+// data-col = cms.g4_member 컬럼명. 저장 시 이 이름 그대로 patch 로 보낸다(서버에서 화이트리스트 재검증).
 function memFormHtml(f){
-  var ro=function(v){return '<input type="text" value="'+esc(v==null?'':String(v))+'" readonly>';};
-  var txt=function(v){return '<textarea readonly>'+esc(v==null?'':String(v))+'</textarea>';};
-  var cb=function(on,label){return '<label style="font-size:12px;color:var(--dim)"><input type="checkbox" disabled'
+  var edited=(f.edited||[]);
+  var mark=function(field){return edited.indexOf(field)>=0
+    ?' <span class="mfm-ed" title="'+T('신전산에서 수정된 값','Edited in the new system')+'">●</span>':'';};
+  var inp=function(col,v){return '<input type="text" data-col="'+col+'" value="'+esc(v==null?'':String(v))+'">';};
+  var txt=function(col,v){return '<textarea data-col="'+col+'">'+esc(v==null?'':String(v))+'</textarea>';};
+  var cb=function(col,on,label){return '<label class="mfm-cb"><input type="checkbox" data-col="'+col+'"'
     +(Number(on)?' checked':'')+'> '+label+'</label>';};
   var plain=function(v){return '<span class="mfm-ro">'+esc(v==null||v===''?'—':String(v))+'</span>';};
-  var lvSel='<select class="mlg-sel" disabled>'+(function(){var s='',i;
+  var lvSel='<select class="mlg-sel" data-col="mb_level">'+(function(){var s='',i;
     for(i=1;i<=10;i++)s+='<option'+(Number(f.level)===i?' selected':'')+'>'+i+'</option>';return s;})()+'</select>'
-    +' <span style="font-size:11px;color:var(--dim)">'+esc(memLevelLabel(f.level))+'</span>';
-  var addr=[f.zip1&&f.zip2?(f.zip1+'-'+f.zip2):'',f.addr1,f.addr2].filter(Boolean).join(' ');
-  var ex=[['1',f.f1,T('사업자등록번호','Business no.')],['2',f.f2,T('담당자(대표)','Contact')],
-          ['3',f.f3,T('계약일','Contract date')],['4',f.f4,T('입금은행','Bank')],
-          ['5',f.f5,T('계좌번호','Account')],['6',f.f6,T('유선전화','Landline')],
-          ['7',f.f7,T('유학원 표기명','Agency name')],['8',f.f8,T('커미션 방식','Commission type')],
-          ['9',f.f9,T('커미션 값','Commission value')],['10',f.f10,T('유학원 코드','Agency code')]];
+    +' <span style="font-size:11px;color:var(--dim)" id="mfLvLabel">'+esc(memLevelLabel(f.level))+'</span>';
+  var sx=String(f.sex||'').toUpperCase();
+  var sexSel='<select class="mlg-sel" data-col="mb_sex">'
+    +'<option value=""'+(sx?'':' selected')+'>----</option>'
+    +'<option value="M"'+(sx==='M'?' selected':'')+'>M</option>'
+    +'<option value="F"'+(sx==='F'?' selected':'')+'>F</option></select>';
+  var addrCell='<div class="mfm-addr"><input type="text" class="zip" data-col="mb_zip1" value="'+esc(f.zip1||'')+'" placeholder="'+T('우편','zip')+'">'
+    +'<input type="text" class="zip" data-col="mb_zip2" value="'+esc(f.zip2||'')+'">'
+    +'<input type="text" data-col="mb_addr1" value="'+esc(f.addr1||'')+'">'
+    +'<input type="text" data-col="mb_addr2" value="'+esc(f.addr2||'')+'" placeholder="'+T('상세주소 입력','detail')+'"></div>';
+  var ex=[['1','mb_1',f.f1,T('사업자등록번호','Business no.')],['2','mb_2',f.f2,T('담당자(대표)','Contact')],
+          ['3','mb_3',f.f3,T('계약일','Contract date')],['4','mb_4',f.f4,T('입금은행','Bank')],
+          ['5','mb_5',f.f5,T('계좌번호','Account')],['6','mb_6',f.f6,T('유선전화','Landline')],
+          ['7','mb_7',f.f7,T('유학원 표기명','Agency name')],['8','mb_8',f.f8,T('커미션 방식','Commission type')],
+          ['9','mb_9',f.f9,T('커미션 값','Commission value')],['10','mb_10',f.f10,T('유학원 코드','Agency code')]];
   var exRows='';
   for(var i=0;i<ex.length;i+=2){
     exRows+='<tr>';
     [ex[i],ex[i+1]].forEach(function(c){
       if(!c){exRows+='<th></th><td></td>';return;}
-      exRows+='<th>'+T('여분 필드','Extra field')+' '+c[0]+'<div style="font-weight:600;color:var(--faint);font-size:10.5px">'+esc(c[2])+'</div></th>'
-        +'<td>'+ro(c[1])+'</td>';
+      exRows+='<th>'+T('여분 필드','Extra field')+' '+c[0]+mark(c[1].replace('mb_','f'))
+        +'<div style="font-weight:600;color:var(--faint);font-size:10.5px">'+esc(c[3])+'</div></th>'
+        +'<td>'+inp(c[1],c[2])+'</td>';
     });
     exRows+='</tr>';
   }
   return '<table>'
-   +'<tr><th>'+T('아이디','ID')+'</th><td>'+ro(f.id)
+   +'<tr><th>'+T('아이디','ID')+'</th><td>'+plain(f.id)
      +' <span style="font-size:11px;color:var(--accent-ink)">'+T('접근가능그룹','Groups')+' '+(Number(f.groups)||0)+'</span></td>'
      +'<th>'+T('패스워드','Password')+'</th><td>'+plain('••••••••')
      +' <span style="font-size:10.5px;color:var(--faint)">'+T('(비노출)','(never exposed)')+'</span></td></tr>'
-   +'<tr><th>'+T('이름(실명)','Name')+'</th><td>'+ro(f.name)+'</td><th>'+T('별명','Nick')+'</th><td>'+ro(f.nick)+'</td></tr>'
-   +'<tr><th>'+T('회원 권한','Level')+'</th><td>'+lvSel+'</td><th>'+T('포인트','Point')+'</th>'
+   +'<tr><th>'+T('이름(실명)','Name')+mark('name')+'</th><td>'+inp('mb_name',f.name)+'</td>'
+     +'<th>'+T('별명','Nick')+mark('nick')+'</th><td>'+inp('mb_nick',f.nick)+'</td></tr>'
+   +'<tr><th>'+T('회원 권한','Level')+mark('level')+'</th><td>'+lvSel+'</td><th>'+T('포인트','Point')+'</th>'
      +'<td><span class="mfm-pt">'+(Number(f.point)||0).toLocaleString()+'</span> '+T('점','pt')+'</td></tr>'
-   +'<tr><th>E-mail</th><td>'+ro(f.email)+'</td><th>'+T('홈페이지','Homepage')+'</th><td>'+ro(f.homepage)+'</td></tr>'
-   +'<tr><th>'+T('전화번호','Tel')+'</th><td>'+ro(f.tel)+'</td><th>'+T('핸드폰번호','Mobile')+'</th><td>'+ro(f.hp)+'</td></tr>'
-   +'<tr><th>'+T('주소','Address')+'</th><td>'+ro(addr)+'</td><th>'+T('회원아이콘','Icon')+'</th><td>'+plain(f.logo)+'</td></tr>'
-   +'<tr><th>'+T('생년월일','Birth')+'</th><td>'+ro(f.birth)+'</td><th>'+T('남녀','Sex')+'</th><td>'+plain(f.sex)+'</td></tr>'
-   +'<tr><th>'+T('메일 수신','Mailing')+'</th><td>'+cb(f.mailling,T('정보 메일을 받음','Receive info mail'))+'</td>'
-     +'<th>'+T('SMS 수신','SMS')+'</th><td>'+cb(f.sms,T('문자메세지를 받음','Receive SMS'))+'</td></tr>'
-   +'<tr><th>'+T('정보 공개','Open')+'</th><td colspan="3">'+cb(f.open,T('타인에게 자신의 정보를 공개','Show my info to others'))+'</td></tr>'
-   +'<tr><th>'+T('서명','Signature')+'</th><td>'+txt(f.signature)+'</td><th>'+T('자기 소개','Profile')+'</th><td>'+txt(f.profile)+'</td></tr>'
-   +'<tr><th>'+T('메모','Memo')+'</th><td colspan="3">'+txt(f.memo)+'</td></tr>'
+   +'<tr><th>E-mail'+mark('email')+'</th><td>'+inp('mb_email',f.email)+'</td>'
+     +'<th>'+T('홈페이지','Homepage')+'</th><td>'+inp('mb_homepage',f.homepage)+'</td></tr>'
+   +'<tr><th>'+T('전화번호','Tel')+'</th><td>'+inp('mb_tel',f.tel)+'</td>'
+     +'<th>'+T('핸드폰번호','Mobile')+mark('hp')+'</th><td>'+inp('mb_hp',f.hp)+'</td></tr>'
+   +'<tr><th>'+T('주소','Address')+'</th><td>'+addrCell+'</td><th>'+T('회원아이콘','Icon')+'</th><td>'+plain(f.logo)+'</td></tr>'
+   +'<tr><th>'+T('생년월일','Birth')+'</th><td>'+inp('mb_birth',f.birth)+'</td><th>'+T('남녀','Sex')+'</th><td>'+sexSel+'</td></tr>'
+   +'<tr><th>'+T('메일 수신','Mailing')+'</th><td>'+cb('mb_mailling',f.mailling,T('정보 메일을 받음','Receive info mail'))+'</td>'
+     +'<th>'+T('SMS 수신','SMS')+'</th><td>'+cb('mb_sms',f.sms,T('문자메세지를 받음','Receive SMS'))+'</td></tr>'
+   +'<tr><th>'+T('정보 공개','Open')+'</th><td colspan="3">'+cb('mb_open',f.open,T('타인에게 자신의 정보를 공개','Show my info to others'))+'</td></tr>'
+   +'<tr><th>'+T('서명','Signature')+'</th><td>'+txt('mb_signature',f.signature)+'</td>'
+     +'<th>'+T('자기 소개','Profile')+'</th><td>'+txt('mb_profile',f.profile)+'</td></tr>'
+   +'<tr><th>'+T('메모','Memo')+mark('memo')+'</th><td colspan="3">'+txt('mb_memo',f.memo)+'</td></tr>'
    +'<tr><th>'+T('회원가입일','Joined')+'</th><td>'+plain(f.joined)+'</td><th>'+T('최근접속일','Last login')+'</th><td>'+plain(f.login)+'</td></tr>'
    +'<tr><th>IP</th><td>'+plain(f.ip)+'</td><th>'+T('최근접속 IP','Last login IP')+'</th><td>'+plain(f.login_ip)+'</td></tr>'
-   +'<tr><th>'+T('탈퇴일자','Left date')+'</th><td>'+ro(f.leave_date)+'</td>'
-     +'<th>'+T('접근차단일자','Blocked date')+'</th><td>'+ro(f.intercept_date)+'</td></tr>'
+   +'<tr><th>'+T('탈퇴일자','Left date')+'</th><td>'+inp('mb_leave_date',f.leave_date)+'</td>'
+     +'<th>'+T('접근차단일자','Blocked date')+'</th><td>'+inp('mb_intercept_date',f.intercept_date)+'</td></tr>'
    +exRows
    +'</table>'
    +'<div class="mfm-foot">'
-     +'<button class="btn" disabled title="'+T('레거시 원본 불가침 — 읽기 전용','Legacy source is read-only')+'">'+T('확 인','Save')+'</button>'
-     +'<button class="btn primary" id="mfList">'+T('목 록','List')+'</button>'
-     +'<button class="btn" disabled title="'+T('레거시 원본 불가침 — 읽기 전용','Legacy source is read-only')+'">'+T('삭 제','Delete')+'</button>'
+     +'<button class="btn primary" id="mfSave">'+T('확 인','Save')+'</button>'
+     +'<button class="btn" id="mfList">'+T('목 록','List')+'</button>'
+     +'<button class="btn" id="mfDel" disabled title="'+T('회원 삭제는 레거시에서만 — 신전산은 원본을 지우지 않습니다','Deletion stays in the legacy system')+'">'+T('삭 제','Delete')+'</button>'
+     +'<span id="mfMsg" class="mfm-msg"></span>'
    +'</div>'
-   +'<div class="mlg-note">'+T('레거시 <span class="mono">adm/member_form.php</span> 와 같은 칸 배치입니다. 신전산은 레거시 원본(<span class="mono">cms.g4_member</span>)을 절대 수정하지 않으므로 저장·삭제는 잠겨 있습니다. 비밀번호·주민번호·비밀번호 질문/답은 API 로 내보내지 않습니다.',
-      'Same field layout as legacy <span class="mono">adm/member_form.php</span>. The new system never writes to the legacy source (<span class="mono">cms.g4_member</span>), so save/delete are locked. Password, national ID and password Q/A are never exposed by the API.')+'</div>';
+   +'<div class="mlg-note">'+T('레거시 <span class="mono">adm/member_form.php</span> 와 같은 칸 배치입니다. 저장하면 레거시 원본(<span class="mono">cms.g4_member</span>)이 아니라 신전산 <span class="mono">app.member_edits</span>(권한은 <span class="mono">app.member_level_override</span>)에 기록되고, 화면은 그 값을 덮어 보여줍니다. 변경분은 <span class="mono">app.change_log</span> 에 남아 구전산 역방향 동기화가 집어갑니다. 비밀번호·주민번호는 조회도 저장도 하지 않습니다.',
+      'Same field layout as legacy <span class="mono">adm/member_form.php</span>. Saving writes to <span class="mono">app.member_edits</span> (level → <span class="mono">app.member_level_override</span>) instead of the legacy source (<span class="mono">cms.g4_member</span>), and the screen shows the overlaid value. Every change is recorded in <span class="mono">app.change_log</span> for reverse sync. Password and national ID are neither read nor written.')
+   +(f.edited_at?'<div style="margin-top:4px">'+T('최근 수정','Last edited')+': <b>'+esc(f.edited_at)+'</b>'
+      +(f.edited_by?' · '+esc(f.edited_by):'')+'</div>':'')
+   +'</div>';
+}
+
+// 폼 배선 — 변경분만 모아 저장(더블서밋 가드 + 멱등키). 저장 성공 시 목록(REAL.members)도 즉시 갱신.
+function memFormInit(ov,body,f,close){
+  var orig={};
+  body.querySelectorAll('[data-col]').forEach(function(e){
+    orig[e.dataset.col]=(e.type==='checkbox')?(e.checked?'1':'0'):String(e.value);
+  });
+  var lvl=body.querySelector('[data-col="mb_level"]'), lvLabel=body.querySelector('#mfLvLabel');
+  if(lvl&&lvLabel)lvl.onchange=function(){lvLabel.textContent=memLevelLabel(lvl.value);};
+  var msg=body.querySelector('#mfMsg');
+  var say=function(t,bad){if(!msg)return;msg.textContent=t;msg.className='mfm-msg'+(bad?' bad':' ok');};
+  function collect(){
+    var patch={};
+    body.querySelectorAll('[data-col]').forEach(function(e){
+      var v=(e.type==='checkbox')?(e.checked?'1':'0'):String(e.value);
+      if(v!==orig[e.dataset.col])patch[e.dataset.col]=v;
+    });
+    return patch;
+  }
+  var save=body.querySelector('#mfSave');
+  if(!save)return;
+  save.onclick=function(){
+    if(save._busy)return;                       // 더블서밋 가드
+    var patch=collect();
+    if(!Object.keys(patch).length){say(T('변경된 값이 없습니다.','Nothing changed.'),true);return;}
+    if(!ov._idem)ov._idem='mem_'+f.id+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+    save._busy=1;save.disabled=true;save.textContent=T('저장 중…','Saving…');say(T('저장 중…','Saving…'));
+    fetch('/api/edit',{method:'POST',credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({op:'member',id:f.id,patch:patch,idem:ov._idem})})
+      .then(function(r){return r.json();})
+      .then(function(j){
+        save._busy=0;save.disabled=false;save.textContent=T('확 인','Save');
+        if(!j||!j.ok){say((j&&j.message)||T('저장에 실패했습니다.','Save failed.'),true);return;}
+        ov._idem=null;                          // 다음 저장은 새 멱등키
+        Object.keys(patch).forEach(function(k){orig[k]=patch[k];});
+        memApplyToList(f.id,patch);
+        say(T('저장되었습니다.','Saved.'));
+        if(typeof renderMain==='function')renderMain();
+      })
+      .catch(function(){
+        save._busy=0;save.disabled=false;save.textContent=T('확 인','Save');
+        say(T('네트워크 오류 — 다시 시도하세요.','Network error — try again.'),true);
+      });
+  };
+}
+
+// 저장분을 화면 데이터(REAL.members)에 반영 — 서버 재조회 없이 목록이 바로 바뀐다.
+function memApplyToList(id,patch){
+  var list=memList();if(!list)return;
+  var row=null,i;
+  for(i=0;i<list.length;i++)if(String(list[i].id).toLowerCase()===String(id).toLowerCase()){row=list[i];break;}
+  if(!row)return;
+  var map={mb_name:'name',mb_nick:'nick',mb_email:'email',mb_memo:'memo',mb_hp:'phone',mb_7:'agency'};
+  Object.keys(patch).forEach(function(k){
+    if(map[k]!==undefined)row[map[k]]=patch[k];
+    else if(k==='mb_level')row.level=Number(patch[k]);
+    else if(k==='mb_mailling')row.mailling=Number(patch[k]);
+    else if(k==='mb_open')row.open=Number(patch[k]);
+    else if(k==='mb_intercept_date'){row.intercept=patch[k]?1:0;}
+    else if(k==='mb_leave_date'){row.leave_date=patch[k];}
+  });
+  row.status=row.leave_date?'leave':(row.intercept?'block':'normal');
+  row.edited=1;
 }
 
 R.members__init=function(m){

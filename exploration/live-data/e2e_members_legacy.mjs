@@ -71,14 +71,14 @@ const head = await page.evaluate(() => ({
   rows: document.querySelectorAll("#memBody table.grid tbody tr").length,
   firstRow: [...(document.querySelectorAll("#memBody table.grid tbody tr")[0] || { children: [] }).children]
     .map((td) => td.innerText.trim()),
-  levelSelDisabled: !!(document.querySelector("#memBody .mlg-sel") || {}).disabled,
-  blockChkDisabled: !!(document.querySelector('#memBody td input[type="checkbox"][disabled]')),
+  levelSelEditable: !(document.querySelector("#memBody .mlg-sel") || {}).disabled,
+  blockChkEditable: !!(document.querySelector("#memBody td input.mbBlk:not([disabled])")),
   pager: (document.querySelector(".mlg-pager") || {}).innerText || "",
   note: (document.querySelector(".mlg-note") || {}).innerText || "",
 }));
 console.log("■ 목록 상단:", head.top.replace(/\s+/g, " "));
 console.log("■ 칸:", head.cols.join(" | "));
-console.log("■ 행수(15 기대):", head.rows, "· 권한select disabled:", head.levelSelDisabled, "· 차단chk disabled:", head.blockChkDisabled);
+console.log("■ 행수(15 기대):", head.rows, "· 권한select 입력가능:", head.levelSelEditable, "· 차단chk 입력가능:", head.blockChkEditable);
 console.log("■ 첫 행:", head.firstRow.join(" | "));
 console.log("■ 페이저:", head.pager.replace(/\s+/g, " "));
 
@@ -106,13 +106,13 @@ const form = await page.evaluate(() => ({
   title: (document.querySelector("#memForm .modal-h") || {}).innerText || "",
   labels: [...document.querySelectorAll("#memForm .mfm th")].map((t) => t.innerText.replace(/\s+/g, " ").trim()).filter(Boolean),
   values: [...document.querySelectorAll("#memForm .mfm input[type=text]")].map((i) => i.value).slice(0, 6),
-  readonlyAll: [...document.querySelectorAll("#memForm .mfm input[type=text]")].every((i) => i.readOnly),
+  editableAll: [...document.querySelectorAll("#memForm .mfm input[type=text]")].every((i) => !i.readOnly && !i.disabled),
   buttons: [...document.querySelectorAll("#memForm .mfm-foot button")].map((b) => b.innerText.trim() + (b.disabled ? "(disabled)" : "")),
   bad: (document.querySelector("#memForm").innerText.match(/undefined|NaN|\[object Object\]/g) || []).length,
 }));
 console.log("\n■ 수정폼 제목:", form.title.replace(/\s+/g, " "));
 console.log("■ 수정폼 라벨:", form.labels.join(" | "));
-console.log("■ 값 샘플:", JSON.stringify(form.values), "· 전부 readonly:", form.readonlyAll);
+console.log("■ 값 샘플:", JSON.stringify(form.values), "· 전부 입력가능:", form.editableAll);
 console.log("■ 버튼:", form.buttons.join(" · "), "· 이상문자열:", form.bad);
 await page.screenshot({ path: ROOT + "/shots/members_legacy_form.png", fullPage: false });
 
