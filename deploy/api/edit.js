@@ -106,6 +106,8 @@ const RESULTS = new Set(["", "center", "account", "collection", "refund", "holdi
 // 제외: mb_id(PK) · mb_password · mb_jumin · mb_password_q/a · mb_lost_certify · mb_point
 const MEMBER_COLS = new Set(["mb_level", "mb_name", "mb_nick", "mb_email", "mb_homepage",
   "mb_tel", "mb_hp", "mb_zip1", "mb_zip2", "mb_addr1", "mb_addr2", "mb_birth", "mb_sex",
+  // 유학원 관리 수정(uhak_agency_form) 전용 칸 — SNS(Line/Skype) · City
+  "mb_sns", "mb_addr",
   "mb_mailling", "mb_sms", "mb_open", "mb_signature", "mb_profile", "mb_memo",
   "mb_leave_date", "mb_intercept_date",
   "mb_1", "mb_2", "mb_3", "mb_4", "mb_5", "mb_6", "mb_7", "mb_8", "mb_9", "mb_10", "mb_11"]);

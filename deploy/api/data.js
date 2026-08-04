@@ -11,7 +11,7 @@
 //   GET /api/data?stamp=1                        → 버전 스탬프만(가벼움, 변경감지용)
 //   GET /api/data?parts=students,roomstat,...    → 요청한 조각만 조회
 //     parts: students | roomstat | groups | pickup | deposits | changelog
-//            | members | commission | courses | tuition | elec (전용화면)
+//            | members | agencies | commission | courses | tuition | elec (전용화면)
 //     elecFrom,elecTo=YYYY-MM-DD  elecRoom=i_idx   ELEC & WATER 기간·방
 //            members | points | visits | commission | courses | tuition
 //            farmgym | boards | elec | agencyvisit | dayoff
@@ -731,6 +731,74 @@ async function loadMembers(q, scope) {
     certify: Number(r.certify), intercept: Number(r.intercept), edited: Number(r.edited) }));
 }
 
+// ═══ AGENCY LIST — 레거시 adm/uhak_agency_list.php (CONTRACTED LIST) ════════
+//  · 소스: cms.g4_member (유학원 계정) — 레거시 유학원 정보는 별도 테이블이 아니라
+//    회원 테이블의 여분필드에 들어 있다. 실측으로 확인한 칸 대응(레거시 화면·수정폼 대조):
+//      CATE       = mb_10 이 자기 아이디(또는 비어있음) → MAIN, 다른 유학원 아이디면 BRANCH(지사)
+//      ID         = mb_id            AGENCY NAME = mb_name        MAIN ID   = mb_10(대표유학원)
+//      e-MAIL     = mb_email         APPLY       = mb_datetime    BANK      = mb_4(은행명)
+//      ACCOUNT    = mb_5(계좌번호)   CONSULTANT  = mb_2(담당자)   CELL/OFFICE = mb_hp / mb_tel
+//    수정폼 전용 칸: mb_1 사업자번호 · mb_3 등록일 · mb_6 팩스 · mb_7 지사 ·
+//                    mb_8/mb_9 커미션(방식/값) · mb_11 유학원비중 · mb_sns · mb_addr(City)
+//  · 유학원 판정은 loadMembers 의 kind='AGENCY' 와 같은 근거를 쓴다(mb_10 ∨ 학생 ∨ 커미션 ∨ Lv5).
+//  · 정렬은 레거시 화면과 같이 유학원명(mb_name) 오름차순. 한 페이지 15행은 화면에서 자른다.
+//  · 신전산 수정분(app.member_edits)을 레거시 값 위에 덮어 보여준다. 원본(cms.g4_member) 불변.
+//  · 유학원 계정 스코프는 자기 1행만(다른 유학원 계좌·연락처 차단).
+//  · 읽기 전용(select 만).
+const MAX_AGENCIES = 3000;
+
+async function loadAgencies(q, scope) {
+  const params = [MAX_AGENCIES];
+  let own = "";
+  const ag = scope && scope.agency;
+  if (ag) { params.push(S(ag)); own = ` and lower(m.mb_id) = lower($${params.length})`; }
+  const { rows } = await q(
+    `with stu as (
+        select lower(coalesce(uhak_id,'')) a, count(*) n
+          from legacy.student_info where coalesce(uhak_id,'') <> '' group by 1),
+      com as (
+        select lower(mb_id) a, count(*) n from legacy.uhak_agency_com group by 1),
+      med as (
+        select lower(mb_id) a, patch from app.member_edits)
+     select m.mb_id id,
+            coalesce(nullif(med.patch->>'mb_name',''), m.mb_name, '') name,
+            coalesce(nullif(med.patch->>'mb_10',''), m.mb_10, '') main,
+            coalesce(nullif(med.patch->>'mb_email',''), m.mb_email, '') email,
+            coalesce(to_char(m.mb_datetime,'YYYY-MM-DD HH24:MI:SS'),'') apply,
+            coalesce(nullif(med.patch->>'mb_4',''), m.mb_4, '') bank,
+            coalesce(nullif(med.patch->>'mb_5',''), m.mb_5, '') account,
+            coalesce(nullif(med.patch->>'mb_2',''), m.mb_2, '') consultant,
+            coalesce(nullif(med.patch->>'mb_hp',''), m.mb_hp, '') cell,
+            coalesce(nullif(med.patch->>'mb_tel',''), m.mb_tel, '') office,
+            coalesce(nullif(med.patch->>'mb_6',''), m.mb_6, '') fax,
+            coalesce(nullif(med.patch->>'mb_7',''), m.mb_7, '') branch,
+            lower(coalesce(nullif(med.patch->>'mb_8',''), m.mb_8, '')) comm,
+            coalesce(nullif(med.patch->>'mb_9',''), m.mb_9, '') commval,
+            coalesce(m.mb_level,0) level,
+            coalesce(stu.n,0) students, coalesce(com.n,0) comms,
+            case when coalesce(med.patch->>'mb_leave_date', m.mb_leave_date, '') <> '' then 1 else 0 end left_out,
+            case when med.a is not null then 1 else 0 end edited
+       from cms.g4_member m
+       left join stu on stu.a = lower(m.mb_id)
+       left join com on com.a = lower(m.mb_id)
+       left join med on med.a = lower(m.mb_id)
+      where (coalesce(m.mb_10,'') <> '' or stu.a is not null or com.a is not null
+             or coalesce(m.mb_level,0) = 5)
+        and coalesce(m.mb_level,0) < 8${own}
+      -- 레거시(MySQL utf8_general_ci)와 같은 차례: 대소문자 무시 + 문장부호도 코드값 그대로 비교.
+      -- Postgres 기본 콜레이션은 문장부호를 무시해 '.'/'"' 로 시작하는 이름의 자리가 달라진다 → collate "C".
+      order by lower(coalesce(nullif(med.patch->>'mb_name',''), m.mb_name, '')) collate "C" asc,
+               m.mb_id asc
+      limit $1`, params);
+  return rows.map((r) => ({
+    ...r,
+    // CATE — 대표유학원(MAIN) / 지사(BRANCH). 레거시 목록의 CATE 칸과 같은 판정.
+    cate: (!r.main || String(r.main).toLowerCase() === String(r.id).toLowerCase()) ? "MAIN" : "BRANCH",
+    level: Number(r.level), students: Number(r.students), comms: Number(r.comms),
+    left_out: Number(r.left_out), edited: Number(r.edited),
+  }));
+}
+
 // ═══ 회원정보 수정 폼 1건 (레거시 adm/member_form.php) ═══════════════════════
 //  · 목록(loadMembers)과 달리 **단건**만 조회한다. 레거시 수정폼에 실제로 그려지는 칸을 그대로 돌려준다.
 //  · 인가: Lv8+(관리자·스태프) 또는 본인 계정. 그 외에는 handler 에서 403.
@@ -747,6 +815,7 @@ async function loadMemberForm(q, id) {
             coalesce(m.mb_tel,'') tel, coalesce(m.mb_hp,'') hp,
             coalesce(m.mb_zip1,'') zip1, coalesce(m.mb_zip2,'') zip2,
             coalesce(m.mb_addr1,'') addr1, coalesce(m.mb_addr2,'') addr2,
+            coalesce(m.mb_sns,'') sns, coalesce(m.mb_addr,'') city,   -- 유학원 수정폼(SNS · City)
             coalesce(m.mb_logo,'') logo, coalesce(m.mb_birth,'') birth, coalesce(m.mb_sex,'') sex,
             case when coalesce(m.mb_mailling,0) <> 0 then 1 else 0 end mailling,
             case when coalesce(m.mb_sms,0) <> 0 then 1 else 0 end sms,
@@ -807,6 +876,7 @@ const MEMBER_FORM_FIELD = {
   mb_memo: "memo", mb_leave_date: "leave_date", mb_intercept_date: "intercept_date",
   mb_1: "f1", mb_2: "f2", mb_3: "f3", mb_4: "f4", mb_5: "f5", mb_6: "f6",
   mb_7: "f7", mb_8: "f8", mb_9: "f9", mb_10: "f10", mb_11: "f11",
+  mb_sns: "sns", mb_addr: "city",
 };
 const MEMBER_NUM_FIELD = new Set(["mailling", "sms", "open"]);
 
@@ -1123,6 +1193,7 @@ const TABLE_LOADERS = {
 // 비용을 위해 전부 PK/인덱스 최대값만 쓰고, 요청한 조각의 것만 계산한다.
 const PART_STAMP = {
   members: `coalesce((select max(mb_no) from cms.g4_member)::text,'')`,
+  agencies: `coalesce((select max(mb_no) from cms.g4_member)::text,'')`,
   points: `coalesce((select max(po_id) from cms.g4_point)::text,'')`,
   visits: `coalesce((select max(vs_date) from cms.g4_visit_sum)::text,'')`,
   commission: `coalesce((select max(no) from legacy.uhak_agency_com)::text,'')`,
@@ -1167,7 +1238,7 @@ async function loadStamp(q, parts) {
 //   master   : 코스·학비 마스터 → 로그인만 (없으면 다른 화면의 코스명 매핑이 깨진다. PII 아님)
 const STAFF_LEVEL = 8;
 const PART_ACCESS = {
-  members: "internal", points: "internal", visits: "internal", boards: "internal",
+  members: "internal", agencies: "internal", points: "internal", visits: "internal", boards: "internal",
   dayoff: "internal", elec: "internal", commission: "internal", changelog: "internal",
   students: "business", roomstat: "business", groups: "business", pickup: "business",
   deposits: "business", chgref: "business", farmgym: "business", agencyvisit: "business",
@@ -1194,7 +1265,7 @@ const stampVersion = (stamp) =>
 // ── 엔트리 ───────────────────────────────────────────────────────────────────
 const ALL_PARTS = ["students", "roomstat", "groups", "pickup", "deposits", "changelog", "chgref",
   // 명세화면 라이브(out.tables["<레거시 URL>"] 로 응답)
-  "members", "points", "visits", "commission", "courses", "tuition",
+  "members", "agencies", "points", "visits", "commission", "courses", "tuition",
   "farmgym", "boards", "elec", "agencyvisit", "dayoff"];
 export const maxDuration = 30;   // 배치도(13개월 창) 조회 여유 — Vercel 함수 제한
 
@@ -1311,6 +1382,7 @@ export default async function handler(req, res) {
     if (allowed.includes("changelog")) out.changelog = await loadChangelog(q, scope);
     if (allowed.includes("chgref")) out.chgref = await loadChgref(q, scope);
     if (allowed.includes("members")) out.members = await loadMembers(q, scope);
+    if (allowed.includes("agencies")) out.agencies = await loadAgencies(q, scope);
     if (allowed.includes("commission")) out.commission = await loadCommission(q, scope);
     if (allowed.includes("courses")) out.courses = await loadCourses(q, scope);
     if (allowed.includes("tuition")) out.tuition = await loadTuition(q, scope);

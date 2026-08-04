@@ -32,7 +32,11 @@ create table if not exists app.change_log (
   synced_at    timestamptz,                        -- 구전산 반영 완료 시각(선택 표시용)
   sync_note    text                                -- 반영 결과/스킵 사유(선택)
 );
-create index if not exists ix_changelog_day  on app.change_log ((changed_at::date));
+-- ⚠ changed_at::date 는 timestamptz→date 변환이 TimeZone 설정에 의존(STABLE)해서
+--   인덱스 표현식으로 쓸 수 없다("functions in index expression must be marked IMMUTABLE").
+--   UTC 고정 변환은 IMMUTABLE 이므로 이 형태로 만든다.
+--   export_daily_changes.py 가 날짜로 조회할 때도 동일 표현식을 쓰면 인덱스를 탄다.
+create index if not exists ix_changelog_day  on app.change_log (((changed_at at time zone 'UTC')::date));
 create index if not exists ix_changelog_tbl  on app.change_log (target_table);
 create index if not exists ix_changelog_unsy on app.change_log (synced_at) where synced_at is null;
 

@@ -810,6 +810,15 @@ table.grid.mlg-tbl th.mlg-c,table.grid.mlg-tbl td.mlg-c{text-align:center}
 .mlg-pg:hover{background:var(--surface-2);color:var(--text)}
 .mlg-pg.on{background:var(--accent-weak);color:var(--accent-ink);font-weight:900}
 .mlg-note{margin-top:8px;font-size:11.5px;color:var(--dim)}
+/* AGENCY LIST 레거시 재현(uhak_agency_list.php) — 레거시처럼 계좌·연락처 칸에서 줄바꿈
+   (table.grid td 의 white-space:nowrap 을 이겨야 하므로 선택자를 더 구체적으로 쓴다) */
+table.grid.mlg-tbl.agl-tbl td{white-space:normal;word-break:break-word;vertical-align:top}
+table.grid.mlg-tbl.agl-tbl td.agl-acct{max-width:250px;font-size:10.5px;line-height:1.35;color:var(--dim)}
+table.grid.mlg-tbl.agl-tbl td.agl-name{min-width:190px}
+/* 아이디·등록일시·연락처는 레거시처럼 한 줄 유지(줄바꿈은 <br> 로만) */
+table.grid.mlg-tbl.agl-tbl td.mono,
+table.grid.mlg-tbl.agl-tbl td.mlg-c{white-space:nowrap}
+.mlg-sel.wide{max-width:100%;width:100%}
 /* 회원정보 수정 폼(레거시 member_form.php) */
 .mfm{width:min(980px,94vw)}
 .modal.mfm .modal-body{display:block;padding:16px 18px}
@@ -1109,6 +1118,8 @@ const LIVE_PARTS={
   enroll:['students','courses'], stdlist:['students','courses'],
   // 전용화면 5종 — 학생 데이터는 필요 없다(불필요한 전량조회 방지)
   members:['members'], commission:['commission'], courses:['courses'],
+  // AGENCY LIST — 레거시 uhak_agency_list.php(CONTRACTED LIST) 재현용 유학원 계정
+  agencylist:['agencies','students','commission'],
   tuition:['tuition'], elec:['elec'],
 };
 // 명세화면(k:'spec')은 레거시 URL 로 실제 화면이 갈리므로 URL 우선 매핑
@@ -1147,6 +1158,7 @@ function liveHave(p){
   if(p==='changelog')return !!(REAL.changelog&&REAL.changelog.length);
   if(p==='chgref')return !!(REAL.chgref&&REAL.chgref.rows&&REAL.chgref.rows.length);
   if(p==='members')return !!(REAL.members&&REAL.members.length);
+  if(p==='agencies')return !!(REAL.agencies&&REAL.agencies.length);
   if(p==='commission')return !!(REAL.commission&&REAL.commission.rows&&REAL.commission.rows.length);
   if(p==='courses')return !!(REAL.courses&&REAL.courses.rows&&REAL.courses.rows.length);
   if(p==='tuition')return !!(REAL.tuition&&REAL.tuition.rows&&REAL.tuition.rows.length);
@@ -1215,6 +1227,7 @@ async function liveSync(o){
     if(j.changelog)REAL.changelog=j.changelog;
     if(j.chgref)REAL.chgref=j.chgref;
     if(j.members)REAL.members=j.members;
+    if(j.agencies)REAL.agencies=j.agencies;
     if(j.commission)REAL.commission=j.commission;
     if(j.courses)REAL.courses=j.courses;
     if(j.tuition)REAL.tuition=j.tuition;
@@ -3039,7 +3052,339 @@ function _aglPaintBody(root){
   if(cnt)cnt.textContent=rows.length.toLocaleString();
 }
 
+// ═══ AGENCY LIST — 레거시 adm/uhak_agency_list.php (CONTRACTED LIST) 재현 ═════
+//  · 소스: cms.g4_member 의 유학원 계정 → /api/data?parts=agencies (REAL.agencies)
+//    레거시 유학원 정보는 별도 테이블이 아니라 회원 테이블 칸에 들어 있다(서버 loadAgencies 주석 참조).
+//  · 칸·순서·페이지 15행·검색줄을 레거시 화면 그대로 맞춘다.
+//      No · CATE · ID · AGENCY NAME · MAIN ID · e-MAIL · APPLY · BANK · ACCOUNT ·
+//      CONSULTANT · CELL OFFICE · ✎(유학원 관리 수정)
+//  · ✎ → openAgencyForm(id): 레거시 '유학원 관리 수정' 폼 배치 그대로. 저장은 회원수정과 같은
+//    경로(app.member_edits 오버레이 + change_log)로 들어간다. 원본 cms.g4_member 불변.
+var agState={view:'legacy', by:'name', q:'', cate:'', page:0};
+var AG_PER=15;                        // 레거시 uhak_agency_list.php 한 페이지 = 15행
+
+function agRows(){ return (typeof REAL!=='undefined'&&REAL&&REAL.agencies)?REAL.agencies:null; }
+function agFiltered(){
+  var src=agRows()||[];
+  var q=(agState.q||'').trim().toLowerCase(), by=agState.by;
+  return src.filter(function(r){
+    if(agState.cate && r.cate!==agState.cate)return false;
+    if(q){
+      var hay = by==='id'?String(r.id||'')
+        : by==='name'?String(r.name||'')
+        : by==='email'?String(r.email||'')
+        : by==='consultant'?String(r.consultant||'')
+        : [r.id,r.name,r.main,r.email,r.consultant,r.cell,r.office,r.bank,r.account].join(' ');
+      if(hay.toLowerCase().indexOf(q)<0)return false;
+    }
+    return true;
+  });
+}
+// 대표유학원(MAIN) 후보 — 수정폼의 '대표유학원' 선택칸(mb_10)에 쓴다.
+function agMainList(){
+  var src=agRows()||[];
+  return src.filter(function(r){return r.cate==='MAIN';})
+            .map(function(r){return {id:r.id,name:r.name};});
+}
+
+// ── 레거시 목록 표 그리기 ────────────────────────────────────────────────────
+function agLegacyInit(root,box){
+  function pageRows(){
+    var rows=agFiltered();
+    var pages=Math.max(1,Math.ceil(rows.length/AG_PER));
+    if(agState.page>=pages)agState.page=pages-1;
+    if(agState.page<0)agState.page=0;
+    return {all:rows,pages:pages,page:rows.slice(agState.page*AG_PER,agState.page*AG_PER+AG_PER)};
+  }
+  function pagerHtml(cur,pages){
+    var start=Math.floor(cur/10)*10, end=Math.min(start+10,pages), h='', i;
+    if(start>0)h+='<span class="mlg-pg" data-pg="0">'+T('처음','First')+'</span><span class="mlg-pg" data-pg="'+(start-1)+'">'+T('이전','Prev')+'</span>';
+    for(i=start;i<end;i++)h+='<span class="mlg-pg'+(i===cur?' on':'')+'" data-pg="'+i+'">'+(i+1)+'</span>';
+    if(end<pages)h+='<span class="mlg-pg" data-pg="'+end+'">'+T('다음','Next')+'</span><span class="mlg-pg" data-pg="'+(pages-1)+'">'+T('맨끝','Last')+'</span>';
+    return '<span class="mlg-pager">'+h+'</span>';
+  }
+  function paint(){
+    var d=pageRows();
+    var h='<div class="twrap"><table class="grid mlg-tbl agl-tbl"><thead><tr>'
+      +'<th class="mlg-c">No</th><th class="mlg-c">CATE</th><th>ID</th><th>AGENCY NAME</th>'
+      +'<th>MAIN ID</th><th>e-MAIL</th><th class="mlg-c">APPLY</th><th>BANK</th><th>ACCOUNT</th>'
+      +'<th>CONSULTANT</th><th>CELL OFFICE</th><th class="mlg-c">⊞</th></tr></thead><tbody>';
+    d.page.forEach(function(r,i){
+      var id=esc(r.id||'');
+      var cell=[r.cell,r.office].filter(function(v){return v&&String(v).trim();})
+        .map(function(v){return esc(v);}).join('<br>');
+      h+='<tr>'
+        +'<td class="mlg-c">'+(agState.page*AG_PER+i+1)+'</td>'
+        +'<td class="mlg-c">'+esc(r.cate==='MAIN'?'MAIN':T('지사','BRANCH'))+'</td>'
+        +'<td class="mono"><span class="mlg-a" data-edit="'+id+'">'+id+'</span>'
+          +(Number(r.edited)?'<span class="mfm-ed" title="'+T('신전산에서 수정된 유학원','Edited in the new system')+'">●</span>':'')+'</td>'
+        +'<td class="agl-name"><span class="mlg-a u" data-edit="'+id+'">'+esc(r.name||'')+'</span></td>'
+        +'<td class="mono">'+esc(r.main||'')+'</td>'
+        +'<td>'+esc(r.email||'')+'</td>'
+        +'<td class="mlg-c mono">'+esc(String(r.apply||'').slice(0,10))
+          +(String(r.apply||'').length>10?'<br>'+esc(String(r.apply).slice(11,19)):'')+'</td>'
+        +'<td>'+esc(r.bank||'')+'</td>'
+        +'<td class="agl-acct">'+esc(r.account||'')+'</td>'
+        +'<td>'+esc(r.consultant||'')+'</td>'
+        +'<td class="mono">'+(cell||'')+'</td>'
+        +'<td class="mlg-c"><button class="mlg-ico" data-edit="'+id+'" title="'+T('유학원 관리 수정','Edit agency')+'">✎</button>'
+          +'<button class="mlg-ico" data-mail="'+esc(r.email||'')+'" title="'+T('메일발송','Send mail')+'">✉</button></td>'
+      +'</tr>';
+    });
+    if(!d.page.length)h+='<tr><td colspan="12" style="text-align:center;color:var(--dim);padding:22px">'
+      +T('검색 결과가 없습니다.','No matching agencies.')+'</td></tr>';
+    h+='</tbody></table></div>'
+      +'<div class="mlg-foot">'
+      +pagerHtml(agState.page,d.pages)
+      +'<span style="font-size:11.5px;color:var(--dim)">'+T('페이지','Page')+' '+(agState.page+1)+' / '+d.pages
+      +' · '+T('검색','Found')+' <b>'+d.all.length.toLocaleString()+'</b></span>'
+      +'</div>';
+    box.innerHTML=h;
+    box.querySelectorAll('.mlg-pg').forEach(function(b){
+      b.onclick=function(){agState.page=+b.dataset.pg||0;paint();};});
+    box.querySelectorAll('[data-edit]').forEach(function(b){
+      b.onclick=function(){openAgencyForm(b.dataset.edit);};});
+    box.querySelectorAll('[data-mail]').forEach(function(b){
+      b.onclick=function(){var e=b.dataset.mail;
+        if(e)location.href='mailto:'+e;
+        else msgBox(T('메일발송','Send mail'),'<div>'+T('이 유학원은 이메일이 없습니다.','This agency has no e-mail address.')+'</div>','warn');};});
+  }
+  var by=root.querySelector('#agBy'), qi=root.querySelector('#agQ'), ct=root.querySelector('#agCate');
+  if(by){by.value=agState.by||'name';by.onchange=function(){agState.by=by.value;agState.page=0;paint();};}
+  if(ct){ct.value=agState.cate||'';ct.onchange=function(){agState.cate=ct.value;agState.page=0;paint();};}
+  if(qi){qi.value=agState.q||'';
+    qi.oninput=function(){clearTimeout(window._agq);window._agq=setTimeout(function(){
+      agState.q=qi.value;agState.page=0;paint();},220);};
+    qi.onkeydown=function(e){if(e.key==='Enter'){agState.q=qi.value;agState.page=0;paint();}};}
+  var go=root.querySelector('#agGo');
+  if(go)go.onclick=function(){agState.q=qi?qi.value:'';agState.by=by?by.value:'name';agState.page=0;paint();};
+  var first=root.querySelector('#agFirst');
+  if(first)first.onclick=function(){agState.q='';agState.by='name';agState.cate='';agState.page=0;
+    if(qi)qi.value='';if(by)by.value='name';if(ct)ct.value='';paint();};
+  paint();
+}
+
+// ── 레거시 '유학원 관리 수정' 폼 모달 ────────────────────────────────────────
+// 목록 ✎/아이디 클릭 → /api/data?member=<id> 단건 조회(회원수정 폼과 같은 소스) →
+// 레거시 유학원 폼 칸 배치 그대로. 저장은 /api/edit {op:'member'} 로 app.member_edits 에.
+function openAgencyForm(id){
+  if(!id)return;
+  var ov=el('div','modal-ov');ov.id='agForm';
+  ov.innerHTML='<div class="modal mfm"><div class="modal-h"><b>◈ '+T('유학원 관리 수정','Agency information')+'</b>'
+    +'<span class="mfm-tag">'+esc(id)+'</span>'
+    +'<button class="modal-x" id="afX">✕</button></div>'
+    +'<div class="modal-body" id="afBody" style="color:var(--dim)">'+T('불러오는 중…','Loading…')+'</div></div>';
+  document.body.appendChild(ov);
+  var close=function(){ov.remove();};
+  ov.querySelector('#afX').onclick=close;ov.onclick=function(e){if(e.target===ov)close();};
+  fetch('/api/data?member='+encodeURIComponent(id),{credentials:'same-origin'})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      var body=ov.querySelector('#afBody');if(!body)return;
+      if(!j||!j.ok||!j.member){
+        body.innerHTML='<div style="color:var(--return);font-weight:700">'
+          +esc((j&&j.message)||T('유학원 정보를 불러오지 못했습니다.','Could not load this agency.'))+'</div>';
+        return;
+      }
+      body.style.color='';
+      body.innerHTML=agFormHtml(j.member);
+      var lst=body.querySelector('#afList');if(lst)lst.onclick=close;
+      agFormInit(ov,body,j.member);
+    })
+    .catch(function(){
+      var body=ov.querySelector('#afBody');
+      if(body)body.innerHTML='<div style="color:var(--return);font-weight:700">'
+        +T('유학원 정보를 불러오지 못했습니다.','Could not load this agency.')+'</div>';
+    });
+}
+// 레거시 폼 칸 → cms.g4_member 컬럼(data-col). 저장 시 이 이름 그대로 patch 로 보낸다.
+//   구분/대표유학원 = mb_10 · 유학원이름 = mb_name · 지사 = mb_7 · 담당자명 = mb_2 ·
+//   등록일 = mb_3 · 은행명 = mb_4 · 계좌번호 = mb_5 · 팩스 = mb_6 · 사업자번호 = mb_1 ·
+//   유학원비중 = mb_11 · 커미션 = mb_8/mb_9 · SNS = mb_sns · City = mb_addr
+function agFormHtml(f){
+  var edited=(f.edited||[]);
+  var mark=function(field){return edited.indexOf(field)>=0
+    ?' <span class="mfm-ed" title="'+T('신전산에서 수정된 값','Edited in the new system')+'">●</span>':'';};
+  var inp=function(col,v,ph){return '<input type="text" data-col="'+col+'" value="'+esc(v==null?'':String(v))+'"'
+    +(ph?' placeholder="'+esc(ph)+'"':'')+'>';};
+  var plain=function(v){return '<span class="mfm-ro">'+esc(v==null||v===''?'—':String(v))+'</span>';};
+  var isMain=!f.f10||String(f.f10).toLowerCase()===String(f.id).toLowerCase();
+  var cateSel='<select class="mlg-sel" id="afCate">'
+    +'<option value="main"'+(isMain?' selected':'')+'>'+T('대표유학원','MAIN')+'</option>'
+    +'<option value="branch"'+(isMain?'':' selected')+'>'+T('지사','BRANCH')+'</option></select>';
+  var mains=agMainList();
+  var mainSel='<select class="mlg-sel wide" data-col="mb_10" id="afMain">'
+    +'<option value="">'+T('(대표유학원 선택)','(select main agency)')+'</option>'
+    +mains.map(function(a){return '<option value="'+esc(a.id)+'"'
+      +(String(f.f10||'').toLowerCase()===String(a.id).toLowerCase()?' selected':'')+'>'+esc(a.name||a.id)+'</option>';}).join('')
+    +(f.f10&&!mains.some(function(a){return String(a.id).toLowerCase()===String(f.f10).toLowerCase();})
+      ?'<option value="'+esc(f.f10)+'" selected>'+esc(f.f10)+'</option>':'')
+    +'</select>';
+  var comm='<select class="mlg-sel" data-col="mb_8">'
+    +['','percent','amount'].map(function(v){return '<option value="'+v+'"'
+      +(String(f.f8||'').toLowerCase()===v?' selected':'')+'>'
+      +(v===''?'—':(v==='percent'?T('퍼센트(%)','percent (%)'):T('정액','amount')))+'</option>';}).join('')
+    +'</select> '+inp('mb_9',f.f9);
+  var bankList='<datalist id="afBanks">'
+    +['CHINABANK USD ACCOUNT','CHINABANK PESO ACCOUNT','BDO USD ACCOUNT','BDO PESO ACCOUNT']
+      .map(function(b){return '<option value="'+b+'">';}).join('')+'</datalist>';
+  var addrCell='<div class="mfm-addr"><input type="text" class="zip" data-col="mb_zip1" value="'+esc(f.zip1||'')+'" placeholder="'+T('우편','zip')+'">'
+    +'<input type="text" class="zip" data-col="mb_zip2" value="'+esc(f.zip2||'')+'">'
+    +'<input type="text" data-col="mb_addr1" value="'+esc(f.addr1||'')+'">'
+    +'<input type="text" data-col="mb_addr2" value="'+esc(f.addr2||'')+'" placeholder="'+T('상세주소 입력','detail')+'"></div>';
+  return bankList+'<table>'
+   +'<tr><th>'+T('아이디','ID')+'</th><td>'+plain(f.id)+'</td>'
+     +'<th>'+T('패스워드','Password')+'</th><td>'+plain('••••••••')
+     +' <span style="font-size:10.5px;color:var(--faint)">'+T('(비노출)','(never exposed)')+'</span></td></tr>'
+   +'<tr><th>'+T('구분','Category')+'</th><td>'+cateSel+'</td>'
+     +'<th>'+T('대표유학원','Main agency')+mark('f10')+'</th><td>'+mainSel+'</td></tr>'
+   +'<tr><th>'+T('유학원이름','Agency name')+mark('name')+'</th><td>'+inp('mb_name',f.name)+'</td>'
+     +'<th>'+T('지사','Branch')+mark('f7')+'</th><td>'+inp('mb_7',f.f7)+'</td></tr>'
+   +'<tr><th>'+T('전화번호','Tel')+mark('tel')+'</th><td>'+inp('mb_tel',f.tel)+'</td>'
+     +'<th>'+T('핸폰','Mobile')+mark('hp')+'</th><td>'+inp('mb_hp',f.hp)+'</td></tr>'
+   +'<tr><th>'+T('팩스','Fax')+mark('f6')+'</th><td>'+inp('mb_6',f.f6)+'</td>'
+     +'<th>'+T('이메일주소','E-mail')+mark('email')+'</th><td>'+inp('mb_email',f.email)+'</td></tr>'
+   +'<tr><th>'+T('담당자명','Consultant')+mark('f2')+'</th><td>'+inp('mb_2',f.f2)+'</td>'
+     +'<th>'+T('등록일','Contract date')+mark('f3')+'</th><td>'+inp('mb_3',f.f3,'YYYY-MM-DD')+'</td></tr>'
+   +'<tr><th>'+T('은행명','Bank')+mark('f4')+'</th><td><input type="text" list="afBanks" data-col="mb_4" value="'+esc(f.f4||'')+'"></td>'
+     +'<th>'+T('계좌번호','Account')+mark('f5')+'</th><td>'+inp('mb_5',f.f5)+'</td></tr>'
+   +'<tr><th>'+T('사업자번호','Business no.')+mark('f1')+'</th><td>'+inp('mb_1',f.f1)+'</td>'
+     +'<th>'+T('유학원비중','Weight')+mark('f11')+'</th><td>'+inp('mb_11',f.f11)+'</td></tr>'
+   +'<tr><th>'+T('커미션','Commission')+mark('f8')+'</th><td>'+comm+'</td>'
+     +'<th>'+T('홈페이지','Homepage')+'</th><td>'+inp('mb_homepage',f.homepage)+'</td></tr>'
+   +'<tr><th>SNS'+mark('sns')+'<div style="font-weight:600;color:var(--faint);font-size:10.5px">(Line, Skype ID)</div></th>'
+     +'<td>'+inp('mb_sns',f.sns)+'</td>'
+     +'<th>City'+mark('city')+'</th><td>'+inp('mb_addr',f.city)+'</td></tr>'
+   +'<tr><th>'+T('우편번호·주소','Zip · Address')+'</th><td colspan="3">'+addrCell+'</td></tr>'
+   +'<tr><th>'+T('등록(가입)일시','Joined')+'</th><td>'+plain(f.joined)+'</td>'
+     +'<th>'+T('최근접속','Last login')+'</th><td>'+plain(f.login)+'</td></tr>'
+   +'</table>'
+   +'<div class="mfm-foot">'
+     +'<button class="btn primary" id="afSave">'+T('확 인','Save')+'</button>'
+     +'<button class="btn" id="afList">'+T('목 록','List')+'</button>'
+     +'<button class="btn" id="afDel" disabled title="'+T('유학원 삭제는 레거시에서만 — 신전산은 원본을 지우지 않습니다','Deletion stays in the legacy system')+'">'+T('삭 제','Delete')+'</button>'
+     +'<span id="afMsg" class="mfm-msg"></span>'
+   +'</div>'
+   +'<div class="mlg-note">'+T('레거시 <span class="mono">유학원 관리 수정</span> 폼과 같은 칸 배치입니다(유학원 정보는 레거시에서도 회원 테이블 <span class="mono">cms.g4_member</span> 칸에 들어 있습니다). 저장하면 원본이 아니라 신전산 <span class="mono">app.member_edits</span> 에 기록되고 화면이 그 값을 덮어 보여줍니다(원본 불변 · <span class="mono">app.change_log</span> 로 역방향 동기화). 비밀번호는 조회도 저장도 하지 않습니다.',
+      'Same field layout as the legacy agency edit form (agency data lives in the member table <span class="mono">cms.g4_member</span> in the legacy system too). Saving writes to <span class="mono">app.member_edits</span>, never to the legacy source, and the screen shows the overlaid value (reverse-synced via <span class="mono">app.change_log</span>). Passwords are neither read nor written.')
+   +(f.edited_at?'<div style="margin-top:4px">'+T('최근 수정','Last edited')+': <b>'+esc(f.edited_at)+'</b>'
+      +(f.edited_by?' · '+esc(f.edited_by):'')+'</div>':'')
+   +'</div>';
+}
+// 폼 배선 — 변경분만 저장(더블서밋 가드 + 멱등키). 성공 시 목록(REAL.agencies)도 즉시 갱신.
+function agFormInit(ov,body,f){
+  var orig={};
+  body.querySelectorAll('[data-col]').forEach(function(e){orig[e.dataset.col]=String(e.value);});
+  // 구분(대표유학원/지사) — 대표유학원이면 자기 아이디가 MAIN ID 가 되고 선택칸은 잠근다.
+  var cate=body.querySelector('#afCate'), mainSel=body.querySelector('#afMain');
+  var syncCate=function(){
+    if(!cate||!mainSel)return;
+    if(cate.value==='main'){mainSel.disabled=true;mainSel._main=f.id;}
+    else{mainSel.disabled=false;mainSel._main=null;}
+  };
+  if(cate){cate.onchange=syncCate;syncCate();}
+  var msg=body.querySelector('#afMsg');
+  var say=function(t,bad){if(!msg)return;msg.textContent=t;msg.className='mfm-msg'+(bad?' bad':' ok');};
+  function collect(){
+    var patch={};
+    body.querySelectorAll('[data-col]').forEach(function(e){
+      var v=String(e.value);
+      if(e===mainSel&&cate&&cate.value==='main')v=String(f.id);   // 대표유학원 = 자기 아이디
+      if(v!==orig[e.dataset.col])patch[e.dataset.col]=v;
+    });
+    return patch;
+  }
+  var save=body.querySelector('#afSave');
+  if(!save)return;
+  save.onclick=function(){
+    if(save._busy)return;                        // 더블서밋 가드
+    var patch=collect();
+    if(!Object.keys(patch).length){say(T('변경된 값이 없습니다.','Nothing changed.'),true);return;}
+    if(patch.mb_3&&!/^\d{4}-\d{2}-\d{2}$/.test(patch.mb_3)){
+      say(T('등록일 형식은 YYYY-MM-DD 입니다.','Contract date must be YYYY-MM-DD.'),true);return;}
+    if(!ov._idem)ov._idem='agency_'+f.id+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+    save._busy=1;save.disabled=true;save.textContent=T('저장 중…','Saving…');say(T('저장 중…','Saving…'));
+    fetch('/api/edit',{method:'POST',credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({op:'member',id:f.id,patch:patch,idem:ov._idem})})
+      .then(function(r){return r.json();})
+      .then(function(j){
+        save._busy=0;save.disabled=false;save.textContent=T('확 인','Save');
+        if(!j||!j.ok){say((j&&j.message)||T('저장에 실패했습니다.','Save failed.'),true);return;}
+        ov._idem=null;                           // 다음 저장은 새 멱등키
+        Object.keys(patch).forEach(function(k){orig[k]=patch[k];});
+        agApplyToList(f.id,patch);
+        say(T('저장되었습니다.','Saved.'));
+        if(typeof renderMain==='function')renderMain();
+      })
+      .catch(function(){
+        save._busy=0;save.disabled=false;save.textContent=T('확 인','Save');
+        say(T('네트워크 오류 — 다시 시도하세요.','Network error — try again.'),true);
+      });
+  };
+}
+// 저장분을 화면 데이터(REAL.agencies · REAL.members)에 반영 — 서버 재조회 없이 목록이 바뀐다.
+function agApplyToList(id,patch){
+  var list=agRows();
+  if(list){
+    var row=null,i;
+    for(i=0;i<list.length;i++)if(String(list[i].id).toLowerCase()===String(id).toLowerCase()){row=list[i];break;}
+    if(row){
+      var map={mb_name:'name',mb_email:'email',mb_10:'main',mb_2:'consultant',mb_4:'bank',
+        mb_5:'account',mb_hp:'cell',mb_tel:'office',mb_6:'fax',mb_7:'branch',mb_8:'comm',mb_9:'commval'};
+      Object.keys(patch).forEach(function(k){if(map[k]!==undefined)row[map[k]]=patch[k];});
+      row.cate=(!row.main||String(row.main).toLowerCase()===String(row.id).toLowerCase())?'MAIN':'BRANCH';
+      row.edited=1;
+    }
+  }
+  if(typeof memApplyToList==='function')memApplyToList(id,patch);   // 회원관리 화면도 같이 갱신
+}
+
 R.agencylist=(m)=>{
+  // 레거시 화면(기본) — CONTRACTED LIST. 실데이터(REAL.agencies)가 있을 때만.
+  var ags=agRows();
+  if(agState.view!=='stats'){
+    var hdrL='<div class="ph"><h1>'+T('유학원 목록','Agency List')+'</h1>'
+      +'<span class="sub">'+T('레거시 CONTRACTED LIST 재현 (유학원 계정·계좌·담당자)','Legacy CONTRACTED LIST (agency accounts · bank · consultant)')+'</span>'
+      +'<span class="url">uhak_agency_list.php</span>'
+      +'<span class="actions" style="margin-left:auto">'
+        +'<button class="btn xs primary" id="agViewL">'+T('레거시 화면','LEGACY')+'</button>'
+        +'<button class="btn xs" id="agViewS">'+T('집계 통계','STATS')+'</button>'
+        +'<button class="btn" data-tblexcel="AGENCY LIST">📊 EXCEL</button></span></div>';
+    if(!ags||!ags.length){
+      return hdrL+'<div class="card pad" style="color:var(--dim)">'
+        +T('유학원 데이터가 없습니다. 로그인 세션이 있어야 <span class="mono">/api/data?parts=agencies</span> 로 실데이터를 조회합니다.',
+           'No agency data. A server session is required to read live data from <span class="mono">/api/data?parts=agencies</span>.')
+        +'</div>';
+    }
+    var mainN=0,brN=0;
+    ags.forEach(function(r){if(r.cate==='MAIN')mainN++;else brN++;});
+    return hdrL
+    +'<div class="mlg-top">'
+      +'<a class="mlg-first" id="agFirst">FIRST</a>'
+      +'<span class="mlg-cnt">('+T('유학원','Agencies')+' : <b>'+ags.length.toLocaleString()+'</b>, '
+        +'MAIN : '+mainN.toLocaleString()+', '+T('지사','Branch')+' : '+brN.toLocaleString()+')</span>'
+      +(typeof REALBADGE!=='undefined'?'<span style="margin-left:6px">'+REALBADGE+'</span>':'')
+      +'<span class="mlg-search">'
+        +'<select id="agCate">'
+          +'<option value="">'+T('전체 구분','All')+'</option>'
+          +'<option value="MAIN">MAIN</option>'
+          +'<option value="BRANCH">'+T('지사','BRANCH')+'</option></select>'
+        +'<select id="agBy">'
+          +'<option value="name">AGENCY NAME</option>'
+          +'<option value="id">ID</option>'
+          +'<option value="email">e-MAIL</option>'
+          +'<option value="consultant">CONSULTANT</option>'
+          +'<option value="">'+T('전체','Any')+'</option></select>'
+        +'<input id="agQ" autocomplete="off">'
+        +'<button class="btn xs primary" id="agGo">SEARCH</button>'
+      +'</span>'
+    +'</div>'
+    +'<div id="agBody"></div>'
+    +'<div class="banner">'+T('레거시 <span class="mono">adm/uhak_agency_list.php</span>(CONTRACTED LIST) 화면 그대로 재현 — 칸·순서·페이지 15행. 데이터는 <span class="mono">cms.g4_member</span> 유학원 계정 실데이터입니다(레거시도 유학원 정보를 회원 테이블 칸에 보관합니다: 은행 <span class="mono">mb_4</span> · 계좌 <span class="mono">mb_5</span> · 담당자 <span class="mono">mb_2</span> · 대표유학원 <span class="mono">mb_10</span>). 행의 <b>✎</b> 로 레거시 <b>유학원 관리 수정</b> 폼이 열리고, 저장은 원본이 아니라 신전산 <span class="mono">app.member_edits</span> 에 기록되어 화면이 그 값을 덮어 보여줍니다(원본 불변 · <span class="mono">app.change_log</span> 로 역방향 동기화).',
+      'Faithful reproduction of legacy <span class="mono">adm/uhak_agency_list.php</span> (CONTRACTED LIST): same columns, order and 15 rows per page, over live agency accounts in <span class="mono">cms.g4_member</span> (the legacy system also stores agency data in member columns: bank <span class="mono">mb_4</span>, account <span class="mono">mb_5</span>, consultant <span class="mono">mb_2</span>, main agency <span class="mono">mb_10</span>). <b>✎</b> opens the legacy agency edit form; saves go to <span class="mono">app.member_edits</span>, never to the legacy source, and the screen shows the overlaid value (reverse-synced via <span class="mono">app.change_log</span>).')
+    +'</div>';
+  }
   const dict=(DICT&&DICT.uhak)?DICT.uhak.filter(o=>o&&o.v):[];
   if(!dict.length)return `
     <div class="ph"><h1>${T('유학원 목록','Agency List')}</h1><span class="sub">${T('유학원별 학생·커미션 집계','Students & commission by agency')}</span><span class="url">uhak_agency.php</span></div>
@@ -3052,6 +3397,8 @@ R.agencylist=(m)=>{
       <span class="url">uhak_agency.php</span>
       <span class="actions" style="margin-left:auto">
         <input id="aglSearch" class="rs-ctrl" type="search" placeholder="${T('코드/유학원명 검색','Search code / agency')}" value="${esc(_aglQ)}">
+        <button class="btn xs" id="agViewL">${T('레거시 화면','LEGACY')}</button>
+        <button class="btn xs primary" id="agViewS">${T('집계 통계','STATS')}</button>
       </span>
     </div>
     <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
@@ -3075,6 +3422,15 @@ R.agencylist=(m)=>{
 };
 
 R.agencylist__init=function(root){
+  // 화면 전환(레거시 목록 ↔ 집계 통계) — 두 화면 모두 같은 버튼을 단다.
+  var vL=root.querySelector('#agViewL'), vS=root.querySelector('#agViewS');
+  if(vL)vL.onclick=function(){if(agState.view==='legacy')return;agState.view='legacy';agState.page=0;renderMain();};
+  if(vS)vS.onclick=function(){if(agState.view==='stats')return;agState.view='stats';renderMain();};
+  if(agState.view!=='stats'){
+    var box=root.querySelector('#agBody');
+    if(box)agLegacyInit(root,box);
+    return;
+  }
   _aglPaintBody(root);
   const q=root.querySelector('#aglSearch');
   if(q){const run=()=>{_aglQ=q.value;_aglPaintBody(root);};
