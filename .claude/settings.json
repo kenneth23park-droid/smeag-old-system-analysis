@@ -8,7 +8,9 @@
       "Bash(python3 /private/tmp/claude-501/-Users-kwangseobpark-smeag-old-system-analysis/d7e7cd59-1e6f-4901-9519-154a36f600f9/scratchpad/build.py)",
       "Bash(python3 -c \"import json,sys;d=json.load\\(sys.stdin\\);print\\(json.dumps\\([t for t in d['tables'] if t['url']=='student_population.php'],ensure_ascii=False,indent=1\\)\\)\")",
       "Bash(curl -s -u \"admin:SME-UzaGKhFX15vr\" https://smeag-bay.vercel.app)",
-      "Bash(python3 _extract_roommove.py)"
+      "Bash(python3 _extract_roommove.py)",
+      "Bash(curl -s -o /dev/null -w \"login:%{http_code} \" https://smeag-bay.vercel.app/login)",
+      "Bash(curl -s -o /dev/null -w \"gate:%{http_code}\\\\n\" https://smeag-bay.vercel.app/)"
     ]
   }
 }
