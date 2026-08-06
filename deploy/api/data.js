@@ -30,7 +30,6 @@ const SECRET = process.env.AUTH_SESSION_SECRET || "CHANGE_ME_dev_only_secret";
 const COOKIE = "sme_session";
 const SLICE_FROM = "2025-01-01";   // 학생 슬라이스 시작(등록/출발/시작/종료 중 하나가 이 날짜 이후)
 const MAX_DEPOSITS = 3000;
-const MAX_CHANGELOG = 300;
 const MAX_CHGREF = 3000;    // 변경환불 접수(2025-01-01 이후 실측 2,247건) — 상한 여유
 
 const PG = {
@@ -122,7 +121,7 @@ function pickupWeek(today) {
 }
 
 // ── 조각별 조회 ──────────────────────────────────────────────────────────────
-// studentsFull: 화면이 쓰는 31칸 배열 순서
+// studentsFull: 화면이 쓰는 33칸 배열 순서
 //  0 AGENCY 1 NAT 2 NAME(EN) 3 KOR 4 AGE 5 SEX 6 APPLY 7 DEPA 8 BEGIN 9 END
 //  10 PERI 11 STATUS 12 COURSE 13 ROOM 14 CAMPUS 15 항공/픽업 16 항공(변경전) 17 여권생일
 //  18 SID(s_idx) 19 COURSE_TXT(fee_class2) 20 DORM_TXT(fee_dorm2) 21 AGENT_CMT(s_info) 22 STAFF_CMT(comment)
@@ -135,7 +134,8 @@ function pickupWeek(today) {
 const STUDENT_COLS = ["AGENCY", "NAT", "NAME_EN", "KOR", "AGE", "SEX", "APPLY", "DEPA", "BEGIN", "END",
   "PERI", "STATUS", "COURSE", "ROOM", "CAMPUS", "FLIGHT", "FLIGHT_PREV", "BIRTH",
   "SID", "COURSE_TXT", "DORM_TXT", "AGENT_CMT", "STAFF_CMT",
-  "PAY_STATUS", "PAY_CHANNEL", "EX_DATE", "EX_RATE", "CPAY_AMT", "CPAY_UNIT", "CPAY_DATE", "CPAY_MEMO"];
+  "PAY_STATUS", "PAY_CHANNEL", "EX_DATE", "EX_RATE", "CPAY_AMT", "CPAY_UNIT", "CPAY_DATE", "CPAY_MEMO",
+  "HAS_ROOM", "HAS_INVOICE"];
 
 // 레거시 날짜칸은 varchar(''·'0000-00-00' 혼재) → 형식 맞는 값만 통과
 const D = (col) => `case when ${col} ~ '^\\d{4}-\\d{2}-\\d{2}' then left(${col},10) else '' end`;
@@ -155,7 +155,9 @@ async function loadStudents(q, scope) {
   const params = [SLICE_FROM];
   if (scope.agency) { params.push(scope.agency); where.push(`lower(coalesce(uhak_id,'')) = lower($${params.length})`); }
   const { rows } = await q(
-    `select coalesce(uhak_id,'') a0, lower(coalesce(s_nation,'')) a1, coalesce(e_name,'') a2, coalesce(k_name,'') a3,
+    `with _res as (select s_idx rs_sid from legacy.room_reserve where s_idx is not null group by s_idx),
+          _inv as (select student_info iv_sid from legacy.student_info_invoice group by 1)
+     select coalesce(uhak_id,'') a0, lower(coalesce(s_nation,'')) a1, coalesce(e_name,'') a2, coalesce(k_name,'') a3,
             coalesce(s_age,0) a4, upper(coalesce(s_gender,'')) a5,
             ${D("s_regdate")} a6, ${D("s_departure")} a7, ${D("s_sdate")} a8, ${D("s_edate")} a9,
             coalesce(s_period,0) a10, lower(coalesce(now_status,'')) a11, coalesce(course_info,'') a12,
@@ -166,8 +168,11 @@ async function loadStudents(q, scope) {
             upper(trim(coalesce(pay_status,''))) a23, lower(trim(coalesce(pay_channel,''))) a24,
             ${D("exchange_date")} a25, trim(coalesce(exchange_rate,'')) a26,
             trim(coalesce(center_pay_amount,'')) a27, lower(trim(coalesce(center_pay_unit,''))) a28,
-            ${D("center_pay_date")} a29, left(coalesce(center_pay_memo,''),250) a30
-       from legacy.student_info
+            ${D("center_pay_date")} a29, left(coalesce(center_pay_memo,''),250) a30,
+            (_res.rs_sid is not null) a31, (_inv.iv_sid is not null) a32
+       from legacy.student_info si
+       left join _res on _res.rs_sid = si.s_idx
+       left join _inv on _inv.iv_sid = si.s_idx
       where ${where.join(" and ")}
       order by a7 desc, a6 desc`, params);
   // 생년월일: s_jumin 추출값이 상식 범위(1930~올해)일 때만 신뢰. 외국인은 주민칸이 여권번호 등
@@ -186,7 +191,8 @@ async function loadStudents(q, scope) {
       /^(0|\.|-)?$/.test(r.a15.trim()) ? "" : r.a15.trim(), "",
       birth(r.a17),
       r.a18 ? String(r.a18) : "", r.a19.trim(), r.a20.trim(), r.a21.trim(), r.a22.trim(),
-      r.a23, r.a24, r.a25, r.a26, r.a27, r.a28, r.a29, r.a30.trim()]),
+      r.a23, r.a24, r.a25, r.a26, r.a27, r.a28, r.a29, r.a30.trim(),
+      r.a31 === true, r.a32 === true]),
   };
 }
 
@@ -231,6 +237,26 @@ async function loadRoomstat(q, month) {
     if (!arr) segByBed.set(s.r_idx, (arr = []));
     arr.push(seg);
   }
+  // 신전산 오버레이(방 이동 관리) — 미래 배정·예정 이동·조기종료.
+  //   · 레거시(room_reserve)는 "현재 배정"의 정본이고, 여기서 얹는 것이 "미래 배정"이다.
+  //   · terminations: 이동 완료로 조기 종료된 구간. 원본은 그대로 두고 화면에서만 끝을 자른다.
+  //   오버레이 테이블이 아직 없는 환경(구 배포·로컬)에서도 배치도가 죽지 않도록 실패를 삼킨다.
+  let overlay = { assignments: [], moves: [], terminations: [] };
+  try {
+    const ov = await q(`select app.roomstat_overlay($1::date,$2::date) r`, [from, to]);
+    if (ov.rows[0] && ov.rows[0].r) overlay = ov.rows[0].r;
+  } catch (_) { /* 오버레이 없이 레거시만 그린다 */ }
+  // 조기종료 적용: (침대,학생) → 잘린 종료일
+  const cutBy = new Map();
+  for (const t of overlay.terminations || []) cutBy.set(t.rid + "|" + t.si, t.e);
+  if (cutBy.size) {
+    for (const [rid, arr] of segByBed) {
+      for (const sg of arr) {
+        const cut = cutBy.get(rid + "|" + sg.si);
+        if (cut && cut < sg.e) { sg.e = cut; sg.cut = 1; }
+      }
+    }
+  }
   const gender = { M: "m", F: "f" };
   const suffix = { M: "MALE", F: "FEMALE" };
   const groups = [];
@@ -260,7 +286,14 @@ async function loadRoomstat(q, month) {
     //      SQL 별칭 ri(=room_info) 및 화면의 방 인덱스 ri 와는 무관하다.
     room.beds.push({ rid: b.r_idx, name: "", segs: segsForBed });
   }
-  return { from, to, month, groups };
+  // 침대별 미래 배정(IN 배지) · 출발 침대별 예정 이동(OUT 배지) — 화면이 바로 찾아 쓰게 맵으로.
+  const inBy = {}, outBy = {};
+  for (const a of overlay.assignments || []) (inBy[a.rid] = inBy[a.rid] || []).push(a);
+  for (const m of overlay.moves || []) {
+    if (m.from != null) (outBy[m.from] = outBy[m.from] || []).push(m);
+  }
+  return { from, to, month, groups, moveIn: inBy, moveOut: outBy,
+           moves: overlay.moves || [] };
 }
 
 // pickup: 주간 픽업(항공정보 등록분) — 화면은 날짜·시간순으로 재정렬
@@ -343,20 +376,189 @@ async function loadDeposits(q, scope) {
   return rows;
 }
 
-// changelog: 방변경 이력(room_change_log)
-async function loadChangelog(q, scope) {
-  const params = [MAX_CHANGELOG];
-  let agencyWhere = "";
-  if (scope.agency) { params.push(scope.agency); agencyWhere = ` where lower(coalesce(uhak_id,'')) = lower($${params.length})`; }
+// ── T12 BACK-UP LOG(통합 감사로그) ────────────────────────────────────────────
+const CL_SIZE_DEF = 100;      // 기본 페이지 크기
+const CL_SIZE_MAX = 500;      // 한 번에 내려보낼 수 있는 최대 행수(구 MAX_CHANGELOG=300 대체)
+const CL_DEEP_MAX = 50000;    // offset 상한 — 이보다 깊으면 page 를 조용히 clamp 한다
+const CL_COUNT_CAP = 10001;   // 총건수 근사 상한(넘으면 10,000+ 로 표기 — total 은 10000 으로 내린다)
+const CL_KINDS_LEGACY = ["ROOM_CHANGE", "CHECK_IN", "CHECK_OUT"];
+const CL_KINDS_APP = ["WRITE", "AUTH", "READ"];
+const CL_KINDS = CL_KINDS_LEGACY.concat(CL_KINDS_APP);
+const CL_CAMPUSES = ["CAPITAL", "ENCANTO", "CLASSIC", "SPARTA", "TEMPORARY", "(NONE)"];
+
+const CL_OLD = "coalesce(r.old_room_info,'')";
+const CL_NEW = "coalesce(r.new_room_info,'')";
+const CL_CAMPUS = `upper(coalesce(nullif(split_part(split_part(${CL_NEW},':',3),'=',1),''),`
+  + ` split_part(split_part(${CL_OLD},':',3),'=',1)))`;
+const CL_KIND = `case when btrim(${CL_OLD})='' then 'CHECK_IN'`
+  + ` when btrim(${CL_NEW})='' then 'CHECK_OUT' else 'ROOM_CHANGE' end`;
+
+function parseChangelog(url) {
+  const g = (k) => (url.searchParams.get(k) || "").trim();
+  const type = g("clType").toUpperCase();
+  const size = Math.min(Math.max(parseInt(g("clSize"), 10) || CL_SIZE_DEF, 1), CL_SIZE_MAX);
+  const page = Math.min(Math.max(parseInt(g("clPage"), 10) || 1, 1), Math.ceil(CL_DEEP_MAX / size));
+  return {
+    from: isYmd(g("clFrom")) ? g("clFrom") : "",
+    to: isYmd(g("clTo")) ? g("clTo") : "",
+    q: g("clQ").slice(0, 40),
+    sid: /^\d{1,9}$/.test(g("clSid")) ? Number(g("clSid")) : 0,
+    room: g("clRoom").slice(0, 24),
+    actor: g("clActor").slice(0, 60).toLowerCase(),
+    campus: /^[A-Z0-9_()*\-]{1,20}$/.test(g("clCampus").toUpperCase()) ? g("clCampus").toUpperCase() : "",
+    type: CL_KINDS.indexOf(type) >= 0 ? type : "",
+    page, size,
+  };
+}
+const clSig = (f) => [f.from, f.to, f.q, f.sid, f.room, f.actor, f.campus, f.type, f.page, f.size].join("|");
+
+let clFacetCache = { at: 0, rows: [] };
+async function clManagers(q) {
+  if (Date.now() - clFacetCache.at < 3600000 && clFacetCache.rows.length) return clFacetCache.rows;
   const { rows } = await q(
-    `select s_idx sidx, coalesce(uhak_id,'') agency, coalesce(k_name,'') name,
-            coalesce(apply_date,'') apply, coalesce(origin_period,'') period,
-            coalesce(old_room_info,'') oldr, coalesce(old_room_cate::text,'') oldc,
-            coalesce(new_room_info,'') newr, coalesce(new_room_cate::text,'') newc,
-            coalesce(apply_sme_manager,'') mgr
-       from legacy.room_change_log${agencyWhere}
-      order by change_idx desc limit $1`, params);
+    `select lower(btrim(apply_sme_manager_id)) id, min(btrim(apply_sme_manager)) disp, count(*)::int n
+       from legacy.room_change_log
+      where coalesce(btrim(apply_sme_manager_id),'') <> ''
+      group by 1 order by 3 desc limit 300`);
+  clFacetCache = { at: Date.now(), rows };
   return rows;
+}
+
+// D16: like 패턴에 들어갈 값의 와일드카드(%, _)와 escape 문자(\)를 중화한다.
+const clLike = (s) => String(s).replace(/([\\%_])/g, "\\$1");
+
+function clLegacyWhere(f, scope, add) {
+  const W = [];
+  if (f.from) W.push(`left(r.apply_date,10) >= ${add(f.from)}`);
+  if (f.to) W.push(`left(r.apply_date,10) <= ${add(f.to)}`);
+  if (f.sid) W.push(`r.s_idx = ${add(f.sid)}::int`);
+  if (f.actor) W.push(`lower(btrim(coalesce(r.apply_sme_manager_id,''))) = ${add(f.actor)}`);
+  if (f.room) { const k = add(f.room); W.push(`(split_part(${CL_OLD},':',1) = ${k} or split_part(${CL_NEW},':',1) = ${k})`); }
+  if (f.campus === "(NONE)") W.push(`${CL_CAMPUS} = ''`);
+  else if (f.campus) W.push(`${CL_CAMPUS} like ${add(clLike(f.campus))}||'%'`);
+  if (f.type) W.push(`${CL_KIND} = ${add(f.type)}::text`);
+  if (f.q) {
+    const k = add("%" + clLike(f.q) + "%");
+    W.push(`r.s_idx in (select s_idx from legacy.student_info`
+      + ` where k_name ilike ${k} or e_name ilike ${k} order by s_idx desc limit 500)`);
+  }
+  if (scope.agency) W.push(`lower(coalesce(r.uhak_id,'')) = ${add(String(scope.agency).toLowerCase())}`);
+  return W;
+}
+function clWriteWhere(f, add) {
+  const w = [];
+  if (f.from) w.push(`to_char(w.created_at,'YYYY-MM-DD') >= ${add(f.from)}`);
+  if (f.to) w.push(`to_char(w.created_at,'YYYY-MM-DD') <= ${add(f.to)}`);
+  if (f.actor) w.push(`lower(coalesce(w.actor,'')) = ${add(f.actor)}`);
+  return w;
+}
+function clAdminWhere(f, add) {
+  const w = [];
+  if (f.from) w.push(`to_char(a.at,'YYYY-MM-DD') >= ${add(f.from)}`);
+  if (f.to) w.push(`to_char(a.at,'YYYY-MM-DD') <= ${add(f.to)}`);
+  if (f.actor) w.push(`lower(coalesce(a.username,'')) = ${add(f.actor)}`);
+  if (f.type) w.push(`upper(coalesce(a.kind,'')) = ${add(f.type)}::text`);
+  return w;
+}
+
+async function loadChangelog(q, scope, f) {
+  const off = (f.page - 1) * f.size, take = off + f.size;
+  const P = [];
+  const add = (v) => { P.push(v); return "$" + P.length; };
+
+  const wantLegacy = !f.type || CL_KINDS_LEGACY.indexOf(f.type) >= 0;
+  const legacyW = wantLegacy ? clLegacyWhere(f, scope, add) : [];
+  const legacySql = !wantLegacy ? null : `(select 'LEGACY'::text src, r.change_idx::bigint src_id,
+      left(r.apply_date,10)||' '||substr(r.apply_date,12,8) at_txt,
+      r.s_idx sid,
+      coalesce(nullif(btrim(si.k_name),''), nullif(btrim(si.e_name),''), nullif(btrim(r.k_name),''),'') nm,
+      coalesce(nullif(btrim(si.e_name),''),'') nm_en,
+      coalesce(r.uhak_id,'') agency, ${CL_KIND} kind,
+      split_part(${CL_OLD},':',1) oldrm, split_part(${CL_NEW},':',1) newrm,
+      ${CL_OLD} oldinfo, ${CL_NEW} newinfo, ${CL_CAMPUS} campus,
+      coalesce(nullif(btrim(r.apply_sme_manager),''), coalesce(r.apply_sme_manager_id,'')) actor,
+      coalesce(r.origin_period,'') detail
+     from legacy.room_change_log r
+     left join legacy.student_info si on si.s_idx = r.s_idx
+     ${legacyW.length ? "where " + legacyW.join(" and ") : ""}
+     order by r.change_idx desc limit ${take})`;
+
+  const appOK = !f.sid && !f.room && !f.campus && !f.q && !scope.agency;
+  const wantWrite = appOK && (!f.type || f.type === "WRITE");
+  const wantAdmin = appOK && (!f.type || f.type === "AUTH" || f.type === "READ");
+
+  const branches = [legacySql];
+  if (wantWrite) {
+    const w = clWriteWhere(f, add);
+    branches.push(`(select 'APP_WRITE'::text src, w.audit_id::bigint src_id,
+        to_char(w.created_at,'YYYY-MM-DD HH24:MI:SS') at_txt, null::int sid,
+        coalesce(w.result->>'name','') nm, ''::text nm_en, ''::text agency, 'WRITE'::text kind,
+        ''::text oldrm, ''::text newrm, ''::text oldinfo, ''::text newinfo, ''::text campus,
+        coalesce(w.actor,'') actor,
+        coalesce(w.op,'')||coalesce(' #'||w.reservation_id::text,'')||coalesce(' lv='||w.level,'') detail
+       from app.write_audit w ${w.length ? "where " + w.join(" and ") : ""}
+       order by w.audit_id desc limit ${take})`);
+  }
+  if (wantAdmin) {
+    const w = clAdminWhere(f, add);
+    branches.push(`(select 'APP_ADMIN'::text src, a.id::bigint src_id,
+        to_char(a.at,'YYYY-MM-DD HH24:MI:SS') at_txt, null::int sid,
+        ''::text nm, ''::text nm_en, ''::text agency, upper(coalesce(a.kind,'')) kind,
+        ''::text oldrm, ''::text newrm, ''::text oldinfo, ''::text newinfo, ''::text campus,
+        coalesce(a.username,'') actor,
+        coalesce(a.action,'')||coalesce(' '||(a.detail->>'menu'),'')||coalesce(' ip='||a.ip::text,'') detail
+       from app.admin_activity_log a ${w.length ? "where " + w.join(" and ") : ""}
+       order by a.id desc limit ${take})`);
+  }
+
+  const use = branches.filter(Boolean);
+
+  // D1/D5: app 전용 유형(WRITE/AUTH/READ) + 학생/방/캠퍼스/이름/유학원스코프 조합이면
+  // 살아남는 분기가 하나도 없다. 예전에는 `select * from () u` 가 되어 500 이었다.
+  if (!use.length) {
+    return {
+      rows: [], page: f.page, size: f.size, total: 0, capped: false, pages: 1,
+      filters: f, managers: await clManagers(q), kinds: CL_KINDS, campuses: CL_CAMPUSES,
+    };
+  }
+
+  const { rows } = await q(
+    `select * from (${use.join(" union all ")}) u
+      order by u.at_txt desc nulls last, u.src_id desc
+      limit ${add(f.size)} offset ${add(off)}`, P);
+
+  // D2/D8: 총건수는 살아있는 분기 전부를 센다(레거시만 세면 app 행이 빠지고,
+  //        app 전용 유형에서는 total 이 rows.length 로 굳어 뒷페이지가 안 열렸다).
+  const C = [];
+  const addC = (v) => { C.push(v); return "$" + C.length; };
+  const cSel = [];
+  if (wantLegacy) {
+    const cw = clLegacyWhere(f, scope, addC);
+    cSel.push(`(select count(*)::int from (select 1 from legacy.room_change_log r
+       ${cw.length ? "where " + cw.join(" and ") : ""} limit ${CL_COUNT_CAP}) z)`);
+  }
+  if (wantWrite) {
+    const cw = clWriteWhere(f, addC);
+    cSel.push(`(select count(*)::int from app.write_audit w ${cw.length ? "where " + cw.join(" and ") : ""})`);
+  }
+  if (wantAdmin) {
+    const cw = clAdminWhere(f, addC);
+    cSel.push(`(select count(*)::int from app.admin_activity_log a ${cw.length ? "where " + cw.join(" and ") : ""})`);
+  }
+  const { rows: cr } = await q(`select ${cSel.map((s, i) => s + " n" + i).join(", ")}`, C);
+  let total = cSel.reduce((s, _x, i) => s + (((cr[0] || {})["n" + i]) || 0), 0);
+  const capped = wantLegacy && (((cr[0] || {}).n0) || 0) >= CL_COUNT_CAP;
+  if (capped) total = CL_COUNT_CAP - 1;   // D6: 화면에 10,001+ 가 아니라 10,000+ 로 뜨게
+
+  return {
+    rows,
+    page: f.page, size: f.size, total, capped,
+    pages: capped ? null : Math.max(1, Math.ceil(total / f.size)),
+    filters: f,
+    managers: await clManagers(q),
+    kinds: CL_KINDS,
+    campuses: CL_CAMPUSES,
+  };
 }
 
 // chgref: 변경환불홀딩 접수 목록(student_list_change.php) — 행정팀 요청 A4
@@ -1194,6 +1396,13 @@ const TABLE_LOADERS = {
 // ETag 가 안 바뀌고 클라이언트가 304 를 받아 옛 데이터를 '● DB 최신' 배지와 함께 계속 본다.
 // 비용을 위해 전부 PK/인덱스 최대값만 쓰고, 요청한 조각의 것만 계산한다.
 const PART_STAMP = {
+  // 배치도는 레거시 예약(rr_max)만으로는 부족하다 — 신전산 이동 오버레이가 바뀌어도
+  // 스탬프가 그대로면 ETag 가 안 바뀌어 옛 배치도가 '● DB 최신' 배지와 함께 계속 나온다.
+  roomstat: `coalesce((select max(id) from app.room_moves)::text,'')
+             || '/' || coalesce((select max(updated_at)::text from app.room_moves),'')
+             || '/' || coalesce((select max(id) from app.room_assignments)::text,'')
+             || '/' || coalesce((select max(updated_at)::text from app.room_assignments),'')
+             || '/' || coalesce((select max(id) from app.assignment_terminations)::text,'')`,
   members: `coalesce((select max(mb_no) from cms.g4_member)::text,'')`,
   agencies: `coalesce((select max(mb_no) from cms.g4_member)::text,'')`,
   points: `coalesce((select max(po_id) from cms.g4_point)::text,'')`,
@@ -1205,6 +1414,12 @@ const PART_STAMP = {
            || '/' || coalesce((select max(wr_id) from cms.g4_write_office_holding)::text,'')
            || '/' || coalesce((select max(wr_id) from cms.g4_write_office_share)::text,'')`,
   elec: `coalesce((select max(re_idx) from legacy.room_elec)::text,'')`,
+  // 미처리 경고칸(HAS_INVOICE)의 원천. 인보이스 발행은 student_info 를 건드리지 않아 si_ts/si_max 로는
+  // 감지되지 않는다 — 넣지 않으면 발행 직후에도 캐시가 "미발행"을 계속 돌려준다.
+  // (HAS_ROOM 의 원천 room_reserve 는 이미 rr_max 로 감지된다.)
+  students: `coalesce((select max(no) from legacy.student_info_invoice)::text,'')`,
+  // D11: admin_activity_log(AUTH/READ 접속로그)는 cl_max/wa_max 로 감지되지 않는다.
+  changelog: `coalesce((select max(id) from app.admin_activity_log)::text,'')`,
   agencyvisit: `coalesce((select max(d_idx) from legacy.uhak_day_info)::text,'')`,
   dayoff: `coalesce((select max(id) from legacy.smeag_dayoff)::text,'')
            || '/' || coalesce((select max(id) from legacy.smeag_sched_info)::text,'')`,
@@ -1299,6 +1514,8 @@ export default async function handler(req, res) {
   const elecFrom = isYmd(url.searchParams.get("elecFrom")) ? url.searchParams.get("elecFrom") : "";
   const elecTo = isYmd(url.searchParams.get("elecTo")) ? url.searchParams.get("elecTo") : "";
   const elecRoom = /^\d{1,9}$/.test(url.searchParams.get("elecRoom") || "") ? Number(url.searchParams.get("elecRoom")) : 0;
+  // BACK-UP LOG(통합 감사로그) 검색·페이징 파라미터 — 값 검증은 parseChangelog 한 곳에서만.
+  const clF = parseChangelog(url);
 
   const t0 = Date.now();
   try {
@@ -1349,9 +1566,10 @@ export default async function handler(req, res) {
     const stamp = await loadStamp(q, allowed);
     // ":s2" = 응답 스키마 리비전. 필드가 바뀌면 올린다 — 스탬프는 데이터 변경만 반영하므로,
     //         배포 시점에 이미 열려 있던 탭이 메모리 ETag 로 304 를 받아 옛 스키마를 계속 쓰는 것을 막는다.
-    const version = stampVersion(stamp) + ":s2" + ":" + allowed.join(".") + (allowed.includes("roomstat") ? ":" + month : "")
+    const version = stampVersion(stamp) + ":s5" + ":" + allowed.join(".") + (allowed.includes("roomstat") ? ":" + month : "")
       + (allowed.includes("pickup") ? ":" + from + "_" + to : "")
       + (allowed.includes("elec") ? ":" + elecFrom + "_" + elecTo + "_" + elecRoom : "")
+      + (allowed.includes("changelog") ? ":cl" + clSig(clF) : "")
       + ":L" + (level >= STAFF_LEVEL ? "staff" : "ext") + (scope.agency ? ":" + scope.agency : "");
     const etag = `W/"${version}"`;
 
@@ -1383,7 +1601,7 @@ export default async function handler(req, res) {
     if (allowed.includes("groups")) out.groups = await loadGroups(q);
     if (allowed.includes("pickup")) out.pickup = await loadPickup(q, from, to, scope);
     if (allowed.includes("deposits")) out.deposits = await loadDeposits(q, scope);
-    if (allowed.includes("changelog")) out.changelog = await loadChangelog(q, scope);
+    if (allowed.includes("changelog")) out.changelog = await loadChangelog(q, scope, clF);
     if (allowed.includes("chgref")) out.chgref = await loadChgref(q, scope);
     if (allowed.includes("members")) out.members = await loadMembers(q, scope);
     if (allowed.includes("agencies")) out.agencies = await loadAgencies(q, scope);

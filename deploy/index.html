@@ -451,9 +451,41 @@
   .gantt .dblk:hover{filter:brightness(1.15)}
   .gantt .dblk.r-MAINT{--blkc:#e11d48} .gantt .dblk.r-CLEAN{--blkc:#0284c7}
   .gantt .dblk.r-HOLD{--blkc:#ca8a04}  .gantt .dblk.r-ETC{--blkc:#64748b}
+  /* ── ROOM MOVES 화면·이동 등록 모달 ──
+     .modal-body 는 기본이 2열 그리드라 폼이 반으로 쪼개진다 → 이 모달만 단일 블록으로 되돌린다. */
+  .modal.mvm{width:min(780px,94vw)}
+  .modal.mvm .modal-body{display:block;padding:16px 18px}
+  .mv-lb{display:block;font-size:11px;font-weight:800;color:var(--dim);margin-bottom:4px}
+  .mv-lb2{display:block;font-size:10px;font-weight:700;color:var(--faint);margin-bottom:3px}
+  .mv-list{display:flex;flex-direction:column;gap:2px;max-height:190px;overflow:auto;margin:4px 0 8px}
+  .mv-list:empty{display:none}
+  .mv-opt{text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:5px;
+    padding:5px 8px;font-size:12.5px;cursor:pointer;color:var(--ink)}
+  .mv-opt:hover{background:var(--surface-2);border-color:var(--accent)}
+  .mv-opt small{display:block;color:var(--dim);font-size:10.5px;margin-top:1px}
+  .mv-box{border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:12.5px}
+  .mv-box.err{border-color:var(--female);background:color-mix(in srgb,var(--female) 7%,transparent)}
+  .mv-box.warn{border-color:#ca8a04;background:color-mix(in srgb,#ca8a04 8%,transparent)}
+  .mv-box.info{border-color:var(--return);background:color-mix(in srgb,var(--return) 7%,transparent)}
+  .mv-box.ok{border-color:var(--good);background:color-mix(in srgb,var(--good) 8%,transparent)}
+  .mv-msg{line-height:1.7}
   .gantt .dblksel{position:absolute;top:1px;bottom:1px;z-index:6;pointer-events:none;border-radius:3px;
     display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;color:var(--accent-ink);
     background:color-mix(in srgb,var(--accent) 26%,transparent);box-shadow:inset 0 0 0 2px var(--accent)}
+  /* ── 방 이동 오버레이(신전산): 미래 배정 IN 막대 · 출발 침대 OUT 표식 ──
+     색만으로 판단하지 않도록 아이콘+텍스트를 함께 넣는다(기획 §9). */
+  .gantt .dfut{position:absolute;top:2px;bottom:2px;z-index:5;border-radius:3px;pointer-events:none;
+    display:flex;align-items:center;gap:3px;padding:0 4px;overflow:hidden;white-space:nowrap;
+    font-size:9.5px;font-weight:800;letter-spacing:.2px;
+    color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent);
+    box-shadow:inset 0 0 0 1.5px var(--good)}
+  .gantt .dfut.st-PENDING{color:#ca8a04;background:color-mix(in srgb,#ca8a04 12%,transparent);
+    box-shadow:inset 0 0 0 1.5px #ca8a04;border-style:dashed}
+  .gantt .dfut.st-ACTIVE{color:var(--male);background:color-mix(in srgb,var(--male) 12%,transparent);
+    box-shadow:inset 0 0 0 1.5px var(--male)}
+  .gantt .dmv{position:absolute;top:2px;bottom:2px;z-index:6;border-radius:3px;pointer-events:none;
+    display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;
+    color:#fff;background:var(--return);box-shadow:inset 0 0 0 1px rgba(255,255,255,.4)}
   .gantt tbody.room-block.rs-blocked td{background:color-mix(in srgb,var(--female) 12%,var(--surface))}
   .gantt tbody.room-block.rs-blocked td.dcell{background:color-mix(in srgb,var(--female) 16%,var(--surface))}
   /* ── 구간막대 렌더(하루=셀 대체). 날짜 격자는 배경, X 는 막대 무늬 ── */
@@ -842,6 +874,38 @@ table.grid.mlg-tbl.agl-tbl td.mlg-c{white-space:nowrap}
 .mfm .mfm-msg.ok{color:var(--good)} .mfm .mfm-msg.bad{color:var(--return)}
 .mfm .mfm-foot{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:14px}
 .mfm .mfm-tag{font-size:11px;font-weight:750;color:var(--dim);margin-left:8px}
+/* ── 미처리 학생 경고 패널(수강등록관리 하단 접이식) ───────────────────────── */
+.pend{margin-top:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden}
+.pend.open{border-color:var(--return)}
+.pend-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;cursor:pointer;
+  background:var(--surface-2);border-bottom:1px solid transparent;user-select:none}
+.pend.open .pend-head{border-bottom-color:var(--border)}
+.pend-head:hover{background:var(--surface-3,var(--surface-2))}
+.pend-caret{display:inline-block;width:12px;color:var(--dim);font-size:11px}
+.pend-sp{flex:1 1 auto}
+.pend-badges{display:flex;gap:6px;flex-wrap:wrap}
+.pend-b{font-size:11px;font-weight:750;padding:2px 7px;border-radius:999px;border:1px solid var(--border);color:var(--dim);white-space:nowrap}
+.pend-b b{color:var(--text);margin-left:2px;font-variant-numeric:tabular-nums}
+.pend-b.on{outline:2px solid var(--accent);outline-offset:1px}
+.pend-b-tot{background:var(--return);border-color:var(--return);color:#fff}
+.pend-b-tot b{color:#fff}
+.pend-b.p-cr{border-color:var(--return);color:var(--return)}
+.pend-b.p-hi{border-color:#d97706;color:#d97706}
+.pend-b.p-md{border-color:var(--dim);color:var(--dim)}
+.pend-body{padding:10px 12px 12px}
+.pend-body .filters{margin-bottom:8px}
+.pend-body .twrap{max-height:52vh;overflow:auto}
+.pend-tag{display:inline-block;font-size:10.5px;font-weight:750;padding:1px 6px;margin:1px 3px 1px 0;
+  border-radius:999px;border:1px solid var(--border);color:var(--dim);white-space:nowrap}
+.pend-tag.p-cr{border-color:var(--return);color:var(--return)}
+.pend-tag.p-hi{border-color:#d97706;color:#d97706}
+.pend-tag.p-md{border-color:var(--dim);color:var(--dim)}
+.pend-name{cursor:pointer;font-weight:700}
+.pend-name:hover{text-decoration:underline;color:var(--accent)}
+.pend-old{color:var(--return);font-weight:800}
+.pend-actc{white-space:nowrap}
+.pend-actc .btn{margin-right:3px}
+@media(max-width:900px){.pend-badges{width:100%;order:3}}
 </style>
 
 <div class="app">
@@ -955,6 +1019,7 @@ const MENU={
     {k:'spec',t:'1.DORM STATUS',u:'room_stat2.php',note:'배치도 영문판 (MALE/FEMALE/FAMILY)'},
     {k:'roommove',t:'2.기숙사이동관리',u:'room_move_list.php',cols:['유학원','국적','이름','나이','성별','출발일','픽업','기간','변경전객실','처리일','변경될객실','상태','상황','상태변경']},
     {k:'roommove',t:'2.ROOM M-LIST',u:'room_move_list2.php',cols:['CAMPUS','AGENCY','NAT','NAME','AGE','SEX','A-DAY','DEPA','PICKUP','PERI','BEFORE','D-DAY','S-DAY','AFTER','COND','ORDER','CHANGE']},
+    {k:'moveboard',t:'2.ROOM MOVES (이동관리)',u:'room_move_board',note:'신전산 전용 — 현재/미래 배정 분리, 이동 등록·확정·완료·취소, 충돌 자동검사'},
     {k:'dailyio',t:'3.일별 입실&퇴실',u:'room_use_count_list.php',cols:['처리일자','신규입실','연장입실','홀딩사용입실','일반퇴실','환불퇴실','퇴교퇴실','홀딩퇴실']},
     {k:'spec',t:'3.DAY IN&OUT',u:'room_use_count_list2.php',note:'일별 입퇴실 영문 매트릭스'},
     {k:'elec',t:'ELEC&WATER',u:'room_elec.php',note:'전기·수도 요금 계산 (search_condition S/C/E)'},
@@ -1110,6 +1175,7 @@ const LIVE={
 // 메뉴(렌더키)별 필요한 데이터 조각. 기재 없으면 학생 데이터만.
 const LIVE_PARTS={
   roomstat:['roomstat','students'], roommove:['roomstat','students'], dormlist:['roomstat'],
+  moveboard:['roomstat','students'],                     // ROOM MOVES — 침대 선택·학생 검색에 배치도/학생 필요
   dsearch:['roomstat'],                                  // DORM SEARCH — 배치도 예약 세그먼트로 빈 침대 계산
   dailyio:['roomstat','students'], dash:['students','roomstat'],
   pickup:['pickup','students'], groups:['groups','students'], deposit:['deposits','students'],
@@ -1155,7 +1221,7 @@ function liveHave(p){
   if(p==='pickup')return !!(REAL.pickup&&REAL.pickup.rows);
   if(p==='groups')return !!(REAL.groups&&REAL.groups.length);
   if(p==='deposits')return !!(REAL.deposits&&REAL.deposits.length);
-  if(p==='changelog')return !!(REAL.changelog&&REAL.changelog.length);
+  if(p==='changelog')return !!(REAL.changelog&&(REAL.changelog.rows?REAL.changelog.rows.length:REAL.changelog.length));
   if(p==='chgref')return !!(REAL.chgref&&REAL.chgref.rows&&REAL.chgref.rows.length);
   if(p==='members')return !!(REAL.members&&REAL.members.length);
   if(p==='agencies')return !!(REAL.agencies&&REAL.agencies.length);
@@ -1200,6 +1266,13 @@ async function liveSync(o){
   if(need.includes('elec')&&typeof elecState!=='undefined'){
     qs.set('elecFrom',elecState.from||'');qs.set('elecTo',elecState.to||'');
     if(elecState.room)qs.set('elecRoom',elecState.room);}
+  // BACK-UP LOG: 검색·페이징은 서버가 한다 → 화면 상태를 그대로 쿼리파라미터로 보낸다.
+  if(need.includes('changelog')&&typeof clState!=='undefined'){
+    qs.set('clFrom',clState.from||'');   qs.set('clTo',clState.to||'');
+    qs.set('clQ',clState.q||'');         qs.set('clSid',clState.sid||'');
+    qs.set('clRoom',clState.room||'');   qs.set('clActor',clState.actor||'');
+    qs.set('clType',clState.type||'');   qs.set('clCampus',clState.campus||'');
+    qs.set('clPage',clState.page||1);    qs.set('clSize',clState.size||100);}
   const key=qs.toString();
   if(LIVE.inflight[key])return LIVE.inflight[key];   // 같은 요청 동시 진입 시 한 번만 조회
   LIVE.busy++;liveTag('sync');
@@ -1418,6 +1491,248 @@ function bindStdNoData(box){
   const r=box.querySelector('#stdRetry');
   if(r)r.onclick=()=>{r.disabled=true;liveSync({parts:['students'],force:true}).then(()=>renderMain());};
 }
+// ═══ 미처리 학생 경고 패널 (수강등록관리 R.enroll 전용) ══════════════════════
+// 판정 근거: ①③ = studentsFull 칸31 HAS_ROOM(legacy.room_reserve.s_idx 존재),
+//            ②   = 칸32 HAS_INVOICE(legacy.student_info_invoice.student_info 존재) — 둘 다 서버 판정.
+//            ④⑤ = 칸6(등록일)·칸7(출발일)·칸15(항공)로 클라이언트 계산.
+// ※ stuRoom() 은 쓰지 않는다 — 칸13(s_room)은 전량 빈값이고 이름 문자열 매칭 + roomstat ±6개월
+//   창 한계로 창 밖 학생을 "미배정"으로 오탐한다(analyst_pending.md 2절).
+// ※ 담당자 컬럼은 없다(legacy.student_info 에 매니저 컬럼 부재) → 표에 넣지 않는다.
+const PEND_IDX = { ROOM: 31, INV: 32 };
+const PEND_ACTIVE = ['normal', 'checking', 'extend'];
+// esc() 는 & < > 만 바꾼다. 따옴표를 그대로 두므로 title="${esc(v)}" 처럼 속성값에 넣으면
+// 이름에 " 가 섞인 순간 속성이 끊기고 임의 속성(onmouseover 등)이 주입된다. 속성값 전용으로 escA 를 쓴다.
+function escA(s) { return esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+const PEND_RULES = [
+  { id: 'no_room', ko: '객실 미배정', en: 'No room assigned', cls: 'p-hi' },
+  { id: 'inv_no_room', ko: '인보이스 有·객실 누락', en: 'Invoice issued, room missing', cls: 'p-cr' },
+  { id: 'no_invoice', ko: '인보이스 미발행', en: 'Invoice not issued', cls: 'p-hi' },
+  { id: 'stale', ko: '등록 N일 경과', en: 'Stale N+ days', cls: 'p-md' },
+  { id: 'no_flight', ko: '항공 미등록', en: 'No flight info', cls: 'p-hi' },
+];
+const pendLabel = (id) => { const r = PEND_RULES.find(x => x.id === id); return r ? T(r.ko, r.en) : id; };
+const pendCls = (id) => { const r = PEND_RULES.find(x => x.id === id); return r ? r.cls : ''; };
+let pendState = (function () {
+  const d = { open: false, type: '', nat: '', campus: '', from: '', to: '', n: 14, w: 30, page: 0, per: 50 };
+  try { const s = JSON.parse(localStorage.getItem('smeag-pend') || 'null');
+    if (s && typeof s === 'object') { ['open','type','n','w','per'].forEach(k => { if (s[k] != null) d[k] = s[k]; }); } } catch (e) {}
+  return d;
+})();
+function pendSave() { try { localStorage.setItem('smeag-pend', JSON.stringify(
+  { open: !!pendState.open, type: pendState.type, n: +pendState.n || 14, w: +pendState.w || 30, per: +pendState.per || 50 })); } catch (e) {} }
+const pendDiff = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
+// 서버가 판정칸을 실어 보내는 배포인지 확인. 없으면 r[31]/r[32] 가 undefined 라 전건 오탐이 된다.
+function pendFlagsReady() {
+  const sf = REAL && REAL.studentsFull;
+  return !!(sf && sf.cols && sf.cols[PEND_IDX.ROOM] === 'HAS_ROOM' && sf.cols[PEND_IDX.INV] === 'HAS_INVOICE');
+}
+// ①과 ③은 배타 분할한다(③은 ①의 부분집합이라 겹쳐 보이면 같은 학생이 두 줄로 읽힌다).
+//   ① no_room     = 객실 없음 + 인보이스 없음      (실측 717)
+//   ③ inv_no_room = 객실 없음 + 인보이스 있음      (실측 218)   ①∪③ = 935
+function pendMissing(r, today, n, w) {
+  const out = [];
+  const hasRoom = r[PEND_IDX.ROOM] === true, hasInv = r[PEND_IDX.INV] === true;
+  if (!hasRoom) out.push(hasInv ? 'inv_no_room' : 'no_room');
+  if (!hasInv) out.push('no_invoice');
+  const ap = r[6] || '';
+  if (ap && (!hasRoom || !hasInv) && ap <= dsAddD(today, -n)) out.push('stale');
+  const dp = r[7] || '';
+  if (dp && !(r[15] || '').trim() && dp >= today && dp <= dsAddD(today, w)) out.push('no_flight');
+  return out;
+}
+// 반환: null(학생 데이터 없음) | 'noflags'(서버 판정칸 미배포) | [{r,i,ms,days}]
+function pendRows() {
+  const sf = REAL && REAL.studentsFull;
+  if (!sf || !sf.rows || !sf.rows.length) return null;
+  if (!pendFlagsReady()) return 'noflags';
+  const today = dsToday(), n = +pendState.n || 14, w = +pendState.w || 30;
+  const out = [];
+  sf.rows.forEach((r, i) => {
+    if (PEND_ACTIVE.indexOf((r[11] || '').toLowerCase()) < 0) return;
+    const ms = pendMissing(r, today, n, w);
+    if (!ms.length) return;
+    out.push({ r: r, i: i, ms: ms, days: (r[6] && /^\d{4}-\d\d-\d\d$/.test(r[6])) ? pendDiff(r[6], today) : null });
+  });
+  return out;
+}
+// 누락유형 외 공통필터(국적·캠퍼스·등록일)만 적용 — 배지 건수의 모수
+function pendBase() {
+  const all = pendRows();
+  if (!all || all === 'noflags') return all;
+  const s = pendState; let f = all;
+  if (s.nat) f = f.filter(o => (o.r[1] || '').toLowerCase() === s.nat.toLowerCase());
+  if (s.campus) f = f.filter(o => (o.r[14] || '').toUpperCase().indexOf(s.campus.toUpperCase()) >= 0);
+  if (s.from) f = f.filter(o => (o.r[6] || '') >= s.from);
+  if (s.to) f = f.filter(o => (o.r[6] || '') <= s.to);
+  return f;
+}
+function pendFiltered() {
+  const b = pendBase();
+  if (!b || b === 'noflags') return b;
+  const f = pendState.type ? b.filter(o => o.ms.indexOf(pendState.type) >= 0) : b;
+  // 경과일수 내림차순(오래 방치된 건 먼저), 없는 값은 뒤로
+  return f.slice().sort((x, y) => (y.days == null ? -1 : y.days) - (x.days == null ? -1 : x.days));
+}
+// 서버 판정칸이 없을 때의 상태 안내(가짜 샘플 행 금지 — 2026-07-31 정책, stdNoDataPanel 과 동일 톤)
+function pendNoFlagsPanel() {
+  return `<div class="card pad" style="text-align:center;padding:26px 18px">
+    <div style="font-size:26px;line-height:1">🧩</div>
+    <div style="font-weight:800;margin-top:8px">${T('경고 판정칸이 아직 없습니다', 'Warning flags not available')}</div>
+    <div style="color:var(--dim);font-size:13px;margin-top:6px;line-height:1.7">${T(
+      '서버 <span class="mono">/api/data</span> 가 <span class="mono">HAS_ROOM·HAS_INVOICE</span> 칸을 아직 내려주지 않습니다(구버전 배포/캐시). 새로고침해도 같으면 API 배포가 필요합니다.',
+      'The server does not yet return the <span class="mono">HAS_ROOM·HAS_INVOICE</span> cells (old deployment/cache). If a reload does not help, the API needs redeploying.')}</div>
+    <div style="margin-top:14px"><button class="btn primary" id="pendRetry">${T('다시 불러오기', 'Reload')}</button></div>
+    <div style="color:var(--faint);font-size:11.5px;margin-top:12px">${T(
+      '※ 판정 근거가 없을 때 추정으로 경고를 만들지 않습니다(샘플·추정 행 없음).',
+      '※ No guessed warnings are shown when the source data is missing.')}</div>
+  </div>`;
+}
+function paintPendBadges() {
+  const el = document.getElementById('pendBadges'); if (!el) return;
+  const b = pendBase();
+  if (!b || b === 'noflags') { el.innerHTML = `<span class="pend-b">—</span>`; return; }
+  const cnt = {}; PEND_RULES.forEach(x => cnt[x.id] = 0);
+  b.forEach(o => o.ms.forEach(id => { if (cnt[id] != null) cnt[id]++; }));
+  el.innerHTML = `<span class="pend-b pend-b-tot">${T('합계', 'Total')} <b>${b.length.toLocaleString()}</b></span>`
+    + PEND_RULES.map(x => `<span class="pend-b ${x.cls}${pendState.type === x.id ? ' on' : ''}" title="${escA(T(x.ko, x.en))}">${esc(T(x.ko, x.en))} <b>${(cnt[x.id] || 0).toLocaleString()}</b></span>`).join('');
+}
+function paintPend() {
+  const box = document.getElementById('pendBody'); if (!box) return;
+  paintPendBadges();
+  const f = pendFiltered();
+  if (f === null) { box.innerHTML = stdNoDataPanel(); bindStdNoData(box); return; }
+  if (f === 'noflags') {
+    box.innerHTML = pendNoFlagsPanel();
+    const rt = box.querySelector('#pendRetry');
+    if (rt) rt.onclick = () => { rt.disabled = true; liveSync({ parts: ['students'], force: true }).then(() => renderMain()); };
+    return;
+  }
+  const s = pendState;
+  const pages = Math.max(1, Math.ceil(f.length / s.per));
+  if (s.page >= pages) s.page = pages - 1; if (s.page < 0) s.page = 0;
+  const pg = f.slice(s.page * s.per, s.page * s.per + s.per);
+  window._pendPage = pg;
+  const actCell = (o, i) => {
+    const b = [];
+    if (o.ms.indexOf('no_room') >= 0 || o.ms.indexOf('inv_no_room') >= 0)
+      b.push(`<button class="btn xs" data-pact="room" data-i="${i}">${T('방배정', 'Assign room')}</button>`);
+    if (o.ms.indexOf('no_invoice') >= 0)
+      b.push(`<button class="btn xs" data-pact="inv" data-i="${i}">${T('인보이스', 'Invoice')}</button>`);
+    if (o.ms.indexOf('no_flight') >= 0)
+      b.push(`<button class="btn xs" data-pact="flight" data-i="${i}">${T('항공입력', 'Flight')}</button>`);
+    if (!b.length) b.push(`<button class="btn xs" data-pact="edit" data-i="${i}">${T('상세', 'Open')}</button>`);
+    return `<td class="pend-actc">${b.join('')}</td>`;
+  };
+  const tb = pg.map((o, i) => {
+    const r = o.r;
+    return `<tr><td class="pend-name" data-i="${i}" title="${escA(r[2] || '')}">${esc(r[2] || '') || '—'}</td>`
+      + `<td class="mono">${esc((r[1] || '').toUpperCase()) || '—'}</td>`
+      + `<td class="mono">${dL(r[6])}</td>`
+      + `<td class="num mono${o.days != null && o.days >= 30 ? ' pend-old' : ''}">${o.days == null ? '—' : o.days.toLocaleString()}</td>`
+      + `<td>${o.ms.map(id => `<span class="pend-tag ${pendCls(id)}">${esc(pendLabel(id))}</span>`).join('')}</td>`
+      + `<td>${esc(r[14] || '') || '—'}</td>`
+      + `<td title="${escA(r[0] || '')}">${esc(r[0] || '') || '—'}</td>`
+      + actCell(o, i) + `</tr>`;
+  }).join('');
+  const head = `<thead><tr><th>${T('이름', 'NAME')}</th><th>${T('국적', 'NAT')}</th><th>${T('등록일', 'APPLY')}</th>`
+    + `<th class="num">${T('경과일', 'DAYS')}</th><th>${T('누락항목', 'MISSING')}</th><th>${T('캠퍼스', 'CAMPUS')}</th>`
+    + `<th>${T('유학원', 'AGENCY')}</th><th class="th-act">${T('바로 처리', 'ACTION')}</th></tr></thead>`;
+  box.innerHTML = pendFiltersHtml()
+    + `<div class="twrap"><table class="grid">${head}<tbody>${tb || `<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:16px">${T('조건에 맞는 미처리 학생이 없습니다.', 'No pending students match the filter.')}</td></tr>`}</tbody></table></div>`
+    + `<div class="pager"><button class="btn" id="pdFirst" ${s.page <= 0 ? 'disabled' : ''}>«</button><button class="btn" id="pdPrev" ${s.page <= 0 ? 'disabled' : ''}>◀</button>`
+    + `<span class="pginfo">${T('페이지', 'Page')} <b>${s.page + 1}</b> / ${pages.toLocaleString()} · ${T('결과', 'Results')} <b>${f.length.toLocaleString()}</b></span>`
+    + `<button class="btn" id="pdNext" ${s.page >= pages - 1 ? 'disabled' : ''}>▶</button><button class="btn" id="pdLast" ${s.page >= pages - 1 ? 'disabled' : ''}>»</button>`
+    + `<label>${T('표시', 'Per')} <select id="pdPer"><option ${s.per == 50 ? 'selected' : ''}>50</option><option ${s.per == 100 ? 'selected' : ''}>100</option><option ${s.per == 200 ? 'selected' : ''}>200</option></select></label></div>`;
+  makeSortable(box);
+  const go = p => { s.page = p; paintPend(); };
+  box.querySelector('#pdFirst').onclick = () => go(0);
+  box.querySelector('#pdPrev').onclick = () => go(s.page - 1);
+  box.querySelector('#pdNext').onclick = () => go(s.page + 1);
+  box.querySelector('#pdLast').onclick = () => go(pages - 1);
+  box.querySelector('#pdPer').onchange = e => { s.per = +e.target.value; s.page = 0; pendSave(); paintPend(); };
+  bindPendFilters(box);
+}
+function pendFiltersHtml() {
+  const s = pendState;
+  const opt = (v, lb) => `<option value="${escA(v)}"${s.type === v ? ' selected' : ''}>${esc(lb)}</option>`;
+  return `<div class="filters pend-filters">
+    <div class="field"><label>${T('누락유형', 'Missing type')}</label><select id="fPendType">`
+    + opt('', T('전체', 'All')) + PEND_RULES.map(x => opt(x.id, T(x.ko, x.en))).join('') + `</select></div>
+    <div class="field"><label>${T('국적', 'NAT')}</label><select id="fPendNat">${ddOpts(DICT.nation, 'ALL')}</select></div>
+    <div class="field"><label>${T('캠퍼스', 'CAMPUS')}</label><select id="fPendCampus"><option value="">${T('전체', 'All')}</option><option>ENCANTO</option><option>CLASSIC</option><option>CAPITAL</option></select></div>
+    <div class="field"><label>${T('등록일 FROM', 'APPLY from')}</label><input id="fPendFrom" type="date" value="${escA(s.from)}"></div>
+    <div class="field"><label>${T('등록일 TO', 'APPLY to')}</label><input id="fPendTo" type="date" value="${escA(s.to)}"></div>
+    <div class="field" style="max-width:120px"><label>${T('경과 N일', 'Stale N days')}</label><input id="fPendN" type="number" min="1" max="365" value="${escA(String(s.n))}"></div>
+    <div class="field" style="max-width:130px"><label>${T('입국 창 D+', 'Arrival window D+')}</label><input id="fPendW" type="number" min="1" max="180" value="${escA(String(s.w))}"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn" id="fPendReset">${T('초기화', 'Reset')}</button></div>
+  </div>`;
+}
+function bindPendFilters(box) {
+  const v = sel => (box.querySelector(sel) || {}).value || '';
+  const upd = () => {
+    pendState.type = v('#fPendType'); pendState.nat = v('#fPendNat'); pendState.campus = v('#fPendCampus');
+    pendState.from = v('#fPendFrom'); pendState.to = v('#fPendTo');
+    pendState.n = Math.max(1, +v('#fPendN') || 14); pendState.w = Math.max(1, +v('#fPendW') || 30);
+    pendState.page = 0; pendSave(); paintPend();
+  };
+  const nat = box.querySelector('#fPendNat'); if (nat) nat.value = pendState.nat;
+  const cam = box.querySelector('#fPendCampus'); if (cam) cam.value = pendState.campus;
+  ['#fPendType', '#fPendNat', '#fPendCampus', '#fPendFrom', '#fPendTo'].forEach(sel => {
+    const e = box.querySelector(sel); if (e) e.addEventListener('change', upd);
+  });
+  ['#fPendN', '#fPendW'].forEach(sel => {
+    const e = box.querySelector(sel);
+    if (e) e.addEventListener('change', upd);
+  });
+  const rs = box.querySelector('#fPendReset');
+  if (rs) rs.addEventListener('click', () => {
+    pendState.type = ''; pendState.nat = ''; pendState.campus = ''; pendState.from = ''; pendState.to = '';
+    pendState.n = 14; pendState.w = 30; pendState.page = 0; pendSave(); paintPend();
+  });
+}
+function exportPend() {
+  const f = pendFiltered();
+  if (!f || f === 'noflags' || !f.length) { toast(T('내보낼 데이터 없음', 'Nothing to export'), '', false); return; }
+  const H = ['NAME', 'KOR', 'NAT', 'APPLY', 'DAYS', 'MISSING', 'CAMPUS', 'AGENCY', 'DEPA', 'FLIGHT', 'COND', 'SID'];
+  const rows = f.map(o => { const r = o.r;
+    return [r[2] || '', r[3] || '', (r[1] || '').toUpperCase(), r[6] || '', o.days == null ? '' : o.days,
+      o.ms.map(pendLabel).join(' / '), r[14] || '', r[0] || '', r[7] || '', r[15] || '',
+      condLegacy(r[11]), r[18] || ''];
+  });
+  toXls(H, rows, 'SMEAG_미처리학생.xls', [4, 5]);
+  toast(T('엑셀 내보내기 완료', 'Excel exported'), `${rows.length.toLocaleString()}${T('행 · 필터 반영', ' rows · filtered')}`, true);
+}
+// 패널 열림/닫힘 · 행 액션 바인딩. renderMain 의 #stdBody 블록에서 1회 호출.
+function bindPend(m) {
+  const panel = m.querySelector('#pendPanel'); if (!panel) return;
+  const body = m.querySelector('#pendBody'), head = m.querySelector('#pendToggle');
+  const caret = m.querySelector('#pendCaret');
+  const apply = () => {
+    body.hidden = !pendState.open;
+    if (caret) caret.textContent = pendState.open ? '▾' : '▸';
+    panel.classList.toggle('open', !!pendState.open);
+    if (pendState.open) paintPend(); else paintPendBadges();
+  };
+  head.addEventListener('click', e => {
+    if (e.target.closest('#pendExcel')) return;
+    pendState.open = !pendState.open; pendSave(); apply();
+  });
+  const xl = m.querySelector('#pendExcel');
+  if (xl) xl.addEventListener('click', e => { e.stopPropagation(); exportPend(); });
+  body.addEventListener('click', e => {
+    const nm = e.target.closest('.pend-name');
+    if (nm) { const o = (window._pendPage || [])[+nm.dataset.i]; if (o) openStudentEdit(o.r, 'edit'); return; }
+    const b = e.target.closest('button[data-pact]');
+    if (!b) return;
+    const o = (window._pendPage || [])[+b.dataset.i]; if (!o) return;
+    const r = o.r, name = r[2] || r[3] || '', depa = r[7] || '', act = b.dataset.pact;
+    // 기존 진입점 재사용: 객실 → ROOM REPLACEMENT, 그 외 → 학생 상세폼(인보이스·항공 입력칸 포함)
+    if (act === 'room') openRoomReplace(null, (r[13] || ''), name, depa);
+    else openStudentEdit(r, 'edit');
+    if (window.adminAuthLog) try { window.adminAuthLog('pending_' + act, { name: name, sid: r[18] || '' }, 'update'); } catch (_) {}
+  });
+  apply();
+}
 function paintStd(){const box=document.getElementById('stdBody');if(!box)return;
   const docHead=stdState.actions?'<th>CONSULT LOG</th><th>MEDICAL</th><th>CONSENT</th><th>REPORT</th>':'';
   // 레거시(student.php / student_list.php) 표 헤더 그대로 — NAME·COND·DORM 명칭, BIRTH 포함
@@ -1602,9 +1917,20 @@ function stdView(cfg){
   <div class="chips"><span class="chip on">캠퍼스: <span id="cf1">ALL</span></span>${src?REALBADGE:''}<span class="chip">${cfg.chip||'2025~2027 · 최근순'}</span><span class="chip"><b>${total.toLocaleString()}</b>명</span></div>
   <div style="height:10px"></div>
   <div id="stdBody"></div>
+  ${cfg.pending?`
+  <div class="pend" id="pendPanel">
+    <div class="pend-head" id="pendToggle" title="${escA(T('미처리(객실·인보이스·항공) 학생 경고 — 클릭해 펼치기','Pending students (room·invoice·flight) — click to expand'))}">
+      <span class="pend-caret" id="pendCaret">&#9656;</span>
+      <b>&#9888; ${T('미처리 학생','Pending students')}</b>
+      <span class="pend-badges" id="pendBadges"></span>
+      <span class="pend-sp"></span>
+      <button class="btn xs" id="pendExcel">&#128202; EXCEL</button>
+    </div>
+    <div class="pend-body" id="pendBody" hidden></div>
+  </div>`:''}
   <div class="banner">${cfg.banner||(src?`전체 <b>${total.toLocaleString()}명</b> 임베드 · 클라이언트 페이지네이션·필터·검색 (legacy.student_info 전량 · MySQL 비교검증)`:'가상 샘플')}</div>`;}
 R.stdlist=()=>stdView({title:'STUDENT LIST',sub:'전체 학생 명단',url:'student.php'});
-R.enroll=()=>stdView({title:'수강등록관리',sub:'수강 등록 관리 · STUDENT MANAGEMENT',url:'student_list.php',dateWeek:true,actions:true,pickup:true,
+R.enroll=()=>stdView({title:'수강등록관리',sub:'수강 등록 관리 · STUDENT MANAGEMENT',url:'student_list.php',dateWeek:true,actions:true,pickup:true,pending:true,
   extraBtn:'<button class="btn primary" data-guard="save" style="margin-right:8px">🧾 신규 등록 신청</button>',
   chip:'등록/수강 · 목→다음주 수 · 최근순',
   banner:'수강등록관리 — 학생별 <b>수정/변경/연장/상담/약식</b> · 기간 기본 <b>이번주 목→다음주 수</b>(FROM 변경 시 TO 자동) · legacy <span class="mono">student_list.php</span> 재현(임베드 실데이터)'});
@@ -1740,6 +2066,333 @@ R.roommove=(m)=>{
   <div id="specBody" data-key="${m.u}"></div>
   <div class="banner">기간 기본값: <b>이번주 목요일 → 다음주 수요일</b> 자동 설정 · 페이지네이션 · MySQL 비교검증용 실데이터</div>`;};
 
+// ══════════════════════════════════════════════════════════════════════════════
+// ROOM MOVES — 신전산 방 이동 관리 (기획: docs/기획_방이동관리_2026-08-06.md)
+//   · 현재 배정(레거시 room_reserve)은 건드리지 않는다. 여기서 만드는 것은 "미래 배정"이고,
+//     실제 방이 바뀌는 시점은 오직 [이동 완료] 버튼을 눌렀을 때다.
+//   · 서버(/api/moves)가 충돌을 검사한다. 화면 검사는 안내일 뿐 최종 판정이 아니다.
+//   · 예외 승인은 Lv10+ 만 가능(결정 5) — 버튼 자체를 권한에 따라 감춘다.
+// ══════════════════════════════════════════════════════════════════════════════
+const MV={rows:[],level:0,canApprove:false,loading:false,err:'',
+  f:{from:'',to:'',status:'OPEN',q:''}};
+const MV_ST={REVIEW:['검토 필요','Review','var(--return)'],PLANNED:['이동 예정','Planned','var(--good)'],
+  CONFIRMED:['이동 확정','Confirmed','var(--male)'],COMPLETED:['이동 완료','Completed','var(--dim)'],
+  CANCELLED:['이동 취소','Cancelled','var(--faint)']};
+const mvStLabel=s=>{const x=MV_ST[s];return x?T(x[0],x[1]):s;};
+const mvStColor=s=>{const x=MV_ST[s];return x?x[2]:'var(--dim)';};
+const mvDT=v=>{if(!v)return '-';const d=new Date(v);if(isNaN(d))return String(v).slice(0,16).replace('T',' ');
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;};
+
+async function mvGet(qs){
+  const r=await fetch('/api/moves?'+qs,{credentials:'same-origin'});
+  const j=await r.json().catch(()=>({ok:false,error:'bad_json'}));
+  if(!r.ok&&!j.message)j.message=T('요청에 실패했습니다.','Request failed.');
+  return j;
+}
+async function mvPost(body){
+  const r=await fetch('/api/moves',{method:'POST',credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({ok:false,error:'bad_json'}));
+  if(!r.ok&&!j.message)j.message=T('요청에 실패했습니다.','Request failed.');
+  return j;
+}
+// 배치도 그룹 → 침대 목록(rid 보유분만). 이동 대상 선택기의 원천.
+function mvBeds(){
+  const out=[];
+  ((REAL&&REAL.roomstat&&REAL.roomstat.groups)||[]).forEach(g=>{
+    const grp=(g.name||'').split('/')[0].trim();
+    (g.rooms||[]).forEach(r=>{(r.beds||[]).forEach((b,i)=>{
+      if(b.rid==null||b.rid==='')return;
+      out.push({rid:+b.rid,grp,room:r.no,bed:i+1,per:r.per,gender:r.gender,gname:g.name});
+    });});
+  });
+  return out;
+}
+function mvStudents(){
+  const src=(REAL&&REAL.studentsFull&&REAL.studentsFull.rows)||[];
+  // col18=s_idx · 2=EN · 3=KOR · 5=SEX · 1=NAT · 9=종료일 · 13=현재객실
+  return src.filter(r=>r[18]).map(r=>({sid:+r[18],name:r[2]||r[3]||'',kor:r[3]||'',
+    sex:r[5]||'',nat:r[1]||'',end:r[9]||'',room:r[13]||''}));
+}
+
+R.moveboard=()=>{
+  const today=new Date().toISOString().slice(0,10);
+  if(!MV.f.from){MV.f.from=today;const d=new Date();d.setDate(d.getDate()+60);MV.f.to=d.toISOString().slice(0,10);}
+  return `
+  <div class="ph"><h1>${T('방 이동 관리','Room Moves')}</h1>
+    <span class="sub">${T('현재 배정과 미래 배정을 분리해서 관리 · 이동 완료 시에만 실제 방이 바뀝니다','Current vs future assignment · the room changes only on Complete')}</span>
+    <span class="url">room_move_board</span>
+    <span class="actions" style="margin-left:auto">
+      <button class="btn primary" id="mvNew">＋ ${T('이동 등록','New move')}</button>
+      <button class="btn" id="mvReload">↻ ${T('새로고침','Reload')}</button>
+    </span></div>
+  <div class="filters">
+    <div class="field"><label>${T('이동 예정일 FROM','Planned FROM')}</label><input id="mvFrom" type="date" value="${esc(MV.f.from)}"></div>
+    <div class="field"><label>TO</label><input id="mvTo" type="date" value="${esc(MV.f.to)}"></div>
+    <div class="field"><label>${T('상태','Status')}</label><select id="mvStatus">
+      ${[['OPEN',T('진행중 (검토·예정·확정)','Open')],['APPROVE',T('승인 대기','Awaiting approval')],
+         ['REVIEW',T('검토 필요','Review')],['PLANNED',T('이동 예정','Planned')],['CONFIRMED',T('이동 확정','Confirmed')],
+         ['COMPLETED',T('이동 완료','Completed')],['CANCELLED',T('이동 취소','Cancelled')],['ALL',T('전체','All')]]
+        .map(([v,l])=>`<option value="${v}" ${MV.f.status===v?'selected':''}>${l}</option>`).join('')}</select></div>
+    <div class="field grow"><label>${T('학생·방 검색','Search')}</label><input id="mvQ" value="${esc(MV.f.q)}" placeholder="${T('이름 또는 방번호','Name or room')}"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn primary" id="mvSearch">SEARCH</button></div>
+  </div>
+  <div class="chips" id="mvChips" style="margin-bottom:10px"></div>
+  <div id="mvBody"><div class="note">${T('불러오는 중…','Loading…')}</div></div>
+  <div class="banner">${T('이동을 등록해도 <b>현재 방은 그대로</b> 유지됩니다. <b>[완료]</b> 를 눌러야 실제 배정이 바뀝니다 · 겹침·성별 충돌은 DB 가 거부합니다 · 예외 승인은 <b>Lv10 이상</b>.','Registering a move keeps the <b>current room</b> intact. Only <b>[Complete]</b> changes the actual assignment · overlaps and gender conflicts are rejected by the DB · exception approval requires <b>Lv10+</b>.')}</div>`;};
+
+R.moveboard__init=(root)=>{
+  const $=id=>root.querySelector('#'+id);
+  const load=async()=>{
+    MV.loading=true;draw();
+    const qs=new URLSearchParams({from:MV.f.from,to:MV.f.to,status:MV.f.status,limit:'500'});
+    const j=await mvGet(qs.toString());
+    MV.loading=false;
+    if(!j.ok){MV.err=j.message||j.error||'error';MV.rows=[];}
+    else{MV.err='';MV.rows=j.moves||[];MV.level=j.level||0;MV.canApprove=!!j.canApprove;}
+    draw();
+  };
+  const draw=()=>{
+    const body=$('mvBody'),chips=$('mvChips');if(!body)return;
+    if(MV.loading){body.innerHTML=`<div class="note">${T('불러오는 중…','Loading…')}</div>`;return;}
+    if(MV.err){body.innerHTML=`<div class="note" style="color:var(--female)">${esc(MV.err)}</div>`;return;}
+    const q=(MV.f.q||'').toLowerCase();
+    const rows=MV.rows.filter(m=>!q||[m.student_name,m.from_room_no,m.to_room_no,m.from_group,m.to_group]
+      .some(v=>(''+(v||'')).toLowerCase().includes(q)));
+    const cnt=k=>MV.rows.filter(m=>m.move_status===k).length;
+    const wait=MV.rows.filter(m=>m.awaiting_approval).length;
+    chips.innerHTML=`<span class="chip on">${T('총','Total')} ${rows.length}</span>`
+      +['REVIEW','PLANNED','CONFIRMED','COMPLETED'].map(k=>`<span class="chip" style="color:${mvStColor(k)};border-color:${mvStColor(k)}">${mvStLabel(k)} ${cnt(k)}</span>`).join('')
+      +(wait?`<span class="chip" style="color:var(--female);border-color:var(--female)">⚠ ${T('승인 대기','Awaiting approval')} ${wait}</span>`:'');
+    if(!rows.length){body.innerHTML=`<div class="note">${T('해당 조건의 이동이 없습니다.','No moves for this filter.')}</div>`;return;}
+    body.innerHTML=`<div class="twrap"><table class="grid"><thead><tr>
+      <th>#</th><th>${T('예정일시','Planned')}</th><th>${T('학생','Student')}</th><th>SEX</th><th>NAT</th>
+      <th>${T('현재 방','From')}</th><th></th><th>${T('이동할 방','To')}</th>
+      <th>${T('상태','Status')}</th><th>${T('예외','Exception')}</th><th>${T('담당','By')}</th><th>${T('처리','Actions')}</th></tr></thead>
+      <tbody>${rows.map(m=>{
+        const ex=(m.exception_flags||[]).length;
+        const act=[];
+        if(m.move_status==='REVIEW'||m.move_status==='PLANNED')act.push(`<button class="btn mv-a" data-op="confirm" data-id="${m.id}">${T('확정','Confirm')}</button>`);
+        if(m.move_status==='CONFIRMED')act.push(`<button class="btn primary mv-a" data-op="complete" data-id="${m.id}">${T('완료','Complete')}</button>`);
+        if(m.move_status!=='COMPLETED'&&m.move_status!=='CANCELLED')act.push(`<button class="btn mv-a" data-op="cancel" data-id="${m.id}">${T('취소','Cancel')}</button>`);
+        if(m.awaiting_approval&&MV.canApprove){
+          act.push(`<button class="btn mv-a" data-op="approve" data-id="${m.id}" style="border-color:var(--good);color:var(--good)">${T('승인','Approve')}</button>`);
+          act.push(`<button class="btn mv-a" data-op="reject" data-id="${m.id}" style="border-color:var(--female);color:var(--female)">${T('반려','Reject')}</button>`);
+        }
+        return `<tr>
+          <td class="mono">${m.id}</td>
+          <td class="mono">${esc(mvDT(m.planned_move_at))}${m.actual_move_at?`<br><small style="color:var(--good)">→ ${esc(mvDT(m.actual_move_at))}</small>`:''}</td>
+          <td>${esc(m.student_name||'')}</td><td class="mono">${esc(m.s_gender||'')}</td><td class="mono">${esc((m.s_nation||'').toUpperCase())}</td>
+          <td class="mono">${m.from_r_idx?esc((m.from_group||'')+' '+(m.from_room_no||'')+' · '+(m.from_bed_no||'')):'<span style="color:var(--faint)">'+T('신규','New')+'</span>'}</td>
+          <td style="text-align:center;color:var(--dim)">↔</td>
+          <td class="mono">${esc((m.to_group||'')+' '+(m.to_room_no||'')+' · '+(m.to_bed_no||''))}</td>
+          <td><span class="chip" style="color:${mvStColor(m.move_status)};border-color:${mvStColor(m.move_status)}">${mvStLabel(m.move_status)}</span></td>
+          <td>${ex?`<span class="chip" style="color:${m.awaiting_approval?'var(--female)':'var(--good)'};border-color:${m.awaiting_approval?'var(--female)':'var(--good)'}" title="${esc((m.exception_flags||[]).join(', '))}${m.exception_reason?' — '+esc(m.exception_reason):''}">${m.awaiting_approval?'⚠ '+T('승인 대기','Awaiting'):'✔ '+T('승인됨','Approved')} ${ex}</span>`:'-'}</td>
+          <td class="mono">${esc(m.created_by||'')}</td>
+          <td style="white-space:nowrap">${act.join(' ')}</td></tr>`;}).join('')}</tbody></table></div>`;
+    body.querySelectorAll('.mv-a').forEach(b=>b.onclick=()=>mvAction(b.dataset.op,+b.dataset.id,load));
+  };
+  $('mvSearch').onclick=()=>{MV.f.from=$('mvFrom').value;MV.f.to=$('mvTo').value;
+    MV.f.status=$('mvStatus').value;MV.f.q=$('mvQ').value.trim();load();};
+  $('mvQ').addEventListener('keydown',e=>{if(e.key==='Enter')$('mvSearch').click();});
+  $('mvReload').onclick=load;
+  $('mvNew').onclick=()=>mvOpenForm(null,load);
+  load();
+};
+
+// 상태 전이 실행(확정·완료·취소·승인·반려) — 되돌리기 어려운 작업은 확인을 받는다.
+async function mvAction(op,id,after){
+  const L={confirm:[T('이동 확정','Confirm move'),T('이 이동을 확정합니다. 대상 침대가 이 학생에게 예약됩니다.','Confirm this move. The bed will be reserved for this student.')],
+    complete:[T('이동 완료','Complete move'),T('실제 이동이 끝났습니까? 완료하면 현재 방이 바뀌고 되돌릴 수 없습니다.','Has the move actually happened? This changes the current room and cannot be undone.')],
+    cancel:[T('이동 취소','Cancel move'),T('미래 배정만 취소합니다. 현재 방은 그대로 유지됩니다.','Only the future assignment is cancelled. The current room stays.')],
+    approve:[T('예외 승인','Approve exception'),T('경고를 승인하고 확정할 수 있게 합니다.','Approve the warnings so the move can be confirmed.')],
+    reject:[T('예외 반려','Reject exception'),T('승인을 거두고 검토 필요 상태로 되돌립니다.','Revoke approval and send it back to Review.')]};
+  const need=(op==='cancel'||op==='reject');   // 사유 필수
+  const txt=need?prompt(L[op][0]+'\n\n'+L[op][1]+'\n\n'+T('사유를 입력하세요(필수)','Enter a reason (required)')):
+    (confirm(L[op][0]+'\n\n'+L[op][1])?'':null);
+  if(txt===null)return;
+  if(need&&!txt.trim()){toast(T('사유 필요','Reason required'),L[op][0],false);return;}
+  const body={op,move_id:id};
+  if(op==='cancel'||op==='reject')body.reason=txt.trim();
+  if(op==='approve')body.note=txt||null;
+  const j=await mvPost(body);
+  if(j.ok){toast(L[op][0],T('처리했습니다.','Done.'),true);if(after)after();}
+  else{
+    const det=[].concat(j.blocks||[],j.info_required||[]).map(x=>x.message).join(' / ');
+    toast(T('처리 실패','Failed'),esc(j.message||j.error||'')+(det?' — '+esc(det):''),false);
+  }
+}
+
+// ── 이동 등록 모달 ──────────────────────────────────────────────────────────
+function mvOpenForm(prefill,after){
+  const beds=mvBeds(), studs=mvStudents();
+  if(!beds.length){toast(T('배치도 필요','Batch chart needed'),T('기숙사 현황(배치도)을 한 번 열어 방·침대 정보를 불러오세요.','Open Dormitory Status once to load rooms/beds.'),false);return;}
+  const groups=[...new Set(beds.map(b=>b.gname))];
+  const now=new Date();now.setDate(now.getDate()+1);
+  const defDate=now.toISOString().slice(0,10);
+  const ov=el('div','modal-ov');
+  ov.innerHTML=`<div class="modal mvm">
+    <div class="modal-h"><b>↔ ${T('방 이동 등록','New room move')}</b><button class="modal-x" data-x>✕</button></div>
+    <div class="modal-body">
+      <div class="mv-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
+        <div style="grid-column:1/-1">
+          <label class="mv-lb">${T('학생','Student')}</label>
+          <input id="mvStuQ" class="rs-ctrl" style="width:100%" placeholder="${T('이름을 입력해 검색','Type a name')}" autocomplete="off">
+          <div id="mvStuList" class="mv-list"></div>
+          <div id="mvStuPick" class="note" style="margin:6px 0 0;display:none"></div>
+        </div>
+        <div><label class="mv-lb">${T('이동할 구역','Target group')}</label>
+          <select id="mvGrp" class="rs-ctrl" style="width:100%"><option value="">${T('선택','Select')}</option>${groups.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join('')}</select></div>
+        <div><label class="mv-lb">${T('방','Room')}</label>
+          <select id="mvRoom" class="rs-ctrl" style="width:100%" disabled></select></div>
+        <div><label class="mv-lb">${T('침대','Bed')}</label>
+          <select id="mvBed" class="rs-ctrl" style="width:100%" disabled></select></div>
+        <div><label class="mv-lb">${T('이동 예정일 · 시각','Planned date · time')}</label>
+          <div style="display:flex;gap:6px"><input id="mvDate" type="date" class="rs-ctrl" style="flex:1" value="${defDate}">
+          <input id="mvTime" type="time" class="rs-ctrl" style="width:110px" value="09:30"></div></div>
+        <div><label class="mv-lb">${T('이동 사유','Reason')}</label>
+          <input id="mvReason" class="rs-ctrl" style="width:100%" maxlength="200" placeholder="${T('예: 룸메 요청 / 가족 입실','e.g. roommate request')}"></div>
+        <div><label class="mv-lb">${T('담당자','Staff')}</label><input id="mvStaff" class="rs-ctrl" style="width:100%" maxlength="100"></div>
+        <div style="grid-column:1/-1"><label class="mv-lb">${T('메모','Note')}</label><input id="mvNote" class="rs-ctrl" style="width:100%" maxlength="500"></div>
+      </div>
+
+      <div class="mv-sec" style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+        <div class="mv-lb" style="margin-bottom:6px">${T('체류 확정정보 — 비어 있으면 확정할 수 없습니다 (§13)','Stay facts — a move cannot be confirmed while these are blank')}</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px 12px">
+          <div><label class="mv-lb2">${T('실제 퇴실일','Actual checkout')}</label><input id="mvFCo" type="date" class="rs-ctrl" style="width:100%"></div>
+          <div><label class="mv-lb2">${T('퇴실 시각','Checkout time')}</label><input id="mvFCt" type="time" class="rs-ctrl" style="width:100%"></div>
+          <div><label class="mv-lb2">${T('신청 룸타입(인실)','Requested type')}</label><input id="mvFRt" type="number" min="1" max="12" class="rs-ctrl" style="width:100%"></div>
+          <div><label class="mv-lb2">${T('도착 예정','Arrival')}</label><input id="mvFAr" type="datetime-local" class="rs-ctrl" style="width:100%"></div>
+        </div>
+      </div>
+
+      <div id="mvChk" class="mv-chk" style="margin-top:12px"></div>
+      <div id="mvExWrap" style="display:none;margin-top:8px">
+        <label class="mv-lb">${T('예외 사유 (필수)','Exception reason (required)')}</label>
+        <input id="mvEx" class="rs-ctrl" style="width:100%" maxlength="500" placeholder="${T('경고를 넘기는 이유를 적으세요','Why are you overriding the warnings?')}">
+        <div class="note" style="margin:6px 0 0">${T('경고가 있는 이동은 <b>Lv10 이상 승인</b> 후에만 확정할 수 있습니다.','A move with warnings can only be confirmed after <b>Lv10+ approval</b>.')}</div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        <button class="btn" data-x>${T('취소','Cancel')}</button>
+        <button class="btn" id="mvCheck">🔍 ${T('충돌 검사','Check')}</button>
+        <button class="btn primary" id="mvSave" disabled>${T('이동 등록','Register move')}</button>
+      </div>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const $=id=>ov.querySelector('#'+id);
+  const close=()=>ov.remove();
+  ov.querySelectorAll('[data-x]').forEach(x=>x.onclick=close);
+  ov.onclick=e=>{if(e.target===ov)close();};
+
+  let stu=null, lastVal=null, busy=false;
+  // 학생 검색(로컬 필터 — 이미 받아 둔 studentsFull 로 즉시 반응)
+  const renderStuList=()=>{
+    const q=($('mvStuQ').value||'').trim().toLowerCase();
+    const box=$('mvStuList');
+    if(q.length<2){box.innerHTML='';return;}
+    const hit=studs.filter(s=>(s.name+' '+s.kor).toLowerCase().includes(q)).slice(0,12);
+    box.innerHTML=hit.map(s=>`<button type="button" class="mv-opt" data-sid="${s.sid}">${esc(s.name)}${s.kor?' · '+esc(s.kor):''}
+      <small>${esc((s.sex||'').toUpperCase())} · ${esc((s.nat||'').toUpperCase())} · ${esc(s.room||T('방 미상','room?'))} · ~${esc(s.end||'')}</small></button>`).join('');
+    box.querySelectorAll('.mv-opt').forEach(b=>b.onclick=()=>pickStu(+b.dataset.sid));
+  };
+  const pickStu=async(sid)=>{
+    stu=studs.find(s=>s.sid===sid)||{sid};
+    $('mvStuList').innerHTML='';$('mvStuQ').value=stu.name||('#'+sid);
+    const p=$('mvStuPick');p.style.display='';
+    p.innerHTML=T('불러오는 중…','Loading…');
+    const j=await mvGet('op=facts&s_idx='+sid);
+    const f=(j&&j.facts)||{};
+    if(f.checkout_date&&!$('mvFCo').value)$('mvFCo').value=(''+f.checkout_date).slice(0,10);
+    if(f.checkout_time)$('mvFCt').value=(''+f.checkout_time).slice(0,5);
+    if(f.requested_room_type)$('mvFRt').value=f.requested_room_type;
+    if(f.arrival_at)$('mvFAr').value=(''+f.arrival_at).slice(0,16);
+    p.innerHTML=`<b>${esc(f.name||stu.name||'')}</b> · ${esc((f.gender_raw||'').toUpperCase()||'?')} · ${esc((f.s_nation||'').toUpperCase())}
+      · ${T('퇴실','Checkout')} <b>${esc((''+(f.checkout_date||'')).slice(0,10)||T('미확인','unknown'))}</b>
+      ${f.checkout_confirmed?'<span class="chip" style="color:var(--good);border-color:var(--good)">'+T('확정','confirmed')+'</span>':''}`;
+    check();
+  };
+  $('mvStuQ').addEventListener('input',renderStuList);
+
+  // 구역 → 방 → 침대
+  $('mvGrp').onchange=()=>{
+    const g=$('mvGrp').value;
+    const rooms=[...new Set(beds.filter(b=>b.gname===g).map(b=>b.room))];
+    $('mvRoom').innerHTML=`<option value="">${T('선택','Select')}</option>`+rooms.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('');
+    $('mvRoom').disabled=!rooms.length;$('mvBed').innerHTML='';$('mvBed').disabled=true;
+  };
+  $('mvRoom').onchange=()=>{
+    const g=$('mvGrp').value,r=$('mvRoom').value;
+    const bs=beds.filter(b=>b.gname===g&&b.room===r);
+    $('mvBed').innerHTML=bs.map(b=>`<option value="${b.rid}">Bed ${b.bed} (${esc(b.per||'')})</option>`).join('');
+    $('mvBed').disabled=!bs.length;check();
+  };
+  $('mvBed').onchange=check;
+  ['mvDate','mvTime'].forEach(id=>$(id).addEventListener('change',check));
+
+  function plannedAt(){
+    const d=$('mvDate').value,t=$('mvTime').value||'09:30';
+    return d?`${d}T${t}:00`:'';
+  }
+  function factsPatch(){
+    const p={};
+    if($('mvFCo').value)p.actual_checkout_date=$('mvFCo').value;
+    if($('mvFCt').value)p.checkout_time=$('mvFCt').value;
+    if($('mvFRt').value)p.requested_room_type=$('mvFRt').value;
+    if($('mvFAr').value)p.arrival_at=new Date($('mvFAr').value).toISOString();
+    return p;
+  }
+  async function check(){
+    const box=$('mvChk');
+    if(!stu||!$('mvBed').value||!plannedAt()){box.innerHTML=`<div class="note">${T('학생 · 침대 · 예정일시를 고르면 충돌을 검사합니다.','Pick student · bed · date to run the conflict check.')}</div>`;
+      $('mvSave').disabled=true;return;}
+    box.innerHTML=`<div class="note">${T('검사 중…','Checking…')}</div>`;
+    const qs=new URLSearchParams({op:'validate',s_idx:stu.sid,to_r_idx:$('mvBed').value,at:plannedAt()});
+    const j=await mvGet(qs.toString());
+    if(!j.ok){box.innerHTML=`<div class="note" style="color:var(--female)">${esc(j.message||j.error)}</div>`;$('mvSave').disabled=true;return;}
+    lastVal=j.validate;
+    const li=(arr,color,icon)=>(arr||[]).map(x=>`<div class="mv-msg" style="color:${color}">${icon} ${esc(x.message)}</div>`).join('');
+    const nb=(lastVal.blocks||[]).length,nw=(lastVal.warnings||[]).length,ni=(lastVal.info_required||[]).length;
+    box.innerHTML=(nb?`<div class="mv-box err">${li(lastVal.blocks,'var(--female)','⛔')}</div>`:'')
+      +(nw?`<div class="mv-box warn">${li(lastVal.warnings,'#ca8a04','⚠')}</div>`:'')
+      +(ni?`<div class="mv-box info">${li(lastVal.info_required,'var(--return)','❓')}
+            <div class="note" style="margin:6px 0 0">${T('등록은 되지만 <b>확정</b>은 위 항목을 채워야 가능합니다.','You can register, but <b>confirming</b> requires filling these in.')}</div></div>`:'')
+      +(!nb&&!nw&&!ni?`<div class="mv-box ok" style="color:var(--good)">✔ ${T('충돌 없음 — 바로 확정할 수 있습니다.','No conflicts — ready to confirm.')}</div>`:'');
+    const occ=(lastVal.info&&lastVal.info.occupants)||[];
+    if(occ.length)box.innerHTML+=`<div class="note" style="margin-top:6px">${T('기존 입실자','Current occupants')}: `
+      +occ.map(o=>`<b>${esc(o.name||'')}</b> ~${esc(o.end_date||'')}${o.checkout_confirmed?'':' <span style="color:var(--return)">('+T('퇴실일 미확인','checkout unknown')+')</span>'}`).join(' · ')+'</div>';
+    $('mvExWrap').style.display=nw?'':'none';
+    $('mvSave').disabled=nb>0;
+  }
+  $('mvCheck').onclick=check;
+
+  $('mvSave').onclick=async()=>{
+    if(busy)return;                       // 더블서밋 가드
+    if(!stu||!$('mvBed').value||!plannedAt())return;
+    const nw=((lastVal&&lastVal.warnings)||[]).length;
+    if(nw&&!($('mvEx').value||'').trim()){toast(T('예외 사유 필요','Reason required'),T('경고를 넘기려면 사유를 입력해야 합니다.','Enter a reason to override the warnings.'),false);return;}
+    busy=true;$('mvSave').disabled=true;
+    const body={op:'create',s_idx:stu.sid,to_r_idx:+$('mvBed').value,planned_move_at:plannedAt(),
+      move_reason:$('mvReason').value.trim()||null,note:$('mvNote').value.trim()||null,
+      staff:$('mvStaff').value.trim()||null,exception_reason:($('mvEx').value||'').trim()||null,
+      facts:factsPatch(),
+      // 멱등키: 같은 학생·침대·시각의 재전송은 서버가 최초 결과를 재생한다(중복 등록 없음)
+      idem:`mv:${stu.sid}:${$('mvBed').value}:${plannedAt()}`.replace(/[^\w:.-]/g,'')};
+    const j=await mvPost(body);
+    busy=false;$('mvSave').disabled=false;
+    if(j.ok){
+      toast(T('이동 등록','Move registered'),
+        (j.replayed?T('이미 등록된 이동입니다.','Already registered.'):T('등록했습니다. 현재 방은 그대로입니다.','Registered. The current room is unchanged.')),true);
+      close();if(after)after();
+    }else{
+      const det=[].concat(j.blocks||[]).map(x=>x.message).join(' / ');
+      toast(T('등록 실패','Failed'),esc(j.message||j.error||'')+(det?' — '+esc(det):''),false);
+      check();
+    }
+  };
+}
+
 R.dailyio=(m)=>{
   const rt=(REAL&&REAL.tables&&REAL.tables[m.u])||{cols:[],rows:[]};
   const [thu,wed]=pickupWeek();
@@ -1816,6 +2469,9 @@ R.roomstat=()=>{
   //   - 선택월 이전 종료분 제외, 가시범위 밖 미래 제외. 월 클릭 시 갱신.
   const cFrom=`${roomCenter.y}-${pad(roomCenter.m)}-01`;
   const cHorizon=dateLabels[dateLabels.length-1];
+  // 방 이동 오버레이(신전산 app.room_assignments / app.room_moves) — 침대별 IN/OUT
+  const MOVE_IN=(REAL&&REAL.roomstat&&REAL.roomstat.moveIn)||{};
+  const MOVE_OUT=(REAL&&REAL.roomstat&&REAL.roomstat.moveOut)||{};
   const dateIdx={};dateLabels.forEach((d,i)=>{dateIdx[d]=i;}); // 날짜문자열 → 컬럼인덱스
   const bedName=(segs)=>{
     const ss=(segs||[]).filter(s=>s.nm).slice().sort((a,b)=>a.s.localeCompare(b.s));
@@ -1840,7 +2496,8 @@ R.roomstat=()=>{
   let groups;
   if(REAL&&REAL.roomstat&&REAL.roomstat.groups){
     groups=REAL.roomstat.groups.map(g=>({name:g.name,rooms:g.rooms.map(r=>({no:r.no,per:r.per,gender:r.gender,
-      beds:(r.beds&&r.beds.length?r.beds:[{name:'',segs:[]}]).map(b=>{const oi=occStore.push(bedOcc(b.segs))-1;return {rid:(b.rid!=null?b.rid:''),name:(b.segs&&b.segs.length?bedName(b.segs):(b.name||'')),occ:oi,pat:realPat(b.segs)};})}))}));
+      beds:(r.beds&&r.beds.length?r.beds:[{name:'',segs:[]}]).map(b=>{const oi=occStore.push(bedOcc(b.segs))-1;return {rid:(b.rid!=null?b.rid:''),name:(b.segs&&b.segs.length?bedName(b.segs):(b.name||'')),occ:oi,pat:realPat(b.segs),
+        fut:(MOVE_IN[b.rid]||[]),out:(MOVE_OUT[b.rid]||[])};})}))}));
   }else{
   // 레거시 방구분(room_category g_display='Y') 30그룹 = CAPITAL(bldg_type E) 24 + ENCANTO(bldg_type S) 6.
   // room_list 실 구성(416방/1016베드)을 'g_name|성별(M/F/C)|센터(E=CAPITAL,S=ENCANTO)|방번호*침대수[/정원],…' 로 압축.
@@ -1907,7 +2564,7 @@ R.roomstat=()=>{
   // 하루당 <td> 를 만들지 않아 대량 조회(전체 방)에서 렌더 비용이 10배 이상 줄어든다.
   const BARCLS={in:'bin',out:'bout',rsv:'brsv',hold:'bhold',outin:'boutin'};
   const md=d=>(d||'').slice(5).replace('-','/');   // 2026-07-05 → 07/05
-  const dcells=(p,occ,blks)=>{
+  const dcells=(p,occ,blks,fut,mout)=>{
     let out='',i=0;
     while(i<p.length){
       if(p[i]==='e'){i++;continue;}
@@ -1930,6 +2587,23 @@ R.roomstat=()=>{
       const lb=blkReasonLb(b.reason);
       out+=`<span class="dblk r-${esc(b.reason)}" data-blkid="${b.id}" style="left:${a*CELLW}px;width:${(z-a+1)*CELLW}px" `
          +`title="${esc(T('차단','BLOCKED'))} ${esc(b.from_date)}~${esc(b.to_date)} · ${esc(lb)}${b.memo?' · '+esc(b.memo):''} · ${esc(b.created_by)}${T(' — 클릭하면 해제',' — click to release')}">🔒 ${esc(lb)}</span>`;});
+    // 미래 배정(→IN) — 이 침대로 들어올 학생. 확정/재실/미확정을 테두리 색과 라벨로 구분한다.
+    (fut||[]).forEach(a=>{
+      let x=DIDX[a.s], y=DIDX[a.e];
+      if(x==null&&y==null){if(a.s>dateLabels[TOTAL-1]||a.e<dateLabels[0])return;x=0;y=TOTAL-1;}
+      if(x==null)x=0; if(y==null)y=TOTAL-1;
+      if(y<x)return;
+      const lb=a.st==='ACTIVE'?'↔MOVE':'→IN';
+      const stl=a.ty==='HOTEL'?' HOTEL':'';
+      out+=`<span class="dfut st-${esc(a.st)}" style="left:${x*CELLW}px;width:${(y-x+1)*CELLW}px" `
+         +`title="${esc(lb)} ${esc(a.nm||'')} · ${esc(a.s)}~${esc(a.e)} · ${esc(a.st)}${a.at?' · '+esc(String(a.at).slice(0,16).replace('T',' ')):''}">`
+         +`${lb}${stl} ${esc(korDisp(a.nm||''))}</span>`;});
+    // 예정 이동(→OUT) — 이 침대에서 나갈 학생. 예정일 하루칸에 표식만 찍는다.
+    (mout||[]).forEach(m=>{
+      const d=String(m.at||'').slice(0,10); const x=DIDX[d];
+      if(x==null)return;
+      out+=`<span class="dmv" style="left:${x*CELLW}px;width:${CELLW}px" `
+         +`title="→OUT ${esc(m.nm||'')} · ${esc(String(m.at).slice(0,16).replace('T',' '))} · ${esc(m.st)}${m.ap?' · '+T('승인 대기','awaiting approval'):''}">${m.ap?'!':'↗'}</span>`;});
     return `<td class="dlane" colspan="${TOTAL}"><span class="dlanein" style="width:${TOTAL*CELLW}px">${out}</span></td>`;
   };
   const colg=`<colgroup>${CW.map(w=>`<col style="width:${w}px">`).join('')}${Array(TOTAL).fill(`<col style="width:${CELLW}px">`).join('')}</colgroup>`;
@@ -1958,7 +2632,7 @@ R.roomstat=()=>{
           : '';
         body+=`<tr data-bed="${bi+1}" data-ridx="${bed.rid||''}">${lead}`
             +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?'<div class="rs-nmwrap">'+bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(korDisp(nm.trim()))}</span>`).join('<span class="rs-sep"> - </span>')+'</div>':''}</td>`
-            +dcells(bed.pat,(occStore||[])[bed.occ],blkPeriods(bxk,bi+1))+`</tr>`;
+            +dcells(bed.pat,(occStore||[])[bed.occ],blkPeriods(bxk,bi+1),bed.fut,bed.out)+`</tr>`;
       });
       body+=`</tbody>`;
     });
@@ -1983,6 +2657,7 @@ R.roomstat=()=>{
         </span>
       </span>
       <button class="btn" id="rsBlockMode" title="${T('드래그로 방 막기/해제 (좌클릭 드래그)','Drag to block/unblock rooms (left-drag)')}">🔒 ${T('방막기(드래그)','Block (drag)')}</button>
+      <button class="btn" id="rsMoveNew" title="${T('방 이동 등록 — 현재 방은 그대로 두고 미래 배정만 만듭니다','Register a room move — keeps the current room, creates a future assignment')}">↔ ${T('이동 등록','New move')}</button>
       <button class="btn" data-excel="1">📊 1MONTH EXCEL(TOTAL)</button>
       <button class="btn" data-excel="2">📊 2MONTH EXCEL(TOTAL)</button>
       <button class="btn">⚠ ROOM ERROR CHECK</button>
@@ -2011,32 +2686,193 @@ R.roomstat=()=>{
     <span><i style="background:var(--good)">X</i> ${T('방변경 (ROOM-CHANGE)','ROOM-CHANGE')}</span>
     <span><i style="background:var(--surface-2);color:var(--faint);border:1px solid var(--border)">X</i> ${T('재실 (STAY)','STAY')}</span>
     <span><i style="background:var(--surface);border:1px solid var(--border)"></i> ${T('빈방 (VACANT)','VACANT')}</span>
+    <span><i style="background:transparent;box-shadow:inset 0 0 0 2px var(--good)"></i> →IN ${T('이동/입실 예정','incoming')}</span>
+    <span><i style="background:transparent;box-shadow:inset 0 0 0 2px #ca8a04"></i> →IN ${T('미확정','unconfirmed')}</span>
+    <span><i style="background:var(--return);color:#fff">↗</i> →OUT ${T('이 방에서 나갈 예정','leaving')}</span>
   </div>
   <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}" data-cellw="${CELLW}"><table class="gantt${dlab.on?' rs-dlab':''}" style="width:${INFOW+TOTAL*CELLW}px;--dlabop:${dlab.op/100};${CW.map((w,i)=>`--w${i}:${w}px`).join(';')}" data-gridw="${TOTAL*CELLW}">${colg}${head}${body}</table><div class="rs-botpad" aria-hidden="true"></div></div>`
   :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>${T('센터 · 성별 · 그룹을 선택하세요','Select Center · Gender · Group')}</b><div class="rs-ph-sub">${T('상단에서 <b>센터</b>(ENCANTO·CAPITAL) · <b>성별</b> · <b>그룹</b> <b>3가지를 모두 선택</b>하면 배치도가 표시됩니다.<br>그룹은 <b>Select group</b>에서 특정 그룹 또는 <b>전체 그룹(SELECT ALL)</b> 선택 · 방구분(인실)은 선택적 추가필터 · 초기엔 전체를 불러오지 않아 빠릅니다 · 연월/검색 병행.','Select all <b>3</b> — <b>Center</b>(ENCANTO·CAPITAL) · <b>Gender</b> · <b>Group</b> — to show the batch calendar.<br>Group: pick a specific one or <b>All groups (SELECT ALL)</b> · Room type is an optional filter · nothing loaded initially for speed · year-month & search supported.')}</div></div>`}
   <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}${T('레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달 1일이 좌측 고정열 바로 옆으로</b> 정렬 · 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b>.','Legacy <span class="mono">room_stat3.php</span> room×date calendar — shows <b>±6 months</b> around selected month, click a month to align its <b>1st day next to the frozen columns</b> · horizontal scroll · <b>frozen header</b> · <b>cell click → check-in/out·assign·move</b>.')} ${REAL&&REAL.roomstat?T(`<b>실 MySQL 예약데이터</b>${rsRange}`,`<b>Real MySQL reservations</b>${rsRange}`):T('가상 샘플','sample data')}.</div>`;};
 
-R.changelog=()=>{let rows='';const mg=['kenneth','katie','anna','joon','doris'];
-  if(REAL&&REAL.changelog&&REAL.changelog.length){rows=REAL.changelog.map(c=>
-    `<tr><td>—</td><td class="mono">#${c.sidx||''}</td><td>${c.name||''}</td><td class="mono">${c.apply||'—'}</td>
-    <td class="mono">${c.period||'—'}</td><td class="mono">${c.oldr||c.oldc||'—'}</td>
-    <td class="mono">${c.newr||c.newc||'—'}</td><td>${c.mgr||'—'}</td></tr>`).join('');}
-  else for(let i=0;i<12;i++){rows+=`<tr><td>${rnd(AG)}</td><td class="mono">#${20000+seed}</td><td>${fakeName()}</td>
-  <td class="mono">2026-07-1${seed%9} 0${seed%9}:${10+seed%49}</td><td class="mono">${4+seed%8}wk</td>
-  <td class="mono">C10${seed%9}:4bed</td><td class="mono">C20${seed%9}:2bed</td><td>${rnd(mg)}</td></tr>`;seed++;}
-  return `
-  <div class="ph"><h1>BACK-UP LOG (방변경 audit)</h1><span class="sub">room_change_log.php</span><span class="url">552,177건 · 감사로그</span></div>
-  <div class="filters">
-    <div class="field"><label>매니저</label><select><option>ALL</option><option>kenneth</option><option>katie</option></select></div>
-    <div class="field"><label>학생 ID#</label><input placeholder="#20000"></div>
-    <div class="field grow"><label>이름</label><input></div>
-    <div class="field"><label>기간</label><input type="date"></div>
-    <div class="field"><label>&nbsp;</label><button class="btn primary">검색</button></div>
-  </div>
-  <div class="note" style="margin-bottom:12px">대용량 audit — (student_id, changed_at) 인덱스 + 월 파티셔닝 + 서버 페이징 전제. 필터 없이 전체조회 차단.</div>
-  <div class="twrap"><table class="grid">
-    <thead><tr><th>AGENCY</th><th>ID#</th><th>STUDENT</th><th>CHANGE TIME</th><th>STUDY</th><th>PRE-DORM</th><th>CHANGE-DORM</th><th>MANAGER</th></tr></thead>
-    <tbody>${rows}</tbody></table></div>`;};
+/* ===== R.changelog — T12 BACK-UP LOG(통합 감사로그) ============================
+   레거시 legacy.room_change_log(552,118) + 신전산 app.write_audit / app.admin_activity_log
+   를 한 화면에서 본다. 검색·페이징은 전부 서버(/api/data)에서 처리한다 —
+   클라이언트는 552K 행을 절대 받지 않는다(구현 전 300건 고정 → 폐지).
+   권한: parts.changelog = "internal" → Lv8+ 만 서버가 응답한다(읽기 전용).
+============================================================================== */
+// 화면 상태 — liveSync 가 cl* 쿼리파라미터로 읽어간다(elecState 와 같은 관례).
+var clState = { from:'', to:'', q:'', sid:'', room:'', actor:'', type:'', campus:'', page:1, size:100 };
+
+// esc() 는 & < > 만 바꾼다(따옴표 통과) → 속성값에 그대로 넣으면 속성 탈출 XSS.
+// esc 자체를 고치면 8,347줄 전역 회귀 위험이 있으므로 속성 전용 로컬 헬퍼를 둔다.
+// ⚠ 이 화면의 **모든 속성값**은 esc 가 아니라 escA 를 쓴다.
+var escA = function (s) { return esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); };
+
+R.changelog = function (m) {
+  var D = (REAL && REAL.changelog) || null;
+  // 구 응답(배열)로도 죽지 않게 — 배포 순서가 어긋나도 화면은 뜬다.
+  if (D && Array.isArray(D)) D = { rows: D, page:1, size:D.length, total:D.length, capped:false, pages:1, managers:[], campuses:[], kinds:[] };
+  var rows = (D && D.rows) || [], mgrs = (D && D.managers) || [], f = (D && D.filters) || clState;
+
+  var head = '<div class="ph"><h1>' + T('BACK-UP LOG (통합 감사로그)','BACK-UP LOG (audit trail)') + '</h1>'
+    + '<span class="sub">' + T('레거시 방변경이력 + 신전산 쓰기/접속 로그','Legacy room-change log + new-system write/auth log') + '</span>'
+    + '<span class="url">' + esc((m && m.u) || 'room_change_log.php') + '</span>'
+    + '<span class="actions" style="margin-left:auto"><button class="btn" data-tblexcel="BACKUP_LOG">📊 EXCEL</button></span></div>';
+
+  if (!D) return head + '<div class="card pad" style="color:var(--dim)">🗂 '
+    + T('감사로그를 불러오지 못했습니다. 관리자(Lv8+) 세션으로 로그인한 뒤 다시 조회하세요.',
+        'Audit log unavailable. Sign in as staff (Lv8+) and search again.') + '</div>';
+
+  // ── 필터 바 (전부 id 부여 · R.changelog__init 에서 배선) ──────────────────
+  var opt = function (v, label, cur) {
+    return '<option value="' + escA(v) + '"' + (String(cur||'') === String(v) ? ' selected' : '') + '>' + esc(label) + '</option>';
+  };
+  var mgrOpts = opt('', T('전체','ALL'), f.actor)
+    + mgrs.map(function (g) { return opt(g.id, (g.disp || g.id) + ' (' + Number(g.n).toLocaleString() + ')', f.actor); }).join('');
+  var typeOpts = opt('', T('전체','ALL'), f.type)
+    + (D.kinds || []).map(function (k) { return opt(k, k, f.type); }).join('');
+  var campOpts = opt('', T('전체','ALL'), f.campus)
+    + (D.campuses || []).map(function (k) { return opt(k, k === '(NONE)' ? T('미분류','UNLABELED') : k, f.campus); }).join('');
+
+  var filters = '<div class="filters">'
+    + '<div class="field"><label>' + T('기간 시작','FROM') + '</label><input type="date" id="clFrom" value="' + escA(f.from||'') + '"></div>'
+    + '<div class="field"><label>' + T('기간 끝','TO') + '</label><input type="date" id="clTo" value="' + escA(f.to||'') + '"></div>'
+    + '<div class="field grow"><label>' + T('학생명','STUDENT') + '</label><input id="clQ" value="' + escA(f.q||'') + '" placeholder="' + escA(T('한글/영문 부분일치','ko/en partial')) + '"></div>'
+    + '<div class="field"><label>' + T('학생 ID#','STUDENT ID') + '</label><input id="clSid" value="' + escA(f.sid||'') + '" placeholder="99214"></div>'
+    + '<div class="field"><label>' + T('객실번호','ROOM') + '</label><input id="clRoom" value="' + escA(f.room||'') + '" placeholder="432"></div>'
+    + '<div class="field"><label>' + T('작업자','ACTOR') + '</label><select id="clActor">' + mgrOpts + '</select></div>'
+    + '<div class="field"><label>' + T('작업유형','TYPE') + '</label><select id="clType">' + typeOpts + '</select></div>'
+    + '<div class="field"><label>' + T('캠퍼스','CAMPUS') + '</label><select id="clCampus">' + campOpts + '</select></div>'
+    + '<div class="field"><label>&nbsp;</label><button class="btn primary" id="clGo">🔍 ' + T('검색','Search') + '</button></div>'
+    + '<div class="field"><label>&nbsp;</label><button class="btn" id="clReset">↺ ' + T('초기화','Reset') + '</button></div>'
+    + '</div>';
+
+  // ── 표 ────────────────────────────────────────────────────────────────────
+  var srcPill = function (s) {
+    var c = s === 'LEGACY' ? 'neutral' : (s === 'APP_WRITE' ? 'install' : 'good');
+    var t = s === 'LEGACY' ? T('레거시','LEGACY') : (s === 'APP_WRITE' ? T('신전산 저장','WRITE') : T('신전산 접속','ADMIN'));
+    return '<span class="pill ' + c + '">' + esc(t) + '</span>';
+  };
+  var body = rows.length ? rows.map(function (c) {
+    return '<tr><td>' + srcPill(c.src) + '</td>'
+      + '<td class="mono">' + esc(c.at_txt || '—') + '</td>'
+      + '<td>' + esc(c.agency || '—') + '</td>'
+      + '<td class="mono">' + (c.sid ? '#' + esc(c.sid) : '—') + '</td>'
+      + '<td>' + esc(c.nm || '—') + '</td>'
+      + '<td class="mono">' + esc(c.kind || '—') + '</td>'
+      + '<td class="mono">' + esc(c.campus || '—') + '</td>'
+      + '<td class="mono" title="' + escA(c.oldinfo || '') + '">' + esc(c.oldrm || '—') + '</td>'
+      + '<td class="mono" title="' + escA(c.newinfo || '') + '">' + esc(c.newrm || '—') + '</td>'
+      + '<td>' + esc(c.detail || '') + '</td>'
+      + '<td>' + esc(c.actor || '—') + '</td></tr>';
+  }).join('') : '<tr><td colspan="11" style="text-align:center;color:var(--dim);padding:26px">'
+      + T('조건에 맞는 로그가 없습니다.','No log entries match the filter.') + '</td></tr>';
+
+  // ── 페이저(서버 페이징) ───────────────────────────────────────────────────
+  var page = D.page || 1, size = D.size || 100;
+  // API 가 capped 일 때 total 을 10000 으로 내려주므로 화면에는 "10,000+" 로 뜬다.
+  var totalTxt = Number(D.total || 0).toLocaleString() + (D.capped ? '+' : '');
+  var last = D.pages || 0;                     // capped 면 null → 총쪽수 미상
+  var hasNext = last ? page < last : rows.length >= size;
+  var pager = '<div class="pager">'
+    + '<button class="btn" id="clFirst"' + (page <= 1 ? ' disabled' : '') + '>«</button>'
+    + '<button class="btn" id="clPrev"' + (page <= 1 ? ' disabled' : '') + '>◀</button>'
+    + '<span class="pginfo"><b>' + page + '</b>' + (last ? ' / ' + last : '') + ' ' + T('쪽','page')
+    + ' · ' + T('총','total') + ' <b>' + totalTxt + '</b> ' + T('건','rows') + '</span>'
+    + '<button class="btn" id="clNext"' + (hasNext ? '' : ' disabled') + '>▶</button>'
+    + '<span>' + T('쪽당','per page') + '</span>'
+    + '<select id="clSize">' + [50,100,200,500].map(function (n) { return opt(n, n, size); }).join('') + '</select>'
+    + '<input id="clJump" value="' + escA(page) + '" title="' + escA(T('쪽 번호 입력 후 Enter','Type a page number, press Enter')) + '">'
+    + '</div>';
+
+  var note = '<div class="note" style="margin:10px 0">' + (rows.length ? REALBADGE + ' ' : '')
+    + T('검색·페이징은 <b>서버</b>에서 처리한다 — 552,118건 원본은 브라우저로 오지 않는다. '
+      + '학생명은 <span class="mono">student_info</span> 조인값이다(로그의 <span class="mono">k_name</span> 은 '
+      + '<span class="mono">uhak_id=\'room\'</span> 125,546행에서 방타입 문자열이라 신뢰불가). '
+      + '이름검색은 매치 학생 <b>500명</b>까지만 본다. 총건수는 <b>10,000건에서 근사</b>(10,000+)한다.',
+      'Search and paging run <b>server-side</b> — the 552,118-row source never reaches the browser. '
+      + 'Student names come from <span class="mono">student_info</span>. Name search covers up to <b>500</b> matched students; totals are capped at <b>10,000+</b>.')
+    + '</div>';
+
+  return head + filters + note
+    + '<div class="twrap"><table class="grid" data-tblname="BACKUP_LOG"><thead><tr>'
+    + '<th>SOURCE</th><th>' + T('시각','TIME') + '</th><th>AGENCY</th><th>ID#</th><th>STUDENT</th>'
+    + '<th>TYPE</th><th>CAMPUS</th><th>PRE-DORM</th><th>CHANGE-DORM</th><th>' + T('상세','DETAIL') + '</th><th>ACTOR</th>'
+    + '</tr></thead><tbody>' + body + '</tbody></table></div>' + pager;
+};
+
+// renderMain 의 R[curKey+'__init'] 훅이 자동 호출한다(추가 배선 불필요).
+R.changelog__init = function (m) {
+  var root = document.getElementById('main'); if (!root) return;
+  var g = function (id) { return root.querySelector('#' + id); };
+  var v = function (id) { var e = g(id); return e ? String(e.value || '').trim() : ''; };
+
+  // 서버 페이징이므로 필터/쪽 변경은 반드시 재조회. TTL(60s)에 걸려 캐시가 돌아오면
+  // 필터가 바뀌었는데 옛 결과가 남으므로 force:true 로 조각을 강제 재조회한다.
+  var reload = function () {
+    if (typeof liveSync !== 'function') return;
+    var btn = g('clGo'); if (btn) btn.disabled = true;
+    var done = function () {
+      if (typeof renderMain === 'function') renderMain();
+      if (typeof i18nApply === 'function') i18nApply(document.body);
+    };
+    liveSync({ parts: ['changelog'], force: true }).then(function () {
+      // 서버가 형식불량으로 버린 필터값(예: 2026-13-40)이 clState 에 남아 다음 요청에
+      // 다시 실려가지 않도록, 서버가 확정한 filters 로 화면상태를 되맞춘다.
+      var DD = (REAL && REAL.changelog) || null;
+      if (DD && DD.filters && !Array.isArray(DD)) {
+        var ff = DD.filters;
+        clState.from = ff.from || ''; clState.to = ff.to || ''; clState.q = ff.q || '';
+        clState.sid = ff.sid ? String(ff.sid) : ''; clState.room = ff.room || '';
+        clState.actor = ff.actor || ''; clState.type = ff.type || ''; clState.campus = ff.campus || '';
+        clState.page = ff.page || 1; clState.size = ff.size || clState.size || 100;
+      }
+      done();
+    }).catch(function () {
+      // 네트워크/권한 오류로 reject 되면 .then 이 안 돌아 검색버튼이 영구 비활성이 된다.
+      var b = g('clGo'); if (b) b.disabled = false;
+      done();
+    });
+  };
+  var search = function () {
+    clState.from = v('clFrom'); clState.to = v('clTo'); clState.q = v('clQ');
+    clState.sid = v('clSid').replace(/[^0-9]/g, ''); clState.room = v('clRoom');
+    clState.actor = v('clActor'); clState.type = v('clType'); clState.campus = v('clCampus');
+    clState.size = parseInt(v('clSize'), 10) || 100;
+    clState.page = 1;                       // 조건이 바뀌면 항상 1쪽부터
+    if (clState.from && clState.to && clState.from > clState.to) {
+      toast(T('기간 오류','Invalid period'), T('시작일이 종료일보다 늦습니다.','From-date is after To-date.'), false);
+      return;
+    }
+    reload();
+  };
+  var go = function (p) {
+    var D = (REAL && REAL.changelog) || {};
+    var last = D.pages || 0;
+    p = Math.max(1, last ? Math.min(p, last) : p);
+    if (p === (D.page || 1)) return;
+    clState.page = p; reload();
+  };
+
+  if (g('clGo')) g('clGo').onclick = search;
+  if (g('clReset')) g('clReset').onclick = function () {
+    clState = { from:'', to:'', q:'', sid:'', room:'', actor:'', type:'', campus:'', page:1, size:clState.size || 100 };
+    reload();
+  };
+  ['clQ','clSid','clRoom'].forEach(function (id) {
+    var e = g(id); if (e) e.onkeydown = function (ev) { if (ev.key === 'Enter') search(); };
+  });
+  ['clFrom','clTo','clActor','clType','clCampus'].forEach(function (id) {
+    var e = g(id); if (e) e.onchange = search;
+  });
+  if (g('clSize')) g('clSize').onchange = search;
+  if (g('clFirst')) g('clFirst').onclick = function () { go(1); };
+  if (g('clPrev')) g('clPrev').onclick = function () { go((((REAL && REAL.changelog) || {}).page || 1) - 1); };
+  if (g('clNext')) g('clNext').onclick = function () { go((((REAL && REAL.changelog) || {}).page || 1) + 1); };
+  if (g('clJump')) g('clJump').onkeydown = function (ev) {
+    if (ev.key === 'Enter') go(parseInt(ev.target.value, 10) || 1);
+  };
+};
 
 R.admission=()=>{
   const caps=['1인실','2인실','3인실','4인실'];
@@ -5896,6 +6732,7 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
       // 행 클릭 팝업 없음 — 오른쪽 ACTION 버튼(수정·변경·연장·상담·약식)으로만 진행, 이름은 선택·복사 가능
     });
     paintStd();
+    bindPend(m);          // 하단 미처리 경고 패널(접이식) 바인딩
   }
   // 일반 메뉴 실데이터 페이지네이션(#specBody) + EXCEL
   const sb=m.querySelector('#specBody');
@@ -5961,6 +6798,10 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
       bmBtn.addEventListener('click',()=>{window._blkMode=!window._blkMode;bmBtn.classList.toggle('on',window._blkMode);tw.classList.toggle('blkmode',window._blkMode);
         toast(window._blkMode?T('방막기 ON','Block mode ON'):T('방막기 OFF','Block mode OFF'),
           window._blkMode?T('좌측 방번호칸 세로드래그 = 방 전체 · 날짜칸 가로드래그 = 그 기간만','Left columns vertical-drag = whole room · date area horizontal-drag = that period only'):'',true);});}
+    // 배치도에서 바로 이동 등록 — 등록 후 배치도를 다시 불러 →IN 배지가 즉시 보이게 한다.
+    const mvBtn=m.querySelector('#rsMoveNew');
+    if(mvBtn)mvBtn.addEventListener('click',()=>mvOpenForm(null,async()=>{
+      await liveSync({parts:['roomstat'],force:true});renderMain();}));
     const CW=+tw.dataset.cellw||19;
     const DATES=window._rsDates||[];
     let dg=false,dgAdd=true,dgKeys=null;                     // ① 방 전체(세로)
@@ -6735,6 +7576,8 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
         ${_rpath.length?`<div class="rp-path">${_rpath.map((x,i)=>`<span class="rp-node"${i===_rpath.length-1?' data-cur="1"':''}><b>${esc(x.cat)} ${esc(x.room)}</b><small>${esc((''+(x.s||'')).slice(0,10))} ~ ${esc((''+(x.e||'')).slice(0,10))}</small></span>`).join('<span class="rp-arrow">→</span>')}</div>
           <table class="rp-info"><tr><th>#</th><th>ROOM</th><th>PERIOD</th></tr>${_rpath.map((x,i)=>`<tr><td class="mono">${i+1}</td><td class="mono">${esc(x.cat)} ${esc(x.room)}</td><td class="mono">${esc((''+(x.s||'')).slice(0,10))} ~ ${esc((''+(x.e||'')).slice(0,10))}</td></tr>`).join('')}</table>`
           :`<div class="note" style="margin:2px 0">${T('이동 이력 없음 (단일 배정)','No move history (single assignment)')}</div>`}
+        ${sid?`<div class="rp-t" style="margin-top:14px">※ ROOM MOVES ${T('(신전산 이동 관리 · 등록/확정/완료 이력)','(new system · registered / confirmed / completed)')}</div>
+        <div id="rpMoves" class="note" style="margin:2px 0">${T('불러오는 중…','Loading…')}</div>`:''}
       </div>
       ${infoOnly?'':`<div class="rp-right">
         <div class="rp-head">
@@ -6763,6 +7606,21 @@ function openRoomReplace(srcCell,room,name,date,infoOnly){
   document.body.appendChild(ov);
   ov.querySelector('#rpClose').onclick=()=>ov.remove();
   ov.onclick=(e)=>{if(e.target===ov)ov.remove();};
+  // 신전산 이동 이력(§15) — 취소분 포함 전량을 시간순으로. 레거시 경로(위)와 별개로 표시한다.
+  if(sid&&typeof mvGet==='function')(async()=>{
+    const box=ov.querySelector('#rpMoves');if(!box)return;
+    const j=await mvGet('op=history&s_idx='+encodeURIComponent(sid));
+    if(!j||!j.ok){box.innerHTML=T('이동 이력을 불러오지 못했습니다.','Could not load move history.');return;}
+    const rows=j.history||[];
+    if(!rows.length){box.innerHTML=T('신전산에 등록된 이동이 없습니다.','No moves registered in the new system.');return;}
+    box.outerHTML=`<table class="rp-info" id="rpMoves"><tr><th>#</th><th>PLANNED</th><th>FROM → TO</th><th>STATUS</th><th>BY</th></tr>`
+      +rows.map(m=>`<tr><td class="mono">${m.id}</td>
+        <td class="mono">${esc(mvDT(m.planned_move_at))}${m.actual_move_at?'<br><small>→ '+esc(mvDT(m.actual_move_at))+'</small>':''}</td>
+        <td class="mono">${esc(m.from_label||T('신규','New'))} → ${esc(m.to_label||'')}</td>
+        <td><span class="chip" style="color:${mvStColor(m.move_status)};border-color:${mvStColor(m.move_status)}">${mvStLabel(m.move_status)}</span>
+          ${(m.exception_flags||[]).length?`<br><small title="${esc(m.exception_reason||'')}">${m.exception_approved_at?'✔ '+T('예외 승인','approved'):'⚠ '+T('승인 대기','awaiting')}</small>`:''}</td>
+        <td class="mono">${esc(m.completed_by||m.created_by||'')}</td></tr>`).join('')+`</table>`;
+  })();
   // 빠른작업(입실/퇴실/예약/방배정/홀딩/빈방) — 셀 기준 프리플라이트+확인
   ov.querySelectorAll('.rp-qa').forEach(b=>b.onclick=()=>{
     const w=b.dataset.w, cls=b.dataset.cls;
