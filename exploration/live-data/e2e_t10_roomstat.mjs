@@ -43,15 +43,26 @@ page.on("console", (m) => { if (m.type() === "error") errs.push("console: " + m.
 const PASS = []; const FAIL = [];
 const chk = (name, ok, detail) => { (ok ? PASS : FAIL).push(name + (detail ? ` — ${detail}` : "")); console.log((ok ? "PASS " : "FAIL ") + name + (detail ? ` — ${detail}` : "")); };
 
-await page.goto("http://localhost:4337/#기숙사현황", { waitUntil: "networkidle" });
-await page.waitForTimeout(1500);
+const tag = async () => (await page.textContent("#liveTag").catch(() => "")) || "";
+const waitTag = async (re, ms = 180000) => {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) { if (re.test(await tag())) return true; await page.waitForTimeout(300); }
+  return false;
+};
+await page.goto("http://localhost:4337/", { waitUntil: "networkidle" });
+await waitTag(/Live/);
+await page.click(`nav#cats .catwrap:has-text("Dormitory") button.cat`);
+await page.click(`nav#cats .dropdown.open a:has-text("Dormitory Status (Batch)")`);
+await waitTag(/Live/, 180000);
+await page.waitForTimeout(2000);
 // 배치도 조회 게이트: 센터 + 성별 + 방구분 3선택
 await page.selectOption("#rsCenter", "CAPITAL").catch(() => {});
-await page.waitForTimeout(300);
-await page.selectOption("#rsGender", "MALE").catch(() => {});
 await page.waitForTimeout(400);
+await page.selectOption("#rsGender", "MALE").catch(() => {});
+await page.waitForTimeout(600);
 await page.selectOption("#rsGroup", "ALL").catch(() => {});
-await page.waitForTimeout(2500);
+await page.waitForSelector(".twrap[data-mstart]", { timeout: 60000 }).catch(() => {});
+await page.waitForTimeout(2000);
 
 // 1) 초기 스크롤 = mstart
 const s1 = await page.evaluate(() => {
@@ -94,22 +105,20 @@ chk("T10-5 과거 6개월 좌측 스크롤 여지 유지", s4.left > 0, `scrollL
 chk("T10-6 미래 방향 스크롤 여지 유지", s4.maxScroll > s4.left, `max=${s4.maxScroll} cur=${s4.left}`);
 
 // 5) 월 이동 후에도 규칙 유지
-const before = await page.evaluate(() => document.querySelector(".month-jump select") ? document.querySelector(".month-jump select").value : null);
-const moved = await page.evaluate(async () => {
-  const sel = document.querySelector(".month-jump select");
-  if (!sel) return null;
-  const opts = [...sel.options].map((o) => o.value);
-  const idx = opts.indexOf(sel.value);
-  const next = opts[Math.max(0, idx - 1)] || opts[0];
-  sel.value = next; sel.dispatchEvent(new Event("change", { bubbles: true }));
-  return next;
-});
+const before = await page.inputValue("#rsMonth").catch(() => null);
+const s5ms0 = await page.evaluate(() => +document.querySelector(".twrap[data-mstart]").dataset.mstart);
+await page.fill("#rsMonth", "2026-02");
+await page.dispatchEvent("#rsMonth", "change");
+await waitTag(/Live/, 180000);
+await page.waitForSelector(".twrap[data-mstart]", { timeout: 60000 }).catch(() => {});
 await page.waitForTimeout(2500);
+const moved = await page.inputValue("#rsMonth").catch(() => null);
 const s5 = await page.evaluate(() => {
   const tw = document.querySelector(".twrap[data-mstart]");
   return tw ? { ms: +tw.dataset.mstart, sl: Math.round(tw.scrollLeft) } : null;
 });
-chk("T10-7 월 이동 후에도 선택월 1일 정렬", !!s5 && Math.abs(s5.sl - s5.ms) <= 1, s5 ? `${before}→${moved} scrollLeft=${s5.sl} mstart=${s5.ms}` : "월 셀렉트 없음");
+chk("T10-7 월 이동(2026-02) 실제 발생", moved === "2026-02" && !!s5 && s5.ms !== s5ms0, `${before}→${moved} mstart ${s5ms0}→${s5 && s5.ms}`);
+chk("T10-7b 월 이동 후에도 선택월 1일 정렬", !!s5 && Math.abs(s5.sl - s5.ms) <= 1, s5 ? `scrollLeft=${s5.sl} mstart=${s5.ms}` : "twrap 없음");
 
 // 6) 회귀: 방셀 클릭 → 모달, 룰러 버튼 존재
 const s6 = await page.evaluate(() => {
