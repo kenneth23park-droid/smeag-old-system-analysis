@@ -256,7 +256,9 @@ async function loadRoomstat(q, month) {
       g.rooms.push(room);
     }
     const segsForBed = (segByBed.get(b.r_idx) || []).sort((x, y) => x.s.localeCompare(y.s));
-    room.beds.push({ name: "", segs: segsForBed });
+    // rid: legacy room_list.r_idx — 침대 고유키(방배정·방변경에서 셀→예약행 역추적용).
+    //      SQL 별칭 ri(=room_info) 및 화면의 방 인덱스 ri 와는 무관하다.
+    room.beds.push({ rid: b.r_idx, name: "", segs: segsForBed });
   }
   return { from, to, month, groups };
 }
@@ -1345,7 +1347,9 @@ export default async function handler(req, res) {
     }
 
     const stamp = await loadStamp(q, allowed);
-    const version = stampVersion(stamp) + ":" + allowed.join(".") + (allowed.includes("roomstat") ? ":" + month : "")
+    // ":s2" = 응답 스키마 리비전. 필드가 바뀌면 올린다 — 스탬프는 데이터 변경만 반영하므로,
+    //         배포 시점에 이미 열려 있던 탭이 메모리 ETag 로 304 를 받아 옛 스키마를 계속 쓰는 것을 막는다.
+    const version = stampVersion(stamp) + ":s2" + ":" + allowed.join(".") + (allowed.includes("roomstat") ? ":" + month : "")
       + (allowed.includes("pickup") ? ":" + from + "_" + to : "")
       + (allowed.includes("elec") ? ":" + elecFrom + "_" + elecTo + "_" + elecRoom : "")
       + ":L" + (level >= STAFF_LEVEL ? "staff" : "ext") + (scope.agency ? ":" + scope.agency : "");

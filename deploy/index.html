@@ -1840,7 +1840,7 @@ R.roomstat=()=>{
   let groups;
   if(REAL&&REAL.roomstat&&REAL.roomstat.groups){
     groups=REAL.roomstat.groups.map(g=>({name:g.name,rooms:g.rooms.map(r=>({no:r.no,per:r.per,gender:r.gender,
-      beds:(r.beds&&r.beds.length?r.beds:[{name:'',segs:[]}]).map(b=>{const oi=occStore.push(bedOcc(b.segs))-1;return {name:(b.segs&&b.segs.length?bedName(b.segs):(b.name||'')),occ:oi,pat:realPat(b.segs)};})}))}));
+      beds:(r.beds&&r.beds.length?r.beds:[{name:'',segs:[]}]).map(b=>{const oi=occStore.push(bedOcc(b.segs))-1;return {rid:(b.rid!=null?b.rid:''),name:(b.segs&&b.segs.length?bedName(b.segs):(b.name||'')),occ:oi,pat:realPat(b.segs)};})}))}));
   }else{
   // 레거시 방구분(room_category g_display='Y') 30그룹 = CAPITAL(bldg_type E) 24 + ENCANTO(bldg_type S) 6.
   // room_list 실 구성(416방/1016베드)을 'g_name|성별(M/F/C)|센터(E=CAPITAL,S=ENCANTO)|방번호*침대수[/정원],…' 로 압축.
@@ -1956,7 +1956,7 @@ R.roomstat=()=>{
             +`<td class="info rno c1 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" data-name="${esc(bed.name||'')}" title="클릭 → ROOM REPLACEMENT">${rblk?'<span class="rs-lock">🔒</span>':''}${r.no}</td>`
             +`<td class="info c2 rs-room" rowspan="${rs}" style="vertical-align:top" data-room="${esc(r.no)}" title="클릭 → ROOM REPLACEMENT"><span class="per ${r.gender}">${r.per}</span></td>`
           : '';
-        body+=`<tr data-bed="${bi+1}">${lead}`
+        body+=`<tr data-bed="${bi+1}" data-ridx="${bed.rid||''}">${lead}`
             +`<td class="info name c3${bed.name?' rs-name':''}" data-name="${esc(bed.name||'')}" data-occ="${bed.occ!=null?bed.occ:-1}" data-cur="${esc(bed.name||'')}">${bed.name?'<div class="rs-nmwrap">'+bed.name.split(' / ').map(nm=>`<span class="rs-nameseg" data-name="${esc(nm.trim())}" title="${esc(nm.trim())} — 클릭 → 학생정보">${esc(korDisp(nm.trim()))}</span>`).join('<span class="rs-sep"> - </span>')+'</div>':''}</td>`
             +dcells(bed.pat,(occStore||[])[bed.occ],blkPeriods(bxk,bi+1))+`</tr>`;
       });
@@ -2003,7 +2003,7 @@ R.roomstat=()=>{
       <input id="rsMonth" class="rs-ctrl" type="month" value="${roomCenter.y}-${pad(roomCenter.m)}" min="2020-01" max="2032-12" title="${T('연/월 이동(캘린더) — 아무 년/월이나 선택','Year/month picker')}" style="cursor:pointer">
       <span class="rs-search"><input id="rsSearch" class="rs-ctrl" type="search" placeholder="${T('🔍 방번호 · 회원 검색','🔍 Room · member search')}" value="${esc(roomFilter.q||'')}" autocomplete="off" style="min-width:210px"><span id="rsSearchCnt" class="rs-cnt"></span></span>
     </div>
-    <div class="month-jump" title="${T('선택월이 중앙으로 정렬됩니다 (±6개월)','Selected month centered (±6 months)')}">${sel}</div>
+    <div class="month-jump" title="${T('선택월 1일이 고정열 옆으로 정렬됩니다 (±6개월 조회)','Selected month starts next to the frozen columns (±6 months in view)')}">${sel}</div>
   </div>
   ${rsReady?`<div class="state-legend" style="margin-bottom:12px">
     <span><i style="background:var(--female)">X</i> ${T('입실 (CHECK-IN)','CHECK-IN')}</span>
@@ -2014,7 +2014,7 @@ R.roomstat=()=>{
   </div>
   <div class="twrap dorm-scroll" data-mstart="${centerStart}" data-mwidth="${centerWidth}" data-infow="${INFOW}" data-cellw="${CELLW}"><table class="gantt${dlab.on?' rs-dlab':''}" style="width:${INFOW+TOTAL*CELLW}px;--dlabop:${dlab.op/100};${CW.map((w,i)=>`--w${i}:${w}px`).join(';')}" data-gridw="${TOTAL*CELLW}">${colg}${head}${body}</table><div class="rs-botpad" aria-hidden="true"></div></div>`
   :`<div class="rs-placeholder"><div class="rs-ph-ico">🏠</div><b>${T('센터 · 성별 · 그룹을 선택하세요','Select Center · Gender · Group')}</b><div class="rs-ph-sub">${T('상단에서 <b>센터</b>(ENCANTO·CAPITAL) · <b>성별</b> · <b>그룹</b> <b>3가지를 모두 선택</b>하면 배치도가 표시됩니다.<br>그룹은 <b>Select group</b>에서 특정 그룹 또는 <b>전체 그룹(SELECT ALL)</b> 선택 · 방구분(인실)은 선택적 추가필터 · 초기엔 전체를 불러오지 않아 빠릅니다 · 연월/검색 병행.','Select all <b>3</b> — <b>Center</b>(ENCANTO·CAPITAL) · <b>Gender</b> · <b>Group</b> — to show the batch calendar.<br>Group: pick a specific one or <b>All groups (SELECT ALL)</b> · Room type is an optional filter · nothing loaded initially for speed · year-month & search supported.')}</div></div>`}
-  <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}${T('레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달이 중앙으로</b> 정렬 · 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b>.','Legacy <span class="mono">room_stat3.php</span> room×date calendar — shows <b>±6 months</b> around selected month, click a month to <b>center</b> it · horizontal scroll · <b>frozen header</b> · <b>cell click → check-in/out·assign·move</b>.')} ${REAL&&REAL.roomstat?T(`<b>실 MySQL 예약데이터</b>${rsRange}`,`<b>Real MySQL reservations</b>${rsRange}`):T('가상 샘플','sample data')}.</div>`;};
+  <div class="note" style="margin-top:12px">${REAL&&REAL.roomstat?REALBADGE+' ':''}${T('레거시 <span class="mono">room_stat3.php</span> 방×일자 배치 캘린더 — <b>선택월 ±6개월(13개월)</b> 표시, 월 클릭 시 <b>그 달 1일이 좌측 고정열 바로 옆으로</b> 정렬 · 좌우 스크롤 · <b>틀 고정</b> · <b>셀 클릭→입/퇴실·방배정·방변경</b>.','Legacy <span class="mono">room_stat3.php</span> room×date calendar — shows <b>±6 months</b> around selected month, click a month to align its <b>1st day next to the frozen columns</b> · horizontal scroll · <b>frozen header</b> · <b>cell click → check-in/out·assign·move</b>.')} ${REAL&&REAL.roomstat?T(`<b>실 MySQL 예약데이터</b>${rsRange}`,`<b>Real MySQL reservations</b>${rsRange}`):T('가상 샘플','sample data')}.</div>`;};
 
 R.changelog=()=>{let rows='';const mg=['kenneth','katie','anna','joon','doris'];
   if(REAL&&REAL.changelog&&REAL.changelog.length){rows=REAL.changelog.map(c=>
@@ -5943,8 +5943,11 @@ function renderMain(){const m=document.getElementById('main');seed=(curKey.lengt
     rss.addEventListener('input',runFilter);
     if(roomFilter.q)runFilter();} // 재렌더 후 검색어 복원
   const tw=m.querySelector('.twrap[data-mstart]');
-  if(tw){const ms=+tw.dataset.mstart,mw=+tw.dataset.mwidth,iw=+tw.dataset.infow;
-    tw.scrollLeft=Math.max(0,ms-((tw.clientWidth-iw-mw)/2)); // 선택월을 가시영역 중앙으로
+  if(tw){const ms=+tw.dataset.mstart;
+    // 선택월 1일을 좌측 고정열(sticky c0~c3) 바로 오른쪽에 정렬한다.
+    // 고정열은 scrollLeft 와 무관하게 뷰포트 0..INFOW 를 덮으므로 INFOW 보정은 넣지 않는다(넣으면 그만큼 과스크롤).
+    // 창(선택월 ±6개월)은 그대로라 과거 6개월은 왼쪽으로 스크롤해 계속 조회할 수 있다.
+    tw.scrollLeft=Math.max(0,ms);
     // 가로 스크롤 시 이름칸을 좌측 가시일 기준으로 실시간 갱신(rAF 스로틀)
     let _raf=0;const onSc=()=>{if(_raf)return;_raf=requestAnimationFrame(()=>{_raf=0;rsUpdateNames(tw);rsPinGrpLabels(tw);});};
     tw.addEventListener('scroll',onSc,{passive:true});

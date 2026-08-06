@@ -34,7 +34,7 @@
 
 1. **읽기(조회) 계층은 거의 완성**, **쓰기(마스터 관리) 계층이 통째로 비어 있다.** 캠퍼스·코스·객실·가격을 관리자 화면에서 만들거나 고칠 수 있는 기능이 하나도 없다(§10·§13·§14·§23 = 전부 미구현).
 2. **통계 3종(MC Report 2 · POPULATION · STDNT STATUS)은 요구된 축이 아니다.** 요구는 *코스 × 날짜(15일)* 인데 현재는 *캠퍼스 × 주차구간* 매트릭스다 → 화면을 새로 만들어야 한다([index.html:1481-1489](deploy/index.html#L1481-L1489)).
-3. **캠퍼스가 코드 59곳에 문자열로 박혀 있고, 화면마다 코드 매핑이 서로 다르다.** `CO_CAMPUS`는 `C=CAPITAL·E=CLASSIC`, ELEC 화면은 `C=CLASSIC·E=CAPITAL` — 같은 글자가 다른 캠퍼스를 가리킨다([index.html:4784](deploy/index.html#L4784) vs [index.html:5173](deploy/index.html#L5173)).
+3. **캠퍼스가 코드 57곳에 문자열로 박혀 있고, 코드 체계가 원천마다 다르다.** DB 실측 결과 `bldg_type`(room_category·room_info·room_list 공통)은 **C=CLASSIC · E=CAPITAL · S=ENCANTO · F=SPARTA · P=SPARTA PREMIUM** 이며 ELEC 화면([5173](deploy/index.html#L5173))이 옳다. 반면 `CO_CAMPUS`([4784](deploy/index.html#L4784))의 `C=CAPITAL·E=CLASSIC` 은 **근거 없는 매핑**이다 — `course_info.s_campus` 는 아예 다른 코드공간이고 `C` 는 캠퍼스가 아니다(§2-§14 상세).
 4. **전기·수도는 "레거시 값 재집계"까지만 됐다.** 단가 마스터·학생별 분담·수도세·직원 단가가 전부 없다([api/data.js:1090](deploy/api/data.js#L1090)).
 5. **인보이스 중복발행 방지는 4중으로 이미 되어 있다**(요구 §9-2 충족). 다만 **가격 스냅샷(§9-3)** 은 금액만 저장하고 단가 근거를 남기지 않는다([write_layer.sql:514](migration/schema/write_layer.sql#L514)).
 
@@ -170,7 +170,21 @@
   - 배치도 방구분 압축표 `LEGACY_CATS`(30그룹 전체가 문자열) [index.html:1847](deploy/index.html#L1847)
   - 등록폼 캠퍼스 셀렉트 [index.html:2615](deploy/index.html#L2615) · 상세폼 CAMPUS CHOICE [index.html:6954](deploy/index.html#L6954)
   - Admission Date 캠퍼스 행 [index.html:2050](deploy/index.html#L2050)
-- ⚠ **같은 글자가 화면마다 다른 캠퍼스**: `C`/`E` 가 §코스 화면과 §전기 화면에서 서로 반대다. 원인은 원본이 테이블마다 다른 코드체계를 쓰기 때문(`course_info.s_campus` vs `room_elec/room_category.bldg_type` vs `student_info` 문자열) → **campus_id 단일화 없이는 통계가 절대 일치하지 않는다.**
+- ⚠ **코드 체계가 원천마다 다르다 (2026-08-06 DB 실측으로 확정)**
+
+  | 원천 | 코드값 | 실제 의미 | 근거 |
+  |---|---|---|---|
+  | `room_category`·`room_info`·`room_list`.`bldg_type` | C / E / S / F / P | CLASSIC / **CAPITAL** / ENCANTO / SPARTA / SPARTA PREMIUM | g_name 그룹 분포(42/30/17/7/10) + 배방학생 `r_campus` 일치율 94.6·97.0·90.2·81.2% |
+  | `course_info.s_campus` | C 56 · S 10 · A 5 · E 0 | **C 는 캠퍼스가 아님**(공통/기본값) · S=ENCANTO · A=ALL | C 코스 수강생이 CAPITAL 40,318·SPARTA 20,917·CLASSIC 19,451·PREMIUM 2,218 로 전 캠퍼스 분산 |
+  | `student_info.s_campus` | 코드 아님, **문자열** | CAPITAL 40,547 · SPARTA 27,414 · CLASSIC 19,469 · SPARTA PREMIUM 2,218 | distinct 집계 |
+
+  → ELEC 화면([5173](deploy/index.html#L5173))과 배치도 주석([1845](deploy/index.html#L1845))은 **옳다**. 틀린 것은 `CO_CAMPUS`([4784](deploy/index.html#L4784))의 `C:'CAPITAL', E:'CLASSIC'` 하나다(근거 없음). 다만 세 코드공간이 서로 다르므로 **마스터를 하나의 코드표로 만들면 오히려 오류가 번진다** — `campus_code_map(원천테이블, 원천컬럼, 코드값 → campus_id)` 처럼 원천별 매핑이어야 한다.
+
+- ⚠⚠ **실사용 버그(신규 발견)**: `student_info.s_campus` 에 **ENCANTO 가 0건**이다(실값은 SPARTA 27,414 + SPARTA PREMIUM 2,218 = 32.7%).
+  - 학생 목록 CAMPUS 필터의 `ENCANTO` 옵션([1588](deploy/index.html#L1588))은 **항상 0건**이고, SPARTA 학생 29,632명은 어떤 옵션으로도 걸러지지 않는다.
+  - 학생 상세폼 CAMPUS CHOICE([6954](deploy/index.html#L6954))는 선택지가 `CAPITAL/ENCANTO/CLASSIC` 뿐이라 **SPARTA 학생을 저장하면 캠퍼스가 조용히 바뀐다.**
+  - 커미션 빌딩 정액([5509](deploy/index.html#L5509))도 SPARTA 를 모르고 `ETC→0` 으로 처리한다.
+  - → REQ-107(캠퍼스 마스터)의 우선순위를 올려야 하는 실질적 이유다.
 
 ### §15 기숙사 이동 관리
 
@@ -239,8 +253,9 @@
 
 | # | 대상 | 위치 | 교체 방향 |
 |---|---|---|---|
-| H1 | 캠퍼스명 문자열 59곳 | `deploy/index.html` 전역(§14 목록 참조) | `app.campus_master(campus_id, code_map, name, name_en, order, capacity, active)` + 화면은 ID 참조 |
-| H2 | 캠퍼스 코드 매핑 2종 충돌 | [index.html:4784](deploy/index.html#L4784) / [index.html:5173](deploy/index.html#L5173) | 코드→campus_id 매핑표를 DB 단일화, 화면 상수 제거 |
+| H1 | 캠퍼스명 문자열 **57곳**(index.html 56 + data.js 1) — 실측 분류: 치환대상 57 / 주석·데모 12 / 레거시 의도 11 / CSS토큰 13 | `deploy/index.html` 전역(§14 목록 참조) | `app.campus_master(campus_id, name, name_en, order, capacity, active)` + 화면은 ID 참조 |
+| H2 | `CO_CAMPUS` 오매핑 1곳(근거 없음) | [index.html:4784](deploy/index.html#L4784) | 원천별 `campus_code_map` 으로 대체. ELEC(5173)은 정상이므로 **건드리지 말 것** |
+| H2b | **SPARTA 캠퍼스 미인지**(학생 32.7%) | [1588](deploy/index.html#L1588) · [2615](deploy/index.html#L2615) · [5509](deploy/index.html#L5509) · [6954](deploy/index.html#L6954) | 마스터에 SPARTA·SPARTA PREMIUM 추가 후 셀렉트를 마스터 기반으로 |
 | H3 | 방구분 30그룹 압축표 `LEGACY_CATS` | [index.html:1847](deploy/index.html#L1847) | `legacy.room_category` 라이브(이미 API 존재) 전용으로, 목데이터 폴백 삭제 |
 | H4 | 통계 국적 10종 | [index.html:1472](deploy/index.html#L1472) · [index.html:6908](deploy/index.html#L6908) | `app.nation_master`(라벨오류 `sa=러시아` 교정 포함) |
 | H5 | 통계 캠퍼스 배열 | [index.html:1473](deploy/index.html#L1473) · [1483](deploy/index.html#L1483) · [3960](deploy/index.html#L3960) | H1 참조 |
