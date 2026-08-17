@@ -38,3 +38,6 @@ migration/reports/
 # 연결테스트(실 anon 키 포함) — 커밋 금지
 legacy-bridge/conn_test.php
 deploy/node_modules/
+
+# exploration HTML 덤프(실학생 PII 포함) — 로컬 전용
+exploration/*.html
