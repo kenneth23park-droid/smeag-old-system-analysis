@@ -1283,9 +1283,7 @@ async function liveSync(o){
     if(ctl)timer=setTimeout(()=>ctl.abort(),28000);
     const headers={};if(!o.force&&LIVE.etags[key])headers['If-None-Match']=LIVE.etags[key];
     const r=await fetch('/api/data?'+key,{credentials:'same-origin',cache:'no-store',headers,signal:ctl?ctl.signal:undefined});
-    if(r.status===401){LIVE.off=true;liveTag('auth');
-      toast(T('DB 조회 불가','Live data unavailable'),T('서버 세션이 없습니다. /login 으로 다시 로그인하면 실데이터가 표시됩니다.','No server session. Re-login at /login to see live data.'),false);
-      authExpiredBox();   // 표가 실데이터가 아님을 1회 모달로 분명히 알림
+    if(r.status===401){LIVE.off=true;liveTag('auth');   // 로그인 게이트 제거 — 모달/토스트 없이 샘플 표시
       return 'fail';}
     if(r.status===304){need.forEach(p=>{LIVE.at[p]=Date.now();});LIVE.ts=Date.now();LIVE.err='';liveTag('ok');return 'fresh';}
     if(!r.ok)throw new Error('HTTP '+r.status);
@@ -8487,7 +8485,7 @@ function liveMonthRefresh(){liveSync({parts:['roomstat'],quiet:true}).then(st=>{
   #adminAuthLogout{background:#334155;color:#e2e8f0;}
 </style>
 
-<div id="adminAuthOverlay">
+<div id="adminAuthOverlay" class="adminAuth-hidden">
   <div class="aa-page">
     <!-- 상단 브랜드 헤더 -->
     <div class="aa-top">
@@ -8822,7 +8820,7 @@ function liveMonthRefresh(){liveSync({parts:['roomstat'],quiet:true}).then(st=>{
     authApi({ action:"logout" })["catch"](function(){});   // 서버 쿠키 파기
     clearSession();
     elUser.value = ""; elPass.value = "";
-    showLogin();
+    bar.classList.remove("adminAuth-show");   // 로그인 게이트 제거 — 로그아웃 후에도 오버레이 없음
   });
 
   // ── 초기화: 서버 세션(httpOnly 쿠키) 확인 → 있으면 진입, 없으면 로그인 게이트 ──
@@ -8831,8 +8829,10 @@ function liveMonthRefresh(){liveSync({parts:['roomstat'],quiet:true}).then(st=>{
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(s){
         if(s && s.mb_id){ enter({ username:s.mb_id, name:s.mb_name, level:s.mb_level }); }
-        else { showLogin(); }
-      })["catch"](function(){ showLogin(); });
+        else { openNoLogin(); }
+      })["catch"](function(){ openNoLogin(); });
+    // 로그인 게이트 제거(2026-11-10): 세션이 없어도 오버레이 없이 바로 진입
+    function openNoLogin(){ overlay.classList.add("adminAuth-hidden"); applyBranch(); }
   })();
 
 })();

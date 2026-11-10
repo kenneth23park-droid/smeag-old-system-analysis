@@ -1,15 +1,22 @@
 {
   "outputDirectory": ".",
   "cleanUrls": true,
-  "rewrites": [
-    { "source": "/login", "destination": "/api/auth" }
-  ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
       ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/login",
+      "destination": "/",
+      "permanent": false
     }
   ]
 }

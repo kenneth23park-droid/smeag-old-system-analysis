@@ -738,3 +738,10 @@
   · **단계**: R0 생년월일 확보(즉시 착수 가능) → R1 접수화면+판정(D-1 회신 필요) → R2 금액(요율표 D-2/D-4 필요) → R3 리포트/xlsx → R4 졸업식. **R1 은 금액 없이도 무료/유료·연장가능 판정만으로 가치가 있어 요율 확정을 기다리지 않는다.**
   · 코드·DB 변경 0건(문서 1개만). 배포 없음.
   · **푸시·배포(2026-08-18)**: 기획서 + `migration/scripts/legacy_delta_backup.sh` 커밋 `441e478` → `origin/main` 푸시. `exploration/*.html` 덤프는 **실학생 PII(성명·생년월일·성별) 포함**이라 커밋하지 않고 `.gitignore` 에 추가(로컬 전용). 라이브(`smeag-bay`) 프로덕션 재배포 후 검증 — `/login` 200(`SMEAG 관리자 로그인`), `/` 302. 화면 코드 변경은 없으므로 **내용 동일 재배포**.
+
+- **2026-11-10** **로그인 랜딩페이지 제거 (사용자 지시, 2번안 = 로그인 완전 제거·학생 데이터 공개 감수 확인)**:
+  · **발단**: `/login` 이 "서버 오류가 발생했습니다" — 원인은 DB. pg pooler 접속 시 `tenant/user postgres.bauhnnpioaephlwurxzg not found` → Supabase 프로젝트 일시정지/삭제 추정(현재 연결된 Supabase 계정 목록에도 없음). 아무 아이디로도 500.
+  · **변경**: ①`deploy/middleware.js` 삭제(서버측 세션 게이트) ②`vercel.json` `/login` rewrite(→/api/auth) 제거, `/login`→`/` 307 리다이렉트 ③`index.html` 클라이언트 로그인 오버레이 기본 숨김 + 세션 없을 때 `openNoLogin()` 로 바로 진입, 로그아웃 후 오버레이 재표시 제거, `/api/data` 401 시 "세션 만료/다시 로그인" 모달·토스트 제거(조용히 샘플 표시).
+  · **영향**: 임베드된 실학생 데이터(실명·기숙사 배정)가 URL 아는 누구에게나 공개됨. `/api/*` 는 각자 세션 검사가 남아 있어 쓰기·라이브 조회는 계속 401(DB 자체도 다운). `/api/auth` 함수는 남겨둠.
+  · **배포·검증**: `vercel deploy --prod` → `vercel alias set … smeag-bay.vercel.app`. 라이브 `/` 200, `/login` 307→`/`, 헤드리스 Chrome 에서 로그인 오버레이·authBox 미표시, 대시보드 바로 표시 확인.
+  · **되돌리기**: `git checkout -- deploy/middleware.js deploy/vercel.json deploy/index.html` 후 재배포 + alias set.
